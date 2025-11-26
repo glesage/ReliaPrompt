@@ -143,7 +143,7 @@ async function runTests(
       for (let runNumber = 1; runNumber <= RUNS_PER_TEST; runNumber++) {
         try {
           const actualOutput = await client.complete(prompt.content, testCase.input);
-          const comparison = compareJSON(testCase.expected_output, actualOutput);
+          const comparison = compareJSON(testCase.expectedOutput, actualOutput);
           
           const isCorrect = comparison.isEqual;
           if (isCorrect) {
@@ -193,13 +193,13 @@ async function runTests(
         completedTests++;
         progress.completedTests = completedTests;
         progress.progress = Math.round((completedTests / progress.totalTests) * 100);
-        updateTestJob(jobId, { completed_tests: completedTests });
+        updateTestJob(jobId, { completedTests: completedTests });
       }
 
       return {
         testCaseId: testCase.id,
         input: testCase.input,
-        expectedOutput: testCase.expected_output,
+        expectedOutput: testCase.expectedOutput,
         runs,
         correctRuns
       } as TestCaseResult;
@@ -265,7 +265,7 @@ export async function runTestsForPromptContent(
       for (let runNumber = 1; runNumber <= RUNS_PER_TEST; runNumber++) {
         try {
           const actualOutput = await client.complete(promptContent, testCase.input);
-          const comparison = compareJSON(testCase.expected_output, actualOutput);
+          const comparison = compareJSON(testCase.expectedOutput, actualOutput);
           
           const isCorrect = comparison.isEqual;
           if (isCorrect) {
@@ -294,7 +294,7 @@ export async function runTestsForPromptContent(
       return {
         testCaseId: testCase.id,
         input: testCase.input,
-        expectedOutput: testCase.expected_output,
+        expectedOutput: testCase.expectedOutput,
         runs,
         correctRuns
       } as TestCaseResult;

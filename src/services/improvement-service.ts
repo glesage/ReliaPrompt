@@ -114,8 +114,8 @@ async function runImprovement(
   
   log(`Original prompt score: ${originalScore}%`);
   updateImprovementJob(jobId, { 
-    best_score: originalScore,
-    best_prompt_content: prompt.content 
+    bestScore: originalScore,
+    bestPromptContent: prompt.content 
   });
 
   if (originalScore === 100) {
@@ -131,7 +131,7 @@ async function runImprovement(
 
   for (let iteration = 1; iteration <= maxIterations; iteration++) {
     progress.currentIteration = iteration;
-    updateImprovementJob(jobId, { current_iteration: iteration });
+    updateImprovementJob(jobId, { currentIteration: iteration });
     log(`\n--- Iteration ${iteration}/${maxIterations} ---`);
 
     // Get test result summary for improvement
@@ -200,8 +200,8 @@ async function runImprovement(
       progress.bestScore = currentBestScore;
       progress.bestPromptContent = currentBestPrompt;
       updateImprovementJob(jobId, {
-        best_score: currentBestScore,
-        best_prompt_content: currentBestPrompt
+        bestScore: currentBestScore,
+        bestPromptContent: currentBestPrompt
       });
 
       if (currentBestScore === 100) {
@@ -226,7 +226,7 @@ async function runImprovement(
     const newPrompt = createPrompt(prompt.name, currentBestPrompt, prompt.id);
     log(`New version saved with id: ${newPrompt.id}, version: ${newPrompt.version}`);
     
-    updateImprovementJob(jobId, { best_prompt_version_id: newPrompt.id });
+    updateImprovementJob(jobId, { bestPromptVersionId: newPrompt.id });
   } else {
     log(`\nNo improvement achieved. Original score: ${originalScore}%, Best attempt: ${currentBestScore}%`);
   }
