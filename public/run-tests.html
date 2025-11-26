@@ -4,157 +4,13 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Run Tests - LLM Prompt Testing Tool</title>
+        <link rel="stylesheet" href="/styles.css" />
         <style>
-            * {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                background: #f5f5f5;
-                min-height: 100vh;
-                padding: 20px;
-            }
-            .container {
-                max-width: 1200px;
-                margin: 0 auto;
-            }
-            h1 {
-                color: #333;
-                margin-bottom: 10px;
-            }
-            .subtitle {
-                color: #666;
-                margin-bottom: 30px;
-            }
-            nav {
-                display: flex;
-                gap: 10px;
-                margin-bottom: 30px;
-                flex-wrap: wrap;
-            }
-            nav a {
-                display: inline-block;
-                padding: 12px 24px;
-                background: #fff;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                text-decoration: none;
-                color: #333;
-                transition: all 0.2s;
-            }
-            nav a:hover,
-            nav a.active {
-                background: #007bff;
-                color: #fff;
-                border-color: #007bff;
-            }
-            .card {
-                background: #fff;
-                border-radius: 8px;
-                padding: 20px;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                margin-bottom: 20px;
-            }
-            .card h2 {
-                margin-bottom: 15px;
-                color: #333;
-            }
-            .form-group {
-                margin-bottom: 20px;
-            }
-            .form-group label {
-                display: block;
-                margin-bottom: 8px;
-                font-weight: 500;
-                color: #333;
-            }
-            .form-group select {
-                width: 100%;
-                padding: 10px 12px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                font-size: 14px;
-            }
-            .form-group select:focus {
-                outline: none;
-                border-color: #007bff;
-            }
-            button {
-                padding: 12px 24px;
-                background: #007bff;
-                color: #fff;
-                border: none;
-                border-radius: 6px;
-                font-size: 14px;
-                cursor: pointer;
-                transition: background 0.2s;
-            }
-            button:hover {
-                background: #0056b3;
-            }
-            button:disabled {
-                background: #ccc;
-                cursor: not-allowed;
-            }
-            .message {
-                padding: 12px;
-                border-radius: 6px;
-                margin-bottom: 20px;
-            }
-            .message.success {
-                background: #d4edda;
-                color: #155724;
-            }
-            .message.error {
-                background: #f8d7da;
-                color: #721c24;
-            }
-            .message.info {
-                background: #cce5ff;
-                color: #004085;
-            }
-            .progress-section {
-                margin-top: 20px;
-            }
-            .progress-bar-container {
-                background: #e9ecef;
-                border-radius: 8px;
-                overflow: hidden;
-                margin-bottom: 10px;
-            }
-            .progress-bar {
-                height: 30px;
-                background: linear-gradient(90deg, #007bff, #0056b3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #fff;
-                font-weight: 500;
-                transition: width 0.3s;
-            }
-            .progress-label {
-                margin-bottom: 5px;
-                font-weight: 500;
-                color: #333;
-            }
-            .results-section {
-                margin-top: 30px;
-            }
-            .score-card {
-                display: inline-block;
-                padding: 15px 25px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: #fff;
-                border-radius: 8px;
-                margin-right: 15px;
-                margin-bottom: 15px;
-            }
             .score-card h3 {
                 font-size: 14px;
                 opacity: 0.9;
                 margin-bottom: 5px;
+                color: #fff;
             }
             .score-card .score {
                 font-size: 36px;
@@ -179,18 +35,18 @@
                 align-items: center;
                 gap: 10px;
             }
-            .llm-result-card .score-badge {
+            .score-badge {
                 padding: 4px 12px;
                 background: #d4edda;
                 color: #155724;
                 border-radius: 20px;
                 font-size: 14px;
             }
-            .llm-result-card .score-badge.low {
+            .score-badge.low {
                 background: #f8d7da;
                 color: #721c24;
             }
-            .llm-result-card .score-badge.medium {
+            .score-badge.medium {
                 background: #fff3cd;
                 color: #856404;
             }
@@ -206,24 +62,14 @@
                 justify-content: space-between;
                 margin-bottom: 5px;
             }
-            .test-case-detail .correct-count {
+            .correct-count {
                 font-weight: 500;
             }
-            .test-case-detail .correct-count.success {
+            .correct-count.success {
                 color: #155724;
             }
-            .test-case-detail .correct-count.failure {
+            .correct-count.failure {
                 color: #721c24;
-            }
-            .json-preview {
-                padding: 8px;
-                background: #f8f9fa;
-                border-radius: 4px;
-                font-family: monospace;
-                font-size: 11px;
-                white-space: pre-wrap;
-                max-height: 100px;
-                overflow: auto;
             }
             .details-toggle {
                 padding: 8px 16px;
@@ -260,7 +106,7 @@
                 <div id="test-case-count" style="color: #666; margin-bottom: 15px"></div>
                 <button id="run-btn" disabled>Run Tests</button>
 
-                <div id="progress-section" class="progress-section" style="display: none">
+                <div id="progress-section" class="progress-section hidden">
                     <div class="progress-label">Overall Progress</div>
                     <div class="progress-bar-container">
                         <div id="progress-bar" class="progress-bar" style="width: 0%">0%</div>
@@ -269,7 +115,7 @@
                 </div>
             </div>
 
-            <div id="results-section" class="results-section" style="display: none">
+            <div id="results-section" class="hidden">
                 <div class="card">
                     <h2>Results</h2>
                     <div id="score-cards"></div>
@@ -286,7 +132,6 @@
                 try {
                     const res = await fetch("/api/prompts");
                     const prompts = await res.json();
-
                     const select = document.getElementById("prompt-select");
                     select.innerHTML =
                         '<option value="">-- Select a prompt --</option>' +
@@ -306,11 +151,9 @@
                     document.getElementById("run-btn").disabled = true;
                     return;
                 }
-
                 try {
                     const res = await fetch(`/api/prompts/${selectedPromptId}/test-cases`);
                     const testCases = await res.json();
-
                     const count = testCases.length;
                     document.getElementById("test-case-count").textContent =
                         count > 0
@@ -327,17 +170,14 @@
             function showMessage(text, type) {
                 const el = document.getElementById("message");
                 el.innerHTML = `<div class="message ${type}">${text}</div>`;
-                if (type !== "info") {
-                    setTimeout(() => (el.innerHTML = ""), 5000);
-                }
+                if (type !== "info") setTimeout(() => (el.innerHTML = ""), 5000);
             }
 
             async function runTests() {
                 if (!selectedPromptId) return;
-
                 document.getElementById("run-btn").disabled = true;
-                document.getElementById("progress-section").style.display = "block";
-                document.getElementById("results-section").style.display = "none";
+                document.getElementById("progress-section").classList.remove("hidden");
+                document.getElementById("results-section").classList.add("hidden");
                 showMessage("Starting test run...", "info");
 
                 try {
@@ -346,29 +186,25 @@
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ promptId: selectedPromptId }),
                     });
-
                     if (!res.ok) {
                         const error = await res.json();
                         throw new Error(error.error || "Failed to start test run");
                     }
-
                     const { jobId } = await res.json();
                     pollProgress(jobId);
                 } catch (error) {
                     showMessage(error.message, "error");
                     document.getElementById("run-btn").disabled = false;
-                    document.getElementById("progress-section").style.display = "none";
+                    document.getElementById("progress-section").classList.add("hidden");
                 }
             }
 
             function pollProgress(jobId) {
                 if (pollInterval) clearInterval(pollInterval);
-
                 pollInterval = setInterval(async () => {
                     try {
                         const res = await fetch(`/api/test/status/${jobId}`);
                         const status = await res.json();
-
                         updateProgress(status);
 
                         if (status.status === "completed") {
@@ -397,74 +233,42 @@
 
             function showResults(results) {
                 if (!results) return;
+                document.getElementById("results-section").classList.remove("hidden");
 
-                document.getElementById("results-section").style.display = "block";
+                document.getElementById("score-cards").innerHTML = `
+                    <div class="score-card overall"><h3>Overall Score</h3><div class="score">${results.overallScore}%</div></div>
+                    ${results.llmResults.map((llm) => `<div class="score-card"><h3>${llm.llmName}</h3><div class="score">${llm.score}%</div></div>`).join("")}
+                `;
 
-                // Score cards
-                const scoreCards = document.getElementById("score-cards");
-                scoreCards.innerHTML =
-                    `
-        <div class="score-card overall">
-          <h3>Overall Score</h3>
-          <div class="score">${results.overallScore}%</div>
-        </div>
-      ` +
-                    results.llmResults
-                        .map(
-                            (llm) => `
-        <div class="score-card">
-          <h3>${llm.llmName}</h3>
-          <div class="score">${llm.score}%</div>
-        </div>
-      `
-                        )
-                        .join("");
-
-                // Detailed results
-                const llmResults = document.getElementById("llm-results");
-                llmResults.innerHTML = results.llmResults
+                document.getElementById("llm-results").innerHTML = results.llmResults
                     .map((llm) => {
                         const badgeClass =
                             llm.score >= 80 ? "" : llm.score >= 50 ? "medium" : "low";
-
                         return `
-          <div class="llm-result-card">
-            <h4>
-              ${llm.llmName}
-              <span class="score-badge ${badgeClass}">${llm.correctCount}/${llm.totalRuns} correct (${llm.score}%)</span>
-            </h4>
-            <div id="details-${llm.llmName}" style="display: none;">
-              ${llm.testCaseResults
-                  .map((tc, i) => {
-                      const successRate = (tc.correctRuns / tc.runs.length) * 100;
-                      const statusClass = successRate >= 80 ? "success" : "failure";
-
-                      return `
-                  <div class="test-case-detail">
-                    <div class="header">
-                      <strong>Test Case #${i + 1}</strong>
-                      <span class="correct-count ${statusClass}">${tc.correctRuns}/${tc.runs.length} correct</span>
-                    </div>
-                    <div style="margin-bottom: 5px;"><strong>Input:</strong></div>
-                    <div class="json-preview">${escapeHtml(tc.input.substring(0, 200))}${tc.input.length > 200 ? "..." : ""}</div>
-                    <div style="margin-top: 10px; margin-bottom: 5px;"><strong>Expected:</strong></div>
-                    <div class="json-preview">${formatJSON(tc.expectedOutput)}</div>
-                    ${
-                        tc.runs.some((r) => !r.isCorrect)
-                            ? `
-                      <div style="margin-top: 10px; margin-bottom: 5px;"><strong>Sample Wrong Output:</strong></div>
-                      <div class="json-preview">${escapeHtml((tc.runs.find((r) => !r.isCorrect)?.actualOutput || "N/A").substring(0, 500))}</div>
-                    `
-                            : ""
-                    }
-                  </div>
-                `;
-                  })
-                  .join("")}
-            </div>
-            <button class="details-toggle" onclick="toggleDetails('${llm.llmName}')">Show Details</button>
-          </div>
-        `;
+                        <div class="llm-result-card">
+                            <h4>${llm.llmName} <span class="score-badge ${badgeClass}">${llm.correctCount}/${llm.totalRuns} correct (${llm.score}%)</span></h4>
+                            <div id="details-${llm.llmName}" class="hidden">
+                                ${llm.testCaseResults
+                                    .map((tc, i) => {
+                                        const successRate = (tc.correctRuns / tc.runs.length) * 100;
+                                        const statusClass =
+                                            successRate >= 80 ? "success" : "failure";
+                                        return `
+                                        <div class="test-case-detail">
+                                            <div class="header"><strong>Test Case #${i + 1}</strong><span class="correct-count ${statusClass}">${tc.correctRuns}/${tc.runs.length} correct</span></div>
+                                            <div style="margin-bottom: 5px;"><strong>Input:</strong></div>
+                                            <div class="json-preview">${escapeHtml(tc.input.substring(0, 200))}${tc.input.length > 200 ? "..." : ""}</div>
+                                            <div style="margin-top: 10px; margin-bottom: 5px;"><strong>Expected:</strong></div>
+                                            <div class="json-preview">${formatJSON(tc.expectedOutput)}</div>
+                                            ${tc.runs.some((r) => !r.isCorrect) ? `<div style="margin-top: 10px; margin-bottom: 5px;"><strong>Sample Wrong Output:</strong></div><div class="json-preview">${escapeHtml((tc.runs.find((r) => !r.isCorrect)?.actualOutput || "N/A").substring(0, 500))}</div>` : ""}
+                                        </div>
+                                    `;
+                                    })
+                                    .join("")}
+                            </div>
+                            <button class="details-toggle" onclick="toggleDetails('${llm.llmName}')">Show Details</button>
+                        </div>
+                    `;
                     })
                     .join("");
             }
@@ -472,13 +276,8 @@
             function toggleDetails(llmName) {
                 const el = document.getElementById("details-" + llmName);
                 const btn = el.parentElement.querySelector(".details-toggle");
-                if (el.style.display === "none") {
-                    el.style.display = "block";
-                    btn.textContent = "Hide Details";
-                } else {
-                    el.style.display = "none";
-                    btn.textContent = "Show Details";
-                }
+                el.classList.toggle("hidden");
+                btn.textContent = el.classList.contains("hidden") ? "Show Details" : "Hide Details";
             }
 
             function escapeHtml(text) {
@@ -486,7 +285,6 @@
                 div.textContent = text;
                 return div.innerHTML;
             }
-
             function formatJSON(json) {
                 try {
                     return escapeHtml(JSON.stringify(JSON.parse(json), null, 2));
@@ -498,12 +296,11 @@
             document.getElementById("prompt-select").addEventListener("change", (e) => {
                 selectedPromptId = e.target.value ? parseInt(e.target.value, 10) : null;
                 loadTestCaseCount();
-                document.getElementById("results-section").style.display = "none";
-                document.getElementById("progress-section").style.display = "none";
+                document.getElementById("results-section").classList.add("hidden");
+                document.getElementById("progress-section").classList.add("hidden");
             });
 
             document.getElementById("run-btn").addEventListener("click", runTests);
-
             loadPrompts();
         </script>
     </body>

@@ -4,113 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>LLM Prompt Testing Tool</title>
-        <style>
-            * {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                background: #f5f5f5;
-                min-height: 100vh;
-                padding: 20px;
-            }
-            .container {
-                max-width: 1200px;
-                margin: 0 auto;
-            }
-            h1 {
-                color: #333;
-                margin-bottom: 10px;
-            }
-            .subtitle {
-                color: #666;
-                margin-bottom: 30px;
-            }
-            nav {
-                display: flex;
-                gap: 10px;
-                margin-bottom: 30px;
-                flex-wrap: wrap;
-            }
-            nav a {
-                display: inline-block;
-                padding: 12px 24px;
-                background: #fff;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                text-decoration: none;
-                color: #333;
-                transition: all 0.2s;
-            }
-            nav a:hover {
-                background: #007bff;
-                color: #fff;
-                border-color: #007bff;
-            }
-            nav a.active {
-                background: #007bff;
-                color: #fff;
-                border-color: #007bff;
-            }
-            .card {
-                background: #fff;
-                border-radius: 8px;
-                padding: 20px;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                margin-bottom: 20px;
-            }
-            .card h2 {
-                margin-bottom: 15px;
-                color: #333;
-            }
-            .status-indicator {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                padding: 8px 16px;
-                background: #e8f5e9;
-                border-radius: 20px;
-                font-size: 14px;
-            }
-            .status-indicator.warning {
-                background: #fff3e0;
-            }
-            .status-dot {
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-                background: #4caf50;
-            }
-            .status-dot.warning {
-                background: #ff9800;
-            }
-            .quick-links {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                gap: 20px;
-                margin-top: 20px;
-            }
-            .quick-link {
-                padding: 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                border-radius: 8px;
-                color: #fff;
-                text-decoration: none;
-                transition: transform 0.2s;
-            }
-            .quick-link:hover {
-                transform: translateY(-2px);
-            }
-            .quick-link h3 {
-                margin-bottom: 8px;
-            }
-            .quick-link p {
-                opacity: 0.9;
-                font-size: 14px;
-            }
-        </style>
+        <link rel="stylesheet" href="/styles.css" />
     </head>
     <body>
         <div class="container">
@@ -165,26 +59,26 @@
 
                     if (data.count > 0) {
                         container.innerHTML = `
-            <span class="status-indicator">
-              <span class="status-dot"></span>
-              ${data.count} LLM provider(s) configured: ${data.providers.join(", ")}
-            </span>
-          `;
+                            <span class="status-indicator">
+                                <span class="status-dot"></span>
+                                ${data.count} LLM provider(s) configured: ${data.providers.join(", ")}
+                            </span>
+                        `;
                     } else {
                         container.innerHTML = `
-            <span class="status-indicator warning">
-              <span class="status-dot warning"></span>
-              No LLM providers configured. <a href="/config.html">Add API keys</a>
-            </span>
-          `;
+                            <span class="status-indicator warning">
+                                <span class="status-dot warning"></span>
+                                No LLM providers configured. <a href="/config.html">Add API keys</a>
+                            </span>
+                        `;
                     }
                 } catch (error) {
                     document.getElementById("status-container").innerHTML = `
-          <span class="status-indicator warning">
-            <span class="status-dot warning"></span>
-            Error loading status
-          </span>
-        `;
+                        <span class="status-indicator warning">
+                            <span class="status-dot warning"></span>
+                            Error loading status
+                        </span>
+                    `;
                 }
             }
             loadStatus();

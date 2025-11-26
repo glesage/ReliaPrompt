@@ -4,151 +4,15 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Configuration - LLM Prompt Testing Tool</title>
+        <link rel="stylesheet" href="/styles.css" />
         <style>
-            * {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                background: #f5f5f5;
-                min-height: 100vh;
-                padding: 20px;
-            }
-            .container {
-                max-width: 800px;
-                margin: 0 auto;
-            }
-            h1 {
-                color: #333;
-                margin-bottom: 10px;
-            }
-            .subtitle {
-                color: #666;
-                margin-bottom: 30px;
-            }
-            nav {
-                display: flex;
-                gap: 10px;
-                margin-bottom: 30px;
-                flex-wrap: wrap;
-            }
-            nav a {
-                display: inline-block;
-                padding: 12px 24px;
-                background: #fff;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                text-decoration: none;
-                color: #333;
-                transition: all 0.2s;
-            }
-            nav a:hover,
-            nav a.active {
-                background: #007bff;
-                color: #fff;
-                border-color: #007bff;
-            }
-            .card {
-                background: #fff;
-                border-radius: 8px;
-                padding: 20px;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                margin-bottom: 20px;
-            }
-            .card h2 {
-                margin-bottom: 15px;
-                color: #333;
-            }
-            .form-group {
-                margin-bottom: 20px;
-            }
-            .form-group label {
-                display: block;
-                margin-bottom: 8px;
-                font-weight: 500;
-                color: #333;
-            }
-            .form-group input {
-                width: 100%;
-                padding: 10px 12px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                font-size: 14px;
-            }
-            .form-group input:focus {
-                outline: none;
-                border-color: #007bff;
-            }
-            .form-group small {
-                display: block;
-                margin-top: 5px;
-                color: #666;
-                font-size: 12px;
-            }
-            button {
-                padding: 12px 24px;
-                background: #007bff;
-                color: #fff;
-                border: none;
-                border-radius: 6px;
-                font-size: 14px;
-                cursor: pointer;
-                transition: background 0.2s;
-            }
-            button:hover {
-                background: #0056b3;
-            }
-            button:disabled {
-                background: #ccc;
-                cursor: not-allowed;
-            }
-            .message {
-                padding: 12px;
-                border-radius: 6px;
-                margin-bottom: 20px;
-            }
-            .message.success {
-                background: #d4edda;
-                color: #155724;
-            }
-            .message.error {
-                background: #f8d7da;
-                color: #721c24;
-            }
-            .provider-section {
-                border-bottom: 1px solid #eee;
-                padding-bottom: 20px;
-                margin-bottom: 20px;
-            }
-            .provider-section:last-child {
-                border-bottom: none;
-                margin-bottom: 0;
-            }
-            .provider-section h3 {
-                margin-bottom: 15px;
-                color: #555;
-            }
             .status-badge {
-                display: inline-block;
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-size: 12px;
                 margin-left: 10px;
-            }
-            .status-badge.configured {
-                background: #d4edda;
-                color: #155724;
-            }
-            .status-badge.not-configured {
-                background: #f8d7da;
-                color: #721c24;
             }
         </style>
     </head>
     <body>
-        <div class="container">
+        <div class="container narrow">
             <h1>Configuration</h1>
             <p class="subtitle">Configure your LLM provider API keys</p>
 
@@ -262,7 +126,6 @@
                     const res = await fetch("/api/config");
                     const config = await res.json();
 
-                    // Update status badges
                     if (config.openai_api_key) {
                         document.getElementById("openai-status").className =
                             "status-badge configured";
@@ -278,8 +141,6 @@
                             "status-badge configured";
                         document.getElementById("deepseek-status").textContent = "Configured";
                     }
-
-                    // Set region if available
                     if (config.bedrock_region) {
                         document.getElementById("bedrock_region").value = config.bedrock_region;
                     }
@@ -296,11 +157,9 @@
 
             document.getElementById("config-form").addEventListener("submit", async (e) => {
                 e.preventDefault();
-
                 const formData = new FormData(e.target);
                 const data = {};
 
-                // Only include non-empty values
                 for (const [key, value] of formData.entries()) {
                     if (value.trim()) {
                         data[key] = value.trim();
@@ -317,7 +176,6 @@
                     if (res.ok) {
                         showMessage("Configuration saved successfully!", "success");
                         loadConfig();
-                        // Clear password fields
                         document
                             .querySelectorAll('input[type="password"]')
                             .forEach((el) => (el.value = ""));
