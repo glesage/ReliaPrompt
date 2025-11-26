@@ -16,12 +16,22 @@ let sqlDb: SqlJsDatabase | null = null;
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 // Save database to file
-export function saveDatabase(): void {
+function saveDatabase(): void {
 	if (sqlDb) {
 		const data = sqlDb.export();
 		const buffer = Buffer.from(data);
 		fs.writeFileSync(dbPath, buffer);
 	}
+}
+
+/**
+ * Wrapper that executes a database operation and auto-saves after mutations.
+ * Use this for any write operations (insert, update, delete).
+ */
+export function withSave<T>(operation: () => T): T {
+	const result = operation();
+	saveDatabase();
+	return result;
 }
 
 // Initialize database
@@ -40,15 +50,12 @@ export async function initializeDatabase(): Promise<void> {
 	db = drizzle(sqlDb, { schema });
 
 	// Create tables if they don't exist
-	sqlDb.run(`
-		CREATE TABLE IF NOT EXISTS config (
+	const tableDefinitions = [
+		`CREATE TABLE IF NOT EXISTS config (
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL
-		)
-	`);
-
-	sqlDb.run(`
-		CREATE TABLE IF NOT EXISTS prompts (
+		)`,
+		`CREATE TABLE IF NOT EXISTS prompts (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL,
 			content TEXT NOT NULL,
@@ -56,22 +63,16 @@ export async function initializeDatabase(): Promise<void> {
 			parent_version_id INTEGER,
 			created_at TEXT NOT NULL,
 			FOREIGN KEY (parent_version_id) REFERENCES prompts(id)
-		)
-	`);
-
-	sqlDb.run(`
-		CREATE TABLE IF NOT EXISTS test_cases (
+		)`,
+		`CREATE TABLE IF NOT EXISTS test_cases (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			prompt_id INTEGER NOT NULL,
 			input TEXT NOT NULL,
 			expected_output TEXT NOT NULL,
 			created_at TEXT NOT NULL,
 			FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE
-		)
-	`);
-
-	sqlDb.run(`
-		CREATE TABLE IF NOT EXISTS test_jobs (
+		)`,
+		`CREATE TABLE IF NOT EXISTS test_jobs (
 			id TEXT PRIMARY KEY,
 			prompt_id INTEGER NOT NULL,
 			status TEXT NOT NULL DEFAULT 'pending',
@@ -81,11 +82,8 @@ export async function initializeDatabase(): Promise<void> {
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL,
 			FOREIGN KEY (prompt_id) REFERENCES prompts(id)
-		)
-	`);
-
-	sqlDb.run(`
-		CREATE TABLE IF NOT EXISTS test_results (
+		)`,
+		`CREATE TABLE IF NOT EXISTS test_results (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			job_id TEXT NOT NULL,
 			test_case_id INTEGER NOT NULL,
@@ -97,11 +95,8 @@ export async function initializeDatabase(): Promise<void> {
 			created_at TEXT NOT NULL,
 			FOREIGN KEY (job_id) REFERENCES test_jobs(id) ON DELETE CASCADE,
 			FOREIGN KEY (test_case_id) REFERENCES test_cases(id) ON DELETE CASCADE
-		)
-	`);
-
-	sqlDb.run(`
-		CREATE TABLE IF NOT EXISTS improvement_jobs (
+		)`,
+		`CREATE TABLE IF NOT EXISTS improvement_jobs (
 			id TEXT PRIMARY KEY,
 			prompt_id INTEGER NOT NULL,
 			status TEXT NOT NULL DEFAULT 'pending',
@@ -115,8 +110,12 @@ export async function initializeDatabase(): Promise<void> {
 			updated_at TEXT NOT NULL,
 			FOREIGN KEY (prompt_id) REFERENCES prompts(id),
 			FOREIGN KEY (best_prompt_version_id) REFERENCES prompts(id)
-		)
-	`);
+		)`,
+	];
+
+	for (const sql of tableDefinitions) {
+		sqlDb.run(sql);
+	}
 
 	saveDatabase();
 }

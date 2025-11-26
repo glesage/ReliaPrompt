@@ -1,11 +1,5 @@
-import { eq, desc, and, inArray, max, sql } from "drizzle-orm";
-import {
-	getDb,
-	getSqlDb,
-	saveDatabase,
-	initializeDatabase as initDb,
-	schema,
-} from "./db";
+import { eq, desc, inArray } from "drizzle-orm";
+import { getDb, getSqlDb, withSave } from "./db";
 import {
 	config,
 	prompts,
@@ -20,10 +14,8 @@ import {
 	type ImprovementJob,
 } from "./db/schema";
 
-// Re-export initialization
+// Re-export initialization and types
 export { initializeDatabase } from "./db";
-
-// Re-export types for backwards compatibility
 export type { Prompt, TestCase, TestJob, TestResult, ImprovementJob };
 
 // ============== CONFIG OPERATIONS ==============
@@ -34,15 +26,16 @@ export function getConfig(key: string): string | null {
 }
 
 export function setConfig(key: string, value: string): void {
-	const db = getDb();
-	const existing = db.select().from(config).where(eq(config.key, key)).get();
+	withSave(() => {
+		const db = getDb();
+		const existing = db.select().from(config).where(eq(config.key, key)).get();
 
-	if (existing) {
-		db.update(config).set({ value }).where(eq(config.key, key)).run();
-	} else {
-		db.insert(config).values({ key, value }).run();
-	}
-	saveDatabase();
+		if (existing) {
+			db.update(config).set({ value }).where(eq(config.key, key)).run();
+		} else {
+			db.insert(config).values({ key, value }).run();
+		}
+	});
 }
 
 export function getAllConfig(): Record<string, string> {
@@ -60,36 +53,35 @@ export function createPrompt(
 	name: string,
 	content: string,
 	parentVersionId?: number
-): Prompt {
-	const db = getDb();
-	let version = 1;
+) {
+	return withSave(() => {
+		const db = getDb();
+		let version = 1;
 
-	if (parentVersionId) {
-		const parent = db
-			.select({ version: prompts.version })
-			.from(prompts)
-			.where(eq(prompts.id, parentVersionId))
-			.get();
-		if (parent) {
-			version = parent.version + 1;
+		if (parentVersionId) {
+			const parent = db
+				.select({ version: prompts.version })
+				.from(prompts)
+				.where(eq(prompts.id, parentVersionId))
+				.get();
+			if (parent) {
+				version = parent.version + 1;
+			}
 		}
-	}
 
-	const createdAt = new Date().toISOString();
-	const result = db
-		.insert(prompts)
-		.values({
-			name,
-			content,
-			version,
-			parentVersionId: parentVersionId ?? null,
-			createdAt,
-		})
-		.returning()
-		.get();
-
-	saveDatabase();
-	return result;
+		const createdAt = new Date().toISOString();
+		return db
+			.insert(prompts)
+			.values({
+				name,
+				content,
+				version,
+				parentVersionId: parentVersionId ?? null,
+				createdAt,
+			})
+			.returning()
+			.get();
+	});
 }
 
 export function getPromptById(id: number): Prompt | null {
@@ -97,31 +89,33 @@ export function getPromptById(id: number): Prompt | null {
 }
 
 export function deletePrompt(id: number): void {
-	const db = getDb();
-	// Delete all test cases for this prompt first
-	db.delete(testCases).where(eq(testCases.promptId, id)).run();
-	// Delete the prompt
-	db.delete(prompts).where(eq(prompts.id, id)).run();
-	saveDatabase();
+	withSave(() => {
+		const db = getDb();
+		// Delete all test cases for this prompt first
+		db.delete(testCases).where(eq(testCases.promptId, id)).run();
+		// Delete the prompt
+		db.delete(prompts).where(eq(prompts.id, id)).run();
+	});
 }
 
 export function deletePromptByName(name: string): void {
-	const db = getDb();
-	// Get all prompt IDs with this name
-	const promptIds = db
-		.select({ id: prompts.id })
-		.from(prompts)
-		.where(eq(prompts.name, name))
-		.all()
-		.map((p) => p.id);
+	withSave(() => {
+		const db = getDb();
+		// Get all prompt IDs with this name
+		const promptIds = db
+			.select({ id: prompts.id })
+			.from(prompts)
+			.where(eq(prompts.name, name))
+			.all()
+			.map((p) => p.id);
 
-	if (promptIds.length > 0) {
-		// Delete all test cases for these prompts
-		db.delete(testCases).where(inArray(testCases.promptId, promptIds)).run();
-		// Delete all versions of the prompt
-		db.delete(prompts).where(eq(prompts.name, name)).run();
-	}
-	saveDatabase();
+		if (promptIds.length > 0) {
+			// Delete all test cases for these prompts
+			db.delete(testCases).where(inArray(testCases.promptId, promptIds)).run();
+			// Delete all versions of the prompt
+			db.delete(prompts).where(eq(prompts.name, name)).run();
+		}
+	});
 }
 
 export function getLatestPrompts(): Prompt[] {
@@ -169,21 +163,20 @@ export function createTestCase(
 	promptId: number,
 	input: string,
 	expectedOutput: string
-): TestCase {
-	const createdAt = new Date().toISOString();
-	const result = getDb()
-		.insert(testCases)
-		.values({
-			promptId,
-			input,
-			expectedOutput,
-			createdAt,
-		})
-		.returning()
-		.get();
-
-	saveDatabase();
-	return result;
+) {
+	return withSave(() => {
+		const createdAt = new Date().toISOString();
+		return getDb()
+			.insert(testCases)
+			.values({
+				promptId,
+				input,
+				expectedOutput,
+				createdAt,
+			})
+			.returning()
+			.get();
+	});
 }
 
 export function getTestCaseById(id: number): TestCase | null {
@@ -222,48 +215,45 @@ export function getTestCasesForPromptName(promptName: string): TestCase[] {
 }
 
 export function deleteTestCase(id: number): void {
-	getDb().delete(testCases).where(eq(testCases.id, id)).run();
-	saveDatabase();
+	withSave(() => {
+		getDb().delete(testCases).where(eq(testCases.id, id)).run();
+	});
 }
 
 export function updateTestCase(
 	id: number,
 	input: string,
 	expectedOutput: string
-): TestCase | null {
-	getDb()
-		.update(testCases)
-		.set({ input, expectedOutput })
-		.where(eq(testCases.id, id))
-		.run();
-	saveDatabase();
+) {
+	withSave(() => {
+		getDb()
+			.update(testCases)
+			.set({ input, expectedOutput })
+			.where(eq(testCases.id, id))
+			.run();
+	});
 	return getTestCaseById(id);
 }
 
 // ============== TEST JOB OPERATIONS ==============
 
-export function createTestJob(
-	id: string,
-	promptId: number,
-	totalTests: number
-): TestJob {
-	const now = new Date().toISOString();
-	const result = getDb()
-		.insert(testJobs)
-		.values({
-			id,
-			promptId,
-			status: "pending",
-			totalTests,
-			completedTests: 0,
-			createdAt: now,
-			updatedAt: now,
-		})
-		.returning()
-		.get();
-
-	saveDatabase();
-	return result;
+export function createTestJob(id: string, promptId: number, totalTests: number) {
+	return withSave(() => {
+		const now = new Date().toISOString();
+		return getDb()
+			.insert(testJobs)
+			.values({
+				id,
+				promptId,
+				status: "pending",
+				totalTests,
+				completedTests: 0,
+				createdAt: now,
+				updatedAt: now,
+			})
+			.returning()
+			.get();
+	});
 }
 
 export function getTestJobById(id: string): TestJob | null {
@@ -272,14 +262,17 @@ export function getTestJobById(id: string): TestJob | null {
 	);
 }
 
-export function updateTestJob(id: string, updates: Partial<TestJob>): void {
-	const updateData: Partial<TestJob> = {
-		...updates,
-		updatedAt: new Date().toISOString(),
-	};
-
-	getDb().update(testJobs).set(updateData).where(eq(testJobs.id, id)).run();
-	saveDatabase();
+export function updateTestJob(
+	id: string,
+	updates: Partial<typeof testJobs.$inferSelect>
+): void {
+	withSave(() => {
+		getDb()
+			.update(testJobs)
+			.set({ ...updates, updatedAt: new Date().toISOString() })
+			.where(eq(testJobs.id, id))
+			.run();
+	});
 }
 
 // ============== TEST RESULT OPERATIONS ==============
@@ -292,25 +285,24 @@ export function createTestResult(
 	actualOutput: string | null,
 	isCorrect: boolean,
 	error?: string
-): TestResult {
-	const createdAt = new Date().toISOString();
-	const result = getDb()
-		.insert(testResults)
-		.values({
-			jobId,
-			testCaseId,
-			llmProvider,
-			runNumber,
-			actualOutput,
-			isCorrect: isCorrect ? 1 : 0,
-			error: error ?? null,
-			createdAt,
-		})
-		.returning()
-		.get();
-
-	saveDatabase();
-	return result;
+) {
+	return withSave(() => {
+		const createdAt = new Date().toISOString();
+		return getDb()
+			.insert(testResults)
+			.values({
+				jobId,
+				testCaseId,
+				llmProvider,
+				runNumber,
+				actualOutput,
+				isCorrect: isCorrect ? 1 : 0,
+				error: error ?? null,
+				createdAt,
+			})
+			.returning()
+			.get();
+	});
 }
 
 export function getTestResultsForJob(jobId: string): TestResult[] {
@@ -328,24 +320,23 @@ export function createImprovementJob(
 	id: string,
 	promptId: number,
 	maxIterations: number
-): ImprovementJob {
-	const now = new Date().toISOString();
-	const result = getDb()
-		.insert(improvementJobs)
-		.values({
-			id,
-			promptId,
-			status: "pending",
-			currentIteration: 0,
-			maxIterations,
-			createdAt: now,
-			updatedAt: now,
-		})
-		.returning()
-		.get();
-
-	saveDatabase();
-	return result;
+) {
+	return withSave(() => {
+		const now = new Date().toISOString();
+		return getDb()
+			.insert(improvementJobs)
+			.values({
+				id,
+				promptId,
+				status: "pending",
+				currentIteration: 0,
+				maxIterations,
+				createdAt: now,
+				updatedAt: now,
+			})
+			.returning()
+			.get();
+	});
 }
 
 export function getImprovementJobById(id: string): ImprovementJob | null {
@@ -360,19 +351,15 @@ export function getImprovementJobById(id: string): ImprovementJob | null {
 
 export function updateImprovementJob(
 	id: string,
-	updates: Partial<ImprovementJob>
+	updates: Partial<typeof improvementJobs.$inferSelect>
 ): void {
-	const updateData: Partial<ImprovementJob> = {
-		...updates,
-		updatedAt: new Date().toISOString(),
-	};
-
-	getDb()
-		.update(improvementJobs)
-		.set(updateData)
-		.where(eq(improvementJobs.id, id))
-		.run();
-	saveDatabase();
+	withSave(() => {
+		getDb()
+			.update(improvementJobs)
+			.set({ ...updates, updatedAt: new Date().toISOString() })
+			.where(eq(improvementJobs.id, id))
+			.run();
+	});
 }
 
 export function appendImprovementLog(id: string, message: string): void {
