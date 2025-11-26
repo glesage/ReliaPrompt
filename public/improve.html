@@ -3,203 +3,299 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Auto-Improve - LLM Prompt Testing Tool</title>
+        <title>Auto-Improve - Relia Prompt</title>
         <link rel="stylesheet" href="/styles.css" />
-        <style>
-            .progress-section {
-                padding: 20px;
-                background: #f8f9fa;
-                border-radius: 8px;
-            }
-            .progress-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 15px;
-            }
-            .score-display {
-                display: flex;
-                gap: 30px;
-                margin-bottom: 20px;
-            }
-            .score-item {
-                text-align: center;
-            }
-            .score-item .label {
-                font-size: 12px;
-                color: #666;
-                margin-bottom: 5px;
-            }
-            .score-item .value {
-                font-size: 32px;
-                font-weight: bold;
-                color: #333;
-            }
-            .score-item .value.improved {
-                color: #28a745;
-            }
-            .iteration-display {
-                font-size: 14px;
-                color: #666;
-                margin-bottom: 15px;
-            }
-            .log-container pre {
-                font-family: "Monaco", "Menlo", monospace;
-                font-size: 12px;
-                white-space: pre-wrap;
-                margin: 0;
-            }
-            .log-line {
-                padding: 2px 0;
-            }
-            .log-line.success {
-                color: #4ec9b0;
-            }
-            .log-line.error {
-                color: #f48771;
-            }
-            .log-line.info {
-                color: #569cd6;
-            }
-            .improved-prompt-section {
-                margin-top: 20px;
-                padding: 20px;
-                background: #e8f5e9;
-                border-radius: 8px;
-                border: 1px solid #c8e6c9;
-            }
-            .improved-prompt-section h3 {
-                color: #2e7d32;
-                margin-bottom: 15px;
-            }
-            .improved-prompt-section pre {
-                background: #fff;
-                padding: 15px;
-                border-radius: 6px;
-                font-family: "Monaco", "Menlo", monospace;
-                font-size: 13px;
-                white-space: pre-wrap;
-                max-height: 300px;
-                overflow-y: auto;
-            }
-            .inline-form {
-                display: flex;
-                gap: 15px;
-                align-items: flex-end;
-            }
-            .inline-form .form-group {
-                flex: 1;
-                margin-bottom: 0;
-            }
-            .inline-form .form-group.small {
-                flex: 0 0 150px;
-            }
-        </style>
     </head>
     <body>
-        <div class="container">
-            <h1>Auto-Improve Prompts</h1>
-            <p class="subtitle">
-                Let LLMs automatically improve your prompts based on test results
-            </p>
-
-            <nav>
-                <a href="/">Home</a>
-                <a href="/config.html">Configuration</a>
-                <a href="/prompts.html">Prompts</a>
-                <a href="/test-cases.html">Test Cases</a>
-                <a href="/run-tests.html">Run Tests</a>
-                <a href="/improve.html" class="active">Auto-Improve</a>
+        <div class="app-layout">
+            <!-- Navbar -->
+            <nav class="navbar">
+                <a href="/test-cases.html" class="navbar-brand">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                    <span>Relia Prompt</span>
+                </a>
+                <div class="navbar-nav">
+                    <a href="/test-cases.html">Test Cases</a>
+                    <a href="/run-tests.html">Run Tests</a>
+                    <a href="/improve.html" class="active">Auto-Improve</a>
+                </div>
+                <div class="navbar-actions">
+                    <button class="btn-icon" id="gear-btn" title="Configuration">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                    </button>
+                </div>
             </nav>
 
-            <div id="message"></div>
-
-            <div class="card">
-                <h2>Start Improvement</h2>
-                <div class="inline-form">
-                    <div class="form-group">
-                        <label for="prompt-select">Select Prompt</label>
-                        <select id="prompt-select">
-                            <option value="">-- Select a prompt --</option>
-                        </select>
+            <div class="app-body">
+                <!-- Sidebar -->
+                <aside class="sidebar">
+                    <div class="sidebar-header">
+                        <h3>Prompts</h3>
+                        <button class="btn-new-prompt" id="new-prompt-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            <span>New Prompt</span>
+                        </button>
                     </div>
-                    <div class="form-group small">
-                        <label for="max-iterations">Max Iterations</label>
-                        <input type="number" id="max-iterations" value="5" min="1" max="20" />
+                    <div class="sidebar-list" id="sidebar-prompts">
+                        <div class="sidebar-empty">Loading...</div>
                     </div>
-                    <button id="start-btn" disabled>Start Improvement</button>
-                </div>
-                <div
-                    id="test-case-count"
-                    style="color: #666; margin-top: 15px; font-size: 14px"
-                ></div>
-            </div>
+                </aside>
 
-            <div id="progress-section" class="card hidden">
-                <div class="progress-header">
-                    <h2>Improvement Progress</h2>
-                    <span id="status-badge" class="status-badge running">Running</span>
-                </div>
+                <!-- Main Content -->
+                <main class="main-content">
+                    <div id="app-message"></div>
 
-                <div class="score-display">
-                    <div class="score-item">
-                        <div class="label">Original Score</div>
-                        <div id="original-score" class="value">--</div>
+                    <div class="page-header">
+                        <h1>Auto-Improve Prompts</h1>
+                        <p>Let LLMs automatically improve your prompts based on test results</p>
                     </div>
-                    <div class="score-item">
-                        <div class="label">Best Score</div>
-                        <div id="best-score" class="value">--</div>
+
+                    <!-- No Prompt Selected State -->
+                    <div id="no-prompt-message" class="no-prompt-selected">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        <h3>Select a Prompt</h3>
+                        <p>Choose a prompt from the sidebar to start auto-improvement</p>
                     </div>
-                    <div class="score-item">
-                        <div class="label">Improvement</div>
-                        <div id="improvement" class="value">--</div>
+
+                    <!-- Improve Section (shown when prompt selected) -->
+                    <div id="improve-section" class="hidden">
+                        <div class="card">
+                            <h2>Improve "<span id="selected-prompt-name"></span>"</h2>
+                            <div class="inline-form" style="margin-bottom: 16px;">
+                                <div class="form-group small">
+                                    <label for="max-iterations">Max Iterations</label>
+                                    <input type="number" id="max-iterations" value="5" min="1" max="20" />
+                                </div>
+                                <button id="start-btn" disabled>Start Improvement</button>
+                            </div>
+                            <div id="test-case-count" style="color: var(--color-text-muted); font-size: 14px;"></div>
+                        </div>
+
+                        <div id="progress-section" class="card hidden">
+                            <div class="progress-header">
+                                <h2>Improvement Progress</h2>
+                                <span id="status-badge" class="status-badge running">Running</span>
+                            </div>
+
+                            <div class="score-display">
+                                <div class="score-item">
+                                    <div class="label">Original Score</div>
+                                    <div id="original-score" class="value">--</div>
+                                </div>
+                                <div class="score-item">
+                                    <div class="label">Best Score</div>
+                                    <div id="best-score" class="value">--</div>
+                                </div>
+                                <div class="score-item">
+                                    <div class="label">Improvement</div>
+                                    <div id="improvement" class="value">--</div>
+                                </div>
+                            </div>
+
+                            <div id="iteration-display" class="iteration-display">Iteration 0/0</div>
+
+                            <div class="log-container">
+                                <pre id="log-output"></pre>
+                            </div>
+
+                            <div id="improved-prompt-section" class="improved-prompt-section hidden">
+                                <h3>Improved Prompt (Saved as New Version)</h3>
+                                <pre id="improved-prompt"></pre>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <div id="iteration-display" class="iteration-display">Iteration 0/0</div>
-
-                <div class="log-container">
-                    <pre id="log-output"></pre>
-                </div>
-
-                <div id="improved-prompt-section" class="improved-prompt-section hidden">
-                    <h3>Improved Prompt (Saved as New Version)</h3>
-                    <pre id="improved-prompt"></pre>
-                </div>
+                </main>
             </div>
         </div>
 
+        <!-- Config Modal -->
+        <div class="modal-overlay" id="config-modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>LLM Configuration</h2>
+                    <button class="modal-close" id="config-close-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <form id="config-form">
+                    <div class="modal-body">
+                        <div class="provider-section">
+                            <h3>
+                                OpenAI
+                                <span id="openai-status" class="status-badge not-configured">Not configured</span>
+                            </h3>
+                            <div class="form-group">
+                                <label for="openai_api_key">API Key</label>
+                                <input type="password" id="openai_api_key" name="openai_api_key" placeholder="sk-..." />
+                                <small>Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Dashboard</a></small>
+                            </div>
+                        </div>
+
+                        <div class="provider-section">
+                            <h3>
+                                AWS Bedrock
+                                <span id="bedrock-status" class="status-badge not-configured">Not configured</span>
+                            </h3>
+                            <div class="form-group">
+                                <label for="bedrock_access_key_id">Access Key ID</label>
+                                <input type="password" id="bedrock_access_key_id" name="bedrock_access_key_id" placeholder="AKIA..." />
+                            </div>
+                            <div class="form-group">
+                                <label for="bedrock_secret_access_key">Secret Access Key</label>
+                                <input type="password" id="bedrock_secret_access_key" name="bedrock_secret_access_key" placeholder="..." />
+                            </div>
+                            <div class="form-group">
+                                <label for="bedrock_region">Region</label>
+                                <input type="text" id="bedrock_region" name="bedrock_region" placeholder="us-east-1" value="us-east-1" />
+                                <small>AWS region where Bedrock is enabled</small>
+                            </div>
+                        </div>
+
+                        <div class="provider-section">
+                            <h3>
+                                Deepseek
+                                <span id="deepseek-status" class="status-badge not-configured">Not configured</span>
+                            </h3>
+                            <div class="form-group">
+                                <label for="deepseek_api_key">API Key</label>
+                                <input type="password" id="deepseek_api_key" name="deepseek_api_key" placeholder="sk-..." />
+                                <small>Get your API key from <a href="https://platform.deepseek.com/api_keys" target="_blank">Deepseek Platform</a></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="secondary" onclick="closeConfigModal()">Cancel</button>
+                        <button type="submit">Save Configuration</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- New Prompt Modal -->
+        <div class="modal-overlay" id="new-prompt-modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>Create New Prompt</h2>
+                    <button class="modal-close" id="new-prompt-close-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <form id="new-prompt-form">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="new-prompt-name">Prompt Name</label>
+                            <input type="text" id="new-prompt-name" name="name" placeholder="e.g., extract-entities" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="new-prompt-content">Prompt Content</label>
+                            <textarea id="new-prompt-content" name="content" class="tall" placeholder="Enter your system prompt here..." required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="secondary" onclick="closeNewPromptModal()">Cancel</button>
+                        <button type="submit">Create Prompt</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit Prompt Modal -->
+        <div class="modal-overlay" id="edit-prompt-modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>Edit "<span id="edit-prompt-name-display"></span>" <span id="edit-prompt-version" class="badge badge-version"></span></h2>
+                    <button class="modal-close" id="edit-prompt-close-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <form id="edit-prompt-form">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="edit-prompt-content">Prompt Content</label>
+                            <textarea id="edit-prompt-content" name="content" class="tall" placeholder="Enter your system prompt here..." required></textarea>
+                            <small>Saving will create a new version of this prompt</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="secondary" onclick="closeEditPromptModal()">Cancel</button>
+                        <button type="submit">Save as New Version</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script src="/app.js"></script>
         <script>
             let selectedPromptId = null;
+            let selectedPromptName = null;
             let pollInterval = null;
 
-            async function loadPrompts() {
-                try {
-                    const res = await fetch("/api/prompts");
-                    const prompts = await res.json();
-                    const select = document.getElementById("prompt-select");
-                    select.innerHTML =
-                        '<option value="">-- Select a prompt --</option>' +
-                        prompts
-                            .map(
-                                (p) => `<option value="${p.id}">${p.name} (v${p.version})</option>`
-                            )
-                            .join("");
-                } catch (error) {
-                    showMessage("Error loading prompts", "error");
+            // Listen for prompt selection from sidebar
+            window.addEventListener('promptSelected', (e) => {
+                selectedPromptId = e.detail.id;
+                selectedPromptName = e.detail.name;
+                updateUI();
+                loadTestCaseCount();
+            });
+
+            // Check for initial selection
+            window.addEventListener('promptsLoaded', (e) => {
+                const { prompts, selectedId } = e.detail;
+                if (selectedId) {
+                    const prompt = prompts.find(p => p.id === selectedId);
+                    if (prompt) {
+                        selectedPromptId = prompt.id;
+                        selectedPromptName = prompt.name;
+                        updateUI();
+                        loadTestCaseCount();
+                    }
+                }
+            });
+
+            function updateUI() {
+                const hasSelection = !!selectedPromptId;
+                document.getElementById('improve-section').classList.toggle('hidden', !hasSelection);
+                document.getElementById('no-prompt-message').classList.toggle('hidden', hasSelection);
+                if (selectedPromptName) {
+                    document.getElementById('selected-prompt-name').textContent = selectedPromptName;
                 }
             }
 
             async function loadTestCaseCount() {
                 if (!selectedPromptId) {
-                    document.getElementById("test-case-count").textContent = "";
-                    document.getElementById("start-btn").disabled = true;
+                    document.getElementById('test-case-count').textContent = '';
+                    document.getElementById('start-btn').disabled = true;
                     return;
                 }
                 try {
                     const [tcRes, provRes] = await Promise.all([
                         fetch(`/api/prompts/${selectedPromptId}/test-cases`),
-                        fetch("/api/config/providers"),
+                        fetch('/api/config/providers'),
                     ]);
                     const testCases = await tcRes.json();
                     const providers = await provRes.json();
@@ -207,60 +303,54 @@
                     const provCount = providers.count;
 
                     if (tcCount === 0) {
-                        document.getElementById("test-case-count").textContent =
-                            "No test cases found. Add test cases first.";
-                        document.getElementById("start-btn").disabled = true;
+                        document.getElementById('test-case-count').textContent =
+                            'No test cases found. Add test cases first.';
+                        document.getElementById('start-btn').disabled = true;
                     } else if (provCount === 0) {
-                        document.getElementById("test-case-count").textContent =
-                            "No LLM providers configured. Add API keys first.";
-                        document.getElementById("start-btn").disabled = true;
+                        document.getElementById('test-case-count').textContent =
+                            'No LLM providers configured. Add API keys first.';
+                        document.getElementById('start-btn').disabled = true;
                     } else {
-                        document.getElementById("test-case-count").textContent =
-                            `${tcCount} test case(s) will be used with ${provCount} LLM provider(s): ${providers.providers.join(", ")}`;
-                        document.getElementById("start-btn").disabled = false;
+                        document.getElementById('test-case-count').textContent =
+                            `${tcCount} test case(s) will be used with ${provCount} LLM provider(s): ${providers.providers.join(', ')}`;
+                        document.getElementById('start-btn').disabled = false;
                     }
                 } catch (error) {
-                    document.getElementById("test-case-count").textContent = "Error loading info";
-                    document.getElementById("start-btn").disabled = true;
+                    document.getElementById('test-case-count').textContent = 'Error loading info';
+                    document.getElementById('start-btn').disabled = true;
                 }
-            }
-
-            function showMessage(text, type) {
-                const el = document.getElementById("message");
-                el.innerHTML = `<div class="message ${type}">${text}</div>`;
-                if (type !== "info") setTimeout(() => (el.innerHTML = ""), 5000);
             }
 
             async function startImprovement() {
                 if (!selectedPromptId) return;
-                const maxIterations = parseInt(document.getElementById("max-iterations").value, 10);
+                const maxIterations = parseInt(document.getElementById('max-iterations').value, 10);
 
-                document.getElementById("start-btn").disabled = true;
-                document.getElementById("progress-section").classList.remove("hidden");
-                document.getElementById("improved-prompt-section").classList.add("hidden");
-                document.getElementById("log-output").textContent = "";
-                document.getElementById("original-score").textContent = "--";
-                document.getElementById("best-score").textContent = "--";
-                document.getElementById("improvement").textContent = "--";
-                document.getElementById("status-badge").className = "status-badge running";
-                document.getElementById("status-badge").textContent = "Running";
-                showMessage("Starting improvement...", "info");
+                document.getElementById('start-btn').disabled = true;
+                document.getElementById('progress-section').classList.remove('hidden');
+                document.getElementById('improved-prompt-section').classList.add('hidden');
+                document.getElementById('log-output').textContent = '';
+                document.getElementById('original-score').textContent = '--';
+                document.getElementById('best-score').textContent = '--';
+                document.getElementById('improvement').textContent = '--';
+                document.getElementById('status-badge').className = 'status-badge running';
+                document.getElementById('status-badge').textContent = 'Running';
+                AppUtils.showAppMessage('Starting improvement...', 'info');
 
                 try {
-                    const res = await fetch("/api/improve/start", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                    const res = await fetch('/api/improve/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ promptId: selectedPromptId, maxIterations }),
                     });
                     if (!res.ok) {
                         const error = await res.json();
-                        throw new Error(error.error || "Failed to start improvement");
+                        throw new Error(error.error || 'Failed to start improvement');
                     }
                     const { jobId } = await res.json();
                     pollProgress(jobId);
                 } catch (error) {
-                    showMessage(error.message, "error");
-                    document.getElementById("start-btn").disabled = false;
+                    AppUtils.showAppMessage(error.message, 'error');
+                    document.getElementById('start-btn').disabled = false;
                 }
             }
 
@@ -272,85 +362,69 @@
                         const status = await res.json();
                         updateProgress(status);
 
-                        if (status.status === "completed") {
+                        if (status.status === 'completed') {
                             clearInterval(pollInterval);
-                            document.getElementById("start-btn").disabled = false;
-                            document.getElementById("message").innerHTML = "";
-                            document.getElementById("status-badge").className =
-                                "status-badge completed";
-                            document.getElementById("status-badge").textContent = "Completed";
-                            if (
-                                status.bestPromptContent &&
-                                status.bestScore > status.originalScore
-                            ) {
-                                document
-                                    .getElementById("improved-prompt-section")
-                                    .classList.remove("hidden");
-                                document.getElementById("improved-prompt").textContent =
-                                    status.bestPromptContent;
+                            document.getElementById('start-btn').disabled = false;
+                            document.getElementById('app-message').innerHTML = '';
+                            document.getElementById('status-badge').className = 'status-badge completed';
+                            document.getElementById('status-badge').textContent = 'Completed';
+                            if (status.bestPromptContent && status.bestScore > status.originalScore) {
+                                document.getElementById('improved-prompt-section').classList.remove('hidden');
+                                document.getElementById('improved-prompt').textContent = status.bestPromptContent;
                             }
-                        } else if (status.status === "failed") {
+                        } else if (status.status === 'failed') {
                             clearInterval(pollInterval);
-                            document.getElementById("start-btn").disabled = false;
-                            document.getElementById("status-badge").className =
-                                "status-badge failed";
-                            document.getElementById("status-badge").textContent = "Failed";
-                            showMessage(status.error || "Improvement failed", "error");
+                            document.getElementById('start-btn').disabled = false;
+                            document.getElementById('status-badge').className = 'status-badge failed';
+                            document.getElementById('status-badge').textContent = 'Failed';
+                            AppUtils.showAppMessage(status.error || 'Improvement failed', 'error');
                         }
                     } catch (error) {
-                        console.error("Error polling status:", error);
+                        console.error('Error polling status:', error);
                     }
                 }, 2000);
             }
 
             function updateProgress(status) {
-                document.getElementById("iteration-display").textContent =
+                document.getElementById('iteration-display').textContent =
                     `Iteration ${status.currentIteration}/${status.maxIterations}`;
                 if (status.originalScore !== null)
-                    document.getElementById("original-score").textContent =
-                        status.originalScore + "%";
+                    document.getElementById('original-score').textContent = status.originalScore + '%';
                 if (status.bestScore !== null) {
-                    document.getElementById("best-score").textContent = status.bestScore + "%";
+                    document.getElementById('best-score').textContent = status.bestScore + '%';
                     if (status.originalScore !== null) {
                         const improvement = status.bestScore - status.originalScore;
-                        const el = document.getElementById("improvement");
-                        el.textContent = (improvement >= 0 ? "+" : "") + improvement + "%";
-                        el.className = "value" + (improvement > 0 ? " improved" : "");
+                        const el = document.getElementById('improvement');
+                        el.textContent = (improvement >= 0 ? '+' : '') + improvement + '%';
+                        el.className = 'value' + (improvement > 0 ? ' improved' : '');
                     }
                 }
                 if (status.log && status.log.length > 0) {
-                    const logEl = document.getElementById("log-output");
+                    const logEl = document.getElementById('log-output');
                     logEl.innerHTML = status.log
                         .map((line) => {
-                            let cls = "";
-                            if (line.includes("ERROR") || line.includes("Failed")) cls = "error";
-                            else if (
-                                line.includes("Score") ||
-                                line.includes("improved") ||
-                                line.includes("Perfect")
-                            )
-                                cls = "success";
-                            else if (line.includes("Testing") || line.includes("Requesting"))
-                                cls = "info";
+                            let cls = '';
+                            if (line.includes('ERROR') || line.includes('Failed')) cls = 'error';
+                            else if (line.includes('Score') || line.includes('improved') || line.includes('Perfect'))
+                                cls = 'success';
+                            else if (line.includes('Testing') || line.includes('Requesting')) cls = 'info';
                             return `<div class="log-line ${cls}">${escapeHtml(line)}</div>`;
                         })
-                        .join("");
+                        .join('');
                     logEl.scrollTop = logEl.scrollHeight;
                 }
             }
 
             function escapeHtml(text) {
-                const div = document.createElement("div");
+                const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
             }
 
-            document.getElementById("prompt-select").addEventListener("change", (e) => {
-                selectedPromptId = e.target.value ? parseInt(e.target.value, 10) : null;
-                loadTestCaseCount();
-            });
-            document.getElementById("start-btn").addEventListener("click", startImprovement);
-            loadPrompts();
+            document.getElementById('start-btn').addEventListener('click', startImprovement);
+
+            // Initialize
+            updateUI();
         </script>
     </body>
 </html>

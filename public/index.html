@@ -3,85 +3,13 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>LLM Prompt Testing Tool</title>
-        <link rel="stylesheet" href="/styles.css" />
+        <title>Relia Prompt</title>
+        <meta http-equiv="refresh" content="0;url=/test-cases.html" />
+        <script>
+            window.location.href = '/test-cases.html';
+        </script>
     </head>
     <body>
-        <div class="container">
-            <h1>LLM Prompt Testing Tool</h1>
-            <p class="subtitle">Test and improve your prompts across multiple LLM providers</p>
-
-            <nav>
-                <a href="/" class="active">Home</a>
-                <a href="/config.html">Configuration</a>
-                <a href="/prompts.html">Prompts</a>
-                <a href="/test-cases.html">Test Cases</a>
-                <a href="/run-tests.html">Run Tests</a>
-                <a href="/improve.html">Auto-Improve</a>
-            </nav>
-
-            <div class="card">
-                <h2>Status</h2>
-                <div id="status-container">
-                    <span class="status-indicator warning">
-                        <span class="status-dot warning"></span>
-                        Loading...
-                    </span>
-                </div>
-            </div>
-
-            <div class="quick-links">
-                <a href="/config.html" class="quick-link">
-                    <h3>1. Configure API Keys</h3>
-                    <p>Set up your OpenAI, Bedrock, and Deepseek API credentials</p>
-                </a>
-                <a href="/prompts.html" class="quick-link">
-                    <h3>2. Create Prompts</h3>
-                    <p>Add and manage your prompts with version control</p>
-                </a>
-                <a href="/test-cases.html" class="quick-link">
-                    <h3>3. Add Test Cases</h3>
-                    <p>Define inputs and expected JSON outputs</p>
-                </a>
-                <a href="/run-tests.html" class="quick-link">
-                    <h3>4. Run Tests</h3>
-                    <p>Test prompts across all LLMs with scoring</p>
-                </a>
-            </div>
-        </div>
-
-        <script>
-            async function loadStatus() {
-                try {
-                    const res = await fetch("/api/config/providers");
-                    const data = await res.json();
-                    const container = document.getElementById("status-container");
-
-                    if (data.count > 0) {
-                        container.innerHTML = `
-                            <span class="status-indicator">
-                                <span class="status-dot"></span>
-                                ${data.count} LLM provider(s) configured: ${data.providers.join(", ")}
-                            </span>
-                        `;
-                    } else {
-                        container.innerHTML = `
-                            <span class="status-indicator warning">
-                                <span class="status-dot warning"></span>
-                                No LLM providers configured. <a href="/config.html">Add API keys</a>
-                            </span>
-                        `;
-                    }
-                } catch (error) {
-                    document.getElementById("status-container").innerHTML = `
-                        <span class="status-indicator warning">
-                            <span class="status-dot warning"></span>
-                            Error loading status
-                        </span>
-                    `;
-                }
-            }
-            loadStatus();
-        </script>
+        <p>Redirecting to <a href="/test-cases.html">Test Cases</a>...</p>
     </body>
 </html>
