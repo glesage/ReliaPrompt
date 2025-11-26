@@ -81,6 +81,16 @@
       transition: background 0.2s;
     }
     button:hover { background: #0056b3; }
+    button.danger {
+      background: #dc3545;
+    }
+    button.danger:hover {
+      background: #c82333;
+    }
+    button.small {
+      padding: 5px 10px;
+      font-size: 12px;
+    }
     .message {
       padding: 12px;
       border-radius: 6px;
@@ -96,8 +106,8 @@
       padding: 15px;
       border: 1px solid #eee;
       border-radius: 6px;
-      cursor: pointer;
       transition: all 0.2s;
+      position: relative;
     }
     .prompt-item:hover {
       border-color: #007bff;
@@ -110,6 +120,7 @@
     .prompt-item h4 {
       margin-bottom: 5px;
       color: #333;
+      cursor: pointer;
     }
     .prompt-item .meta {
       font-size: 12px;
@@ -125,6 +136,14 @@
       white-space: pre-wrap;
       max-height: 100px;
       overflow: hidden;
+      cursor: pointer;
+    }
+    .prompt-item .action-buttons {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 5px;
     }
     .version-badge {
       display: inline-block;
@@ -150,16 +169,25 @@
     .versions-panel h3 {
       margin-bottom: 10px;
       color: #555;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     .version-item {
       padding: 10px;
       border: 1px solid #eee;
       border-radius: 4px;
       margin-bottom: 10px;
-      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     .version-item:hover {
       background: #f8f9fa;
+    }
+    .version-item .version-info {
+      cursor: pointer;
+      flex: 1;
     }
   </style>
 </head>
@@ -202,7 +230,10 @@
         </div>
         
         <div id="versions-panel" class="versions-panel" style="display: none;">
-          <h3>Version History</h3>
+          <h3>
+            <span>Version History</span>
+            <button class="danger small" onclick="deleteAllVersions()">Delete All Versions</button>
+          </h3>
           <div id="versions-list"></div>
         </div>
       </div>
@@ -221,14 +252,18 @@
         
         if (prompts.length === 0) {
           container.innerHTML = '<p style="color: #666;">No prompts yet. Create your first one!</p>';
+          document.getElementById('versions-panel').style.display = 'none';
           return;
         }
         
         container.innerHTML = prompts.map(p => `
-          <div class="prompt-item" data-id="${p.id}" data-name="${p.name}" onclick="selectPrompt(${p.id}, '${p.name}')">
-            <h4>${p.name} <span class="version-badge">v${p.version}</span></h4>
+          <div class="prompt-item" data-id="${p.id}" data-name="${escapeHtml(p.name)}">
+            <div class="action-buttons">
+              <button class="danger small" onclick="event.stopPropagation(); deletePromptById(${p.id}, '${escapeHtml(p.name)}')">Delete</button>
+            </div>
+            <h4 onclick="selectPrompt(${p.id}, '${escapeHtml(p.name)}')">${escapeHtml(p.name)} <span class="version-badge">v${p.version}</span></h4>
             <div class="meta">Created: ${new Date(p.created_at).toLocaleString()}</div>
-            <div class="content-preview">${escapeHtml(p.content.substring(0, 200))}${p.content.length > 200 ? '...' : ''}</div>
+            <div class="content-preview" onclick="selectPrompt(${p.id}, '${escapeHtml(p.name)}')">${escapeHtml(p.content.substring(0, 200))}${p.content.length > 200 ? '...' : ''}</div>
           </div>
         `).join('');
       } catch (error) {
@@ -260,9 +295,12 @@
         
         panel.style.display = 'block';
         list.innerHTML = versions.map(v => `
-          <div class="version-item" onclick="loadVersion(${v.id})">
-            <strong>Version ${v.version}</strong>
-            <span style="color: #666; font-size: 12px;"> - ${new Date(v.created_at).toLocaleString()}</span>
+          <div class="version-item">
+            <div class="version-info" onclick="loadVersion(${v.id})">
+              <strong>Version ${v.version}</strong>
+              <span style="color: #666; font-size: 12px;"> - ${new Date(v.created_at).toLocaleString()}</span>
+            </div>
+            <button class="danger small" onclick="deleteVersion(${v.id})">Delete</button>
           </div>
         `).join('');
       } catch (error) {
@@ -279,6 +317,67 @@
         document.getElementById('content').value = prompt.content;
       } catch (error) {
         showMessage('Error loading version', 'error');
+      }
+    }
+    
+    async function deletePromptById(id, name) {
+      if (!confirm(`Delete the latest version of "${name}"? This will also delete its test cases.`)) return;
+      
+      try {
+        const res = await fetch(`/api/prompts/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          showMessage('Prompt deleted', 'success');
+          selectedPrompt = null;
+          document.getElementById('versions-panel').style.display = 'none';
+          loadPrompts();
+        } else {
+          const error = await res.json();
+          showMessage(error.error || 'Failed to delete prompt', 'error');
+        }
+      } catch (error) {
+        showMessage('Error deleting prompt', 'error');
+      }
+    }
+    
+    async function deleteVersion(id) {
+      if (!confirm('Delete this version? This will also delete its test cases.')) return;
+      
+      try {
+        const res = await fetch(`/api/prompts/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          showMessage('Version deleted', 'success');
+          loadPrompts();
+          if (selectedPrompt) {
+            // Reload versions panel
+            selectPrompt(selectedPrompt.id, selectedPrompt.name);
+          }
+        } else {
+          const error = await res.json();
+          showMessage(error.error || 'Failed to delete version', 'error');
+        }
+      } catch (error) {
+        showMessage('Error deleting version', 'error');
+      }
+    }
+    
+    async function deleteAllVersions() {
+      if (!selectedPrompt) return;
+      
+      if (!confirm(`Delete ALL versions of "${selectedPrompt.name}"? This cannot be undone.`)) return;
+      
+      try {
+        const res = await fetch(`/api/prompts/name/${encodeURIComponent(selectedPrompt.name)}`, { method: 'DELETE' });
+        if (res.ok) {
+          showMessage('All versions deleted', 'success');
+          selectedPrompt = null;
+          document.getElementById('versions-panel').style.display = 'none';
+          loadPrompts();
+        } else {
+          const error = await res.json();
+          showMessage(error.error || 'Failed to delete prompt', 'error');
+        }
+      } catch (error) {
+        showMessage('Error deleting prompt', 'error');
       }
     }
     
@@ -318,4 +417,3 @@
   </script>
 </body>
 </html>
-

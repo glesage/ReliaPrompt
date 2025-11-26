@@ -93,6 +93,18 @@
     button.danger:hover {
       background: #c82333;
     }
+    button.secondary {
+      background: #6c757d;
+    }
+    button.secondary:hover {
+      background: #5a6268;
+    }
+    button.success {
+      background: #28a745;
+    }
+    button.success:hover {
+      background: #218838;
+    }
     .message {
       padding: 12px;
       border-radius: 6px;
@@ -110,6 +122,10 @@
       border-radius: 6px;
       position: relative;
     }
+    .test-case-item.editing {
+      border-color: #007bff;
+      background: #f8f9ff;
+    }
     .test-case-item h4 {
       margin-bottom: 10px;
       color: #333;
@@ -125,10 +141,14 @@
       overflow: auto;
       margin-bottom: 10px;
     }
-    .test-case-item .delete-btn {
+    .test-case-item .action-buttons {
       position: absolute;
       top: 10px;
       right: 10px;
+      display: flex;
+      gap: 5px;
+    }
+    .test-case-item .action-buttons button {
       padding: 5px 10px;
       font-size: 12px;
     }
@@ -141,6 +161,21 @@
       padding: 40px;
       text-align: center;
       color: #666;
+    }
+    .edit-form {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #ddd;
+    }
+    .edit-form .form-group {
+      margin-bottom: 15px;
+    }
+    .edit-form .form-group textarea {
+      min-height: 80px;
+    }
+    .edit-form .button-group {
+      display: flex;
+      gap: 10px;
     }
   </style>
 </head>
@@ -202,6 +237,8 @@
   
   <script>
     let selectedPromptId = null;
+    let editingTestCaseId = null;
+    let testCasesData = [];
     
     async function loadPrompts() {
       try {
@@ -221,27 +258,101 @@
       
       try {
         const res = await fetch(`/api/prompts/${selectedPromptId}/test-cases`);
-        const testCases = await res.json();
+        testCasesData = await res.json();
+        renderTestCases();
+      } catch (error) {
+        document.getElementById('test-cases-list').innerHTML = '<p style="color: red;">Error loading test cases</p>';
+      }
+    }
+    
+    function renderTestCases() {
+      const container = document.getElementById('test-cases-list');
+      
+      if (testCasesData.length === 0) {
+        container.innerHTML = '<p style="color: #666;">No test cases yet. Add your first one above!</p>';
+        return;
+      }
+      
+      container.innerHTML = testCasesData.map((tc, i) => {
+        const isEditing = editingTestCaseId === tc.id;
         
-        const container = document.getElementById('test-cases-list');
-        
-        if (testCases.length === 0) {
-          container.innerHTML = '<p style="color: #666;">No test cases yet. Add your first one above!</p>';
-          return;
+        if (isEditing) {
+          return `
+            <div class="test-case-item editing" data-id="${tc.id}">
+              <h4>Test Case #${i + 1} - Editing</h4>
+              <div class="edit-form">
+                <div class="form-group">
+                  <label>Input (User Message)</label>
+                  <textarea id="edit-input-${tc.id}">${escapeHtml(tc.input)}</textarea>
+                </div>
+                <div class="form-group">
+                  <label>Expected Output (JSON)</label>
+                  <textarea id="edit-output-${tc.id}">${escapeHtml(tc.expected_output)}</textarea>
+                </div>
+                <div class="button-group">
+                  <button class="success" onclick="saveTestCase(${tc.id})">Save</button>
+                  <button class="secondary" onclick="cancelEdit()">Cancel</button>
+                </div>
+              </div>
+            </div>
+          `;
         }
         
-        container.innerHTML = testCases.map((tc, i) => `
-          <div class="test-case-item">
-            <button class="delete-btn danger" onclick="deleteTestCase(${tc.id})">Delete</button>
+        return `
+          <div class="test-case-item" data-id="${tc.id}">
+            <div class="action-buttons">
+              <button onclick="startEdit(${tc.id})">Edit</button>
+              <button class="danger" onclick="deleteTestCase(${tc.id})">Delete</button>
+            </div>
             <h4>Test Case #${i + 1}</h4>
             <div class="label">Input:</div>
             <div class="json-preview">${escapeHtml(tc.input)}</div>
             <div class="label">Expected Output:</div>
             <div class="json-preview">${formatJSON(tc.expected_output)}</div>
           </div>
-        `).join('');
+        `;
+      }).join('');
+    }
+    
+    function startEdit(id) {
+      editingTestCaseId = id;
+      renderTestCases();
+    }
+    
+    function cancelEdit() {
+      editingTestCaseId = null;
+      renderTestCases();
+    }
+    
+    async function saveTestCase(id) {
+      const input = document.getElementById(`edit-input-${id}`).value.trim();
+      const expected_output = document.getElementById(`edit-output-${id}`).value.trim();
+      
+      // Validate JSON
+      try {
+        JSON.parse(expected_output);
+      } catch {
+        showMessage('Expected output must be valid JSON', 'error');
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/test-cases/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input, expected_output })
+        });
+        
+        if (res.ok) {
+          showMessage('Test case updated!', 'success');
+          editingTestCaseId = null;
+          loadTestCases();
+        } else {
+          const error = await res.json();
+          showMessage(error.error || 'Failed to update test case', 'error');
+        }
       } catch (error) {
-        document.getElementById('test-cases-list').innerHTML = '<p style="color: red;">Error loading test cases</p>';
+        showMessage('Error updating test case', 'error');
       }
     }
     
@@ -283,6 +394,7 @@
     
     document.getElementById('prompt-select').addEventListener('change', (e) => {
       selectedPromptId = e.target.value ? parseInt(e.target.value, 10) : null;
+      editingTestCaseId = null;
       
       document.getElementById('test-case-section').style.display = selectedPromptId ? 'block' : 'none';
       document.getElementById('no-prompt-message').style.display = selectedPromptId ? 'none' : 'block';
@@ -335,4 +447,3 @@
   </script>
 </body>
 </html>
-
