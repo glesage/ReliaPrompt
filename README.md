@@ -1,10 +1,10 @@
 # LLM Prompt Testing Tool
 
-A web application for testing agentic server-side prompts against multiple LLMs (OpenAI, AWS Bedrock, Grok) with automated scoring and prompt improvement capabilities.
+A web application for testing agentic server-side prompts against multiple LLMs (OpenAI, AWS Bedrock, Deepseek) with automated scoring and prompt improvement capabilities.
 
 ## Features
 
-- **Multi-LLM Testing**: Test prompts against OpenAI (GPT-4o), AWS Bedrock (Claude 3 Sonnet), and Grok
+- **Multi-LLM Testing**: Test prompts against OpenAI (GPT-4o), AWS Bedrock (Claude 3 Sonnet), and Deepseek
 - **Parallel Execution**: Run tests in parallel across all LLMs
 - **10x Repeatability**: Each test case runs 10 times per LLM to measure consistency
 - **JSON Comparison**: Exact JSON matching (ignoring formatting)
@@ -29,7 +29,7 @@ A web application for testing agentic server-side prompts against multiple LLMs 
 
 4. **Configure API Keys:**
    - Go to Configuration page
-   - Add your OpenAI, Bedrock, and/or Grok API keys
+   - Add your OpenAI, Bedrock, and/or Deepseek API keys
    - At least one provider must be configured to run tests
 
 ## Usage
@@ -98,7 +98,7 @@ A web application for testing agentic server-side prompts against multiple LLMs 
 - **Backend**: Express, TypeScript
 - **Database**: SQLite (sql.js), Drizzle ORM
 - **Frontend**: Plain HTML, CSS, JavaScript
-- **LLM APIs**: OpenAI SDK, AWS Bedrock SDK, Grok REST API
+- **LLM APIs**: OpenAI SDK, AWS Bedrock SDK, Deepseek API
 
 ## Project Structure
 
@@ -110,7 +110,7 @@ A web application for testing agentic server-side prompts against multiple LLMs 
 │   │   ├── llm-client.ts   # Unified interface
 │   │   ├── openai-client.ts
 │   │   ├── bedrock-client.ts
-│   │   └── grok-client.ts
+│   │   └── deepseek-client.ts
 │   ├── services/
 │   │   ├── test-runner.ts  # Test execution service
 │   │   └── improvement-service.ts

@@ -229,23 +229,23 @@
 
                     <div class="provider-section">
                         <h3>
-                            Grok (X.AI)
-                            <span id="grok-status" class="status-badge not-configured"
+                            Deepseek
+                            <span id="deepseek-status" class="status-badge not-configured"
                                 >Not configured</span
                             >
                         </h3>
                         <div class="form-group">
-                            <label for="grok_api_key">API Key</label>
+                            <label for="deepseek_api_key">API Key</label>
                             <input
                                 type="password"
-                                id="grok_api_key"
-                                name="grok_api_key"
-                                placeholder="xai-..."
+                                id="deepseek_api_key"
+                                name="deepseek_api_key"
+                                placeholder="sk-..."
                             />
                             <small
                                 >Get your API key from
-                                <a href="https://console.x.ai" target="_blank"
-                                    >X.AI Console</a
+                                <a href="https://platform.deepseek.com/api_keys" target="_blank"
+                                    >Deepseek Platform</a
                                 ></small
                             >
                         </div>
@@ -273,10 +273,10 @@
                             "status-badge configured";
                         document.getElementById("bedrock-status").textContent = "Configured";
                     }
-                    if (config.grok_api_key) {
-                        document.getElementById("grok-status").className =
+                    if (config.deepseek_api_key) {
+                        document.getElementById("deepseek-status").className =
                             "status-badge configured";
-                        document.getElementById("grok-status").textContent = "Configured";
+                        document.getElementById("deepseek-status").textContent = "Configured";
                     }
 
                     // Set region if available

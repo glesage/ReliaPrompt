@@ -20,7 +20,7 @@ export interface LLMConfig {
     bedrockAccessKeyId?: string;
     bedrockSecretAccessKey?: string;
     bedrockRegion?: string;
-    grokApiKey?: string;
+    deepseekApiKey?: string;
 }
 
 // Store active clients

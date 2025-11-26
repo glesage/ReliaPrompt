@@ -1,12 +1,12 @@
 import { LLMClient, TestResultSummary, buildImprovementPrompt } from "./llm-client";
 import { getConfig } from "../database";
 
-export class GrokClient implements LLMClient {
-    name = "Grok";
-    private baseUrl = "https://api.x.ai/v1";
+export class DeepseekClient implements LLMClient {
+    name = "Deepseek";
+    private baseUrl = "https://api.deepseek.com/v1";
 
     private getApiKey(): string | null {
-        return getConfig("grok_api_key");
+        return getConfig("deepseek_api_key");
     }
 
     isConfigured(): boolean {
@@ -16,7 +16,7 @@ export class GrokClient implements LLMClient {
     async complete(systemPrompt: string, userMessage: string): Promise<string> {
         const apiKey = this.getApiKey();
         if (!apiKey) {
-            throw new Error("Grok API key not configured");
+            throw new Error("Deepseek API key not configured");
         }
 
         const response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -26,7 +26,7 @@ export class GrokClient implements LLMClient {
                 Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-                model: "grok-beta",
+                model: "deepseek-chat",
                 messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: userMessage },
@@ -38,7 +38,7 @@ export class GrokClient implements LLMClient {
 
         if (!response.ok) {
             const error = await response.text();
-            throw new Error(`Grok API error: ${response.status} - ${error}`);
+            throw new Error(`Deepseek API error: ${response.status} - ${error}`);
         }
 
         const data = (await response.json()) as {
@@ -50,7 +50,7 @@ export class GrokClient implements LLMClient {
     async improvePrompt(currentPrompt: string, testResults: TestResultSummary[]): Promise<string> {
         const apiKey = this.getApiKey();
         if (!apiKey) {
-            throw new Error("Grok API key not configured");
+            throw new Error("Deepseek API key not configured");
         }
 
         const improvementPrompt = buildImprovementPrompt(currentPrompt, testResults);
@@ -62,7 +62,7 @@ export class GrokClient implements LLMClient {
                 Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-                model: "grok-beta",
+                model: "deepseek-chat",
                 messages: [{ role: "user", content: improvementPrompt }],
                 temperature: 0.7,
                 max_tokens: 4096,
@@ -71,7 +71,7 @@ export class GrokClient implements LLMClient {
 
         if (!response.ok) {
             const error = await response.text();
-            throw new Error(`Grok API error: ${response.status} - ${error}`);
+            throw new Error(`Deepseek API error: ${response.status} - ${error}`);
         }
 
         const data = (await response.json()) as {
@@ -81,4 +81,4 @@ export class GrokClient implements LLMClient {
     }
 }
 
-export const grokClient = new GrokClient();
+export const deepseekClient = new DeepseekClient();

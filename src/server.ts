@@ -74,7 +74,7 @@ app.post("/api/config", (req, res) => {
             bedrock_access_key_id,
             bedrock_secret_access_key,
             bedrock_region,
-            grok_api_key,
+            deepseek_api_key,
         } = req.body;
 
         if (openai_api_key !== undefined) setConfig("openai_api_key", openai_api_key);
@@ -84,7 +84,7 @@ app.post("/api/config", (req, res) => {
             setConfig("bedrock_secret_access_key", bedrock_secret_access_key);
         if (bedrock_region !== undefined)
             setConfig("bedrock_region", bedrock_region || "us-east-1");
-        if (grok_api_key !== undefined) setConfig("grok_api_key", grok_api_key);
+        if (deepseek_api_key !== undefined) setConfig("deepseek_api_key", deepseek_api_key);
 
         refreshClients();
 
