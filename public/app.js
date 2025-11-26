@@ -1,6 +1,3 @@
-// ============== SHARED APP FUNCTIONALITY ==============
-
-// Icons as SVG strings
 const ICONS = {
     logo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 2L2 7l10 5 10-5-10-5z"/>
@@ -25,58 +22,49 @@ const ICONS = {
         <line x1="16" y1="13" x2="8" y2="13"/>
         <line x1="16" y1="17" x2="8" y2="17"/>
         <polyline points="10 9 9 9 8 9"/>
-    </svg>`
+    </svg>`,
 };
 
-// Current page detection
-const CURRENT_PAGE = window.location.pathname.split('/').pop() || 'index.html';
+const CURRENT_PAGE = window.location.pathname.split("/").pop() || "index.html";
 
-// Navigation items
 const NAV_ITEMS = [
-    { href: '/test-cases.html', label: 'Test Cases', page: 'test-cases.html' },
-    { href: '/run-tests.html', label: 'Run Tests', page: 'run-tests.html' },
-    { href: '/improve.html', label: 'Auto-Improve', page: 'improve.html' }
+    { href: "/test-cases.html", label: "Test Cases", page: "test-cases.html" },
+    { href: "/run-tests.html", label: "Run Tests", page: "run-tests.html" },
+    { href: "/improve.html", label: "Auto-Improve", page: "improve.html" },
 ];
 
-// ============== PROMPT SELECTION ==============
-
 function getSelectedPromptId() {
-    // Check URL param first
     const urlParams = new URLSearchParams(window.location.search);
-    const urlPromptId = urlParams.get('promptId');
+    const urlPromptId = urlParams.get("promptId");
     if (urlPromptId) {
-        sessionStorage.setItem('selectedPromptId', urlPromptId);
+        sessionStorage.setItem("selectedPromptId", urlPromptId);
         return parseInt(urlPromptId, 10);
     }
-    // Fall back to sessionStorage
-    const stored = sessionStorage.getItem('selectedPromptId');
+    const stored = sessionStorage.getItem("selectedPromptId");
     return stored ? parseInt(stored, 10) : null;
 }
 
 function setSelectedPromptId(id) {
     if (id) {
-        sessionStorage.setItem('selectedPromptId', id.toString());
+        sessionStorage.setItem("selectedPromptId", id.toString());
     } else {
-        sessionStorage.removeItem('selectedPromptId');
+        sessionStorage.removeItem("selectedPromptId");
     }
-    // Update URL without reload
     const url = new URL(window.location);
     if (id) {
-        url.searchParams.set('promptId', id);
+        url.searchParams.set("promptId", id);
     } else {
-        url.searchParams.delete('promptId');
+        url.searchParams.delete("promptId");
     }
-    window.history.replaceState({}, '', url);
+    window.history.replaceState({}, "", url);
 }
 
-// ============== SIDEBAR ==============
-
 async function loadPromptSidebar() {
-    const sidebarList = document.getElementById('sidebar-prompts');
+    const sidebarList = document.getElementById("sidebar-prompts");
     if (!sidebarList) return;
 
     try {
-        const res = await fetch('/api/prompts');
+        const res = await fetch("/api/prompts");
         const prompts = await res.json();
         const selectedId = getSelectedPromptId();
 
@@ -89,8 +77,10 @@ async function loadPromptSidebar() {
             return;
         }
 
-        sidebarList.innerHTML = prompts.map(p => `
-            <div class="sidebar-item ${p.id === selectedId ? 'active' : ''}" data-id="${p.id}" data-name="${escapeHtml(p.name)}">
+        sidebarList.innerHTML = prompts
+            .map(
+                (p) => `
+            <div class="sidebar-item ${p.id === selectedId ? "active" : ""}" data-id="${p.id}" data-name="${escapeHtml(p.name)}">
                 <div class="sidebar-item-content">
                     <div class="sidebar-item-name">
                         ${escapeHtml(p.name)}
@@ -113,20 +103,21 @@ async function loadPromptSidebar() {
                     </button>
                 </div>
             </div>
-        `).join('');
+        `
+            )
+            .join("");
 
         // Add click handlers for selecting prompts
-        sidebarList.querySelectorAll('.sidebar-item-content').forEach(content => {
-            content.addEventListener('click', () => {
-                const item = content.closest('.sidebar-item');
+        sidebarList.querySelectorAll(".sidebar-item-content").forEach((content) => {
+            content.addEventListener("click", () => {
+                const item = content.closest(".sidebar-item");
                 const id = parseInt(item.dataset.id, 10);
                 selectPrompt(id, item.dataset.name);
             });
         });
 
-        // Add click handlers for edit buttons
-        sidebarList.querySelectorAll('.sidebar-action-btn.edit').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+        sidebarList.querySelectorAll(".sidebar-action-btn.edit").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 const id = parseInt(btn.dataset.id, 10);
                 const name = btn.dataset.name;
@@ -134,9 +125,8 @@ async function loadPromptSidebar() {
             });
         });
 
-        // Add click handlers for delete buttons
-        sidebarList.querySelectorAll('.sidebar-action-btn.delete').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+        sidebarList.querySelectorAll(".sidebar-action-btn.delete").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 const id = parseInt(btn.dataset.id, 10);
                 const name = btn.dataset.name;
@@ -144,59 +134,54 @@ async function loadPromptSidebar() {
             });
         });
 
-        // Notify page that prompts are loaded
-        window.dispatchEvent(new CustomEvent('promptsLoaded', { detail: { prompts, selectedId } }));
+        window.dispatchEvent(new CustomEvent("promptsLoaded", { detail: { prompts, selectedId } }));
     } catch (error) {
-        console.error('Error loading prompts:', error);
+        console.error("Error loading prompts:", error);
         sidebarList.innerHTML = '<div class="sidebar-empty">Error loading prompts</div>';
     }
 }
 
 function selectPrompt(id, name) {
     setSelectedPromptId(id);
-    
-    // Update sidebar visual state
-    document.querySelectorAll('.sidebar-item').forEach(item => {
-        item.classList.toggle('active', parseInt(item.dataset.id, 10) === id);
+
+    document.querySelectorAll(".sidebar-item").forEach((item) => {
+        item.classList.toggle("active", parseInt(item.dataset.id, 10) === id);
     });
 
-    // Notify page of selection
-    window.dispatchEvent(new CustomEvent('promptSelected', { detail: { id, name } }));
+    window.dispatchEvent(new CustomEvent("promptSelected", { detail: { id, name } }));
 }
 
-// ============== NEW PROMPT MODAL ==============
-
 function openNewPromptModal() {
-    const overlay = document.getElementById('new-prompt-modal');
+    const overlay = document.getElementById("new-prompt-modal");
     if (overlay) {
-        overlay.classList.add('active');
-        document.getElementById('new-prompt-name')?.focus();
+        overlay.classList.add("active");
+        document.getElementById("new-prompt-name")?.focus();
     }
 }
 
 function closeNewPromptModal() {
-    const overlay = document.getElementById('new-prompt-modal');
+    const overlay = document.getElementById("new-prompt-modal");
     if (overlay) {
-        overlay.classList.remove('active');
-        document.getElementById('new-prompt-form')?.reset();
+        overlay.classList.remove("active");
+        document.getElementById("new-prompt-form")?.reset();
     }
 }
 
 async function createNewPrompt(e) {
     e.preventDefault();
-    const name = document.getElementById('new-prompt-name').value.trim();
-    const content = document.getElementById('new-prompt-content').value.trim();
+    const name = document.getElementById("new-prompt-name").value.trim();
+    const content = document.getElementById("new-prompt-content").value.trim();
 
     if (!name || !content) {
-        showAppMessage('Please fill in all fields', 'error');
+        showAppMessage("Please fill in all fields", "error");
         return;
     }
 
     try {
-        const res = await fetch('/api/prompts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, content })
+        const res = await fetch("/api/prompts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, content }),
         });
 
         if (res.ok) {
@@ -204,17 +189,15 @@ async function createNewPrompt(e) {
             closeNewPromptModal();
             await loadPromptSidebar();
             selectPrompt(prompt.id, prompt.name);
-            showAppMessage('Prompt created successfully!', 'success');
+            showAppMessage("Prompt created successfully!", "success");
         } else {
             const error = await res.json();
-            showAppMessage(error.error || 'Failed to create prompt', 'error');
+            showAppMessage(error.error || "Failed to create prompt", "error");
         }
     } catch (error) {
-        showAppMessage('Error creating prompt', 'error');
+        showAppMessage("Error creating prompt", "error");
     }
 }
-
-// ============== EDIT PROMPT MODAL ==============
 
 let editingPromptId = null;
 let editingPromptName = null;
@@ -222,30 +205,29 @@ let editingPromptName = null;
 async function openEditPromptModal(id, name) {
     editingPromptId = id;
     editingPromptName = name;
-    
-    const overlay = document.getElementById('edit-prompt-modal');
+
+    const overlay = document.getElementById("edit-prompt-modal");
     if (!overlay) return;
-    
-    // Load prompt content
+
     try {
         const res = await fetch(`/api/prompts/${id}`);
         const prompt = await res.json();
-        
-        document.getElementById('edit-prompt-name-display').textContent = name;
-        document.getElementById('edit-prompt-version').textContent = `v${prompt.version}`;
-        document.getElementById('edit-prompt-content').value = prompt.content;
-        
-        overlay.classList.add('active');
-        document.getElementById('edit-prompt-content')?.focus();
+
+        document.getElementById("edit-prompt-name-display").textContent = name;
+        document.getElementById("edit-prompt-version").textContent = `v${prompt.version}`;
+        document.getElementById("edit-prompt-content").value = prompt.content;
+
+        overlay.classList.add("active");
+        document.getElementById("edit-prompt-content")?.focus();
     } catch (error) {
-        showAppMessage('Error loading prompt', 'error');
+        showAppMessage("Error loading prompt", "error");
     }
 }
 
 function closeEditPromptModal() {
-    const overlay = document.getElementById('edit-prompt-modal');
+    const overlay = document.getElementById("edit-prompt-modal");
     if (overlay) {
-        overlay.classList.remove('active');
+        overlay.classList.remove("active");
         editingPromptId = null;
         editingPromptName = null;
     }
@@ -254,18 +236,18 @@ function closeEditPromptModal() {
 async function saveEditedPrompt(e) {
     e.preventDefault();
     if (!editingPromptName) return;
-    
-    const content = document.getElementById('edit-prompt-content').value.trim();
+
+    const content = document.getElementById("edit-prompt-content").value.trim();
     if (!content) {
-        showAppMessage('Please enter prompt content', 'error');
+        showAppMessage("Please enter prompt content", "error");
         return;
     }
 
     try {
-        const res = await fetch('/api/prompts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: editingPromptName, content })
+        const res = await fetch("/api/prompts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: editingPromptName, content }),
         });
 
         if (res.ok) {
@@ -273,88 +255,92 @@ async function saveEditedPrompt(e) {
             closeEditPromptModal();
             await loadPromptSidebar();
             selectPrompt(prompt.id, prompt.name);
-            showAppMessage('New version saved!', 'success');
+            showAppMessage("New version saved!", "success");
         } else {
             const error = await res.json();
-            showAppMessage(error.error || 'Failed to save prompt', 'error');
+            showAppMessage(error.error || "Failed to save prompt", "error");
         }
     } catch (error) {
-        showAppMessage('Error saving prompt', 'error');
+        showAppMessage("Error saving prompt", "error");
     }
 }
 
-// ============== DELETE PROMPT ==============
-
 async function deletePromptFromSidebar(id, name) {
-    if (!confirm(`Delete ALL versions of "${name}"? This will also delete all test cases. This cannot be undone.`)) {
+    if (
+        !confirm(
+            `Delete ALL versions of "${name}"? This will also delete all test cases. This cannot be undone.`
+        )
+    ) {
         return;
     }
 
     try {
-        const res = await fetch(`/api/prompts/name/${encodeURIComponent(name)}`, { 
-            method: 'DELETE' 
+        const res = await fetch(`/api/prompts/name/${encodeURIComponent(name)}`, {
+            method: "DELETE",
         });
-        
+
         if (res.ok) {
-            showAppMessage('Prompt deleted', 'success');
-            
-            // Clear selection if this was the selected prompt
+            showAppMessage("Prompt deleted", "success");
+
             const selectedId = getSelectedPromptId();
             if (selectedId === id) {
                 setSelectedPromptId(null);
-                window.dispatchEvent(new CustomEvent('promptSelected', { detail: { id: null, name: null } }));
+                window.dispatchEvent(
+                    new CustomEvent("promptSelected", { detail: { id: null, name: null } })
+                );
             }
-            
+
             await loadPromptSidebar();
         } else {
             const error = await res.json();
-            showAppMessage(error.error || 'Failed to delete prompt', 'error');
+            showAppMessage(error.error || "Failed to delete prompt", "error");
         }
     } catch (error) {
-        showAppMessage('Error deleting prompt', 'error');
+        showAppMessage("Error deleting prompt", "error");
     }
 }
 
-// ============== CONFIG MODAL ==============
-
 function openConfigModal() {
-    const overlay = document.getElementById('config-modal');
+    const overlay = document.getElementById("config-modal");
     if (overlay) {
-        overlay.classList.add('active');
+        overlay.classList.add("active");
         loadConfigStatus();
     }
 }
 
 function closeConfigModal() {
-    const overlay = document.getElementById('config-modal');
+    const overlay = document.getElementById("config-modal");
     if (overlay) {
-        overlay.classList.remove('active');
+        overlay.classList.remove("active");
     }
 }
 
 async function loadConfigStatus() {
     try {
-        const res = await fetch('/api/config');
+        const res = await fetch("/api/config");
         const config = await res.json();
 
-        updateConfigBadge('openai-status', !!config.openai_api_key);
-        updateConfigBadge('bedrock-status', !!(config.bedrock_access_key_id && config.bedrock_secret_access_key));
-        updateConfigBadge('deepseek-status', !!config.deepseek_api_key);
+        updateConfigBadge("openai-status", !!config.openai_api_key);
+        updateConfigBadge(
+            "bedrock-status",
+            !!(config.bedrock_access_key_id && config.bedrock_secret_access_key)
+        );
+        updateConfigBadge("deepseek-status", !!config.deepseek_api_key);
 
         if (config.bedrock_region) {
-            const regionInput = document.getElementById('bedrock_region');
+            const regionInput = document.getElementById("bedrock_region");
             if (regionInput) regionInput.value = config.bedrock_region;
         }
     } catch (error) {
-        console.error('Error loading config:', error);
+        console.error("Error loading config:", error);
     }
 }
 
 function updateConfigBadge(elementId, isConfigured) {
     const badge = document.getElementById(elementId);
     if (badge) {
-        badge.className = `status-badge ${isConfigured ? 'configured' : 'not-configured'}`;
-        badge.textContent = isConfigured ? 'Configured' : 'Not configured';
+        badge.className = `status-badge ${isConfigured ? "configured" : "not-configured"}`;
+        badge.textContent = isConfigured ? "Configured" : "Not configured";
     }
 }
 
@@ -371,163 +357,139 @@ async function saveConfig(e) {
     }
 
     try {
-        const res = await fetch('/api/config', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+        const res = await fetch("/api/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
         });
 
         if (res.ok) {
-            showAppMessage('Configuration saved successfully!', 'success');
+            showAppMessage("Configuration saved successfully!", "success");
             loadConfigStatus();
-            form.querySelectorAll('input[type="password"]').forEach(el => el.value = '');
+            form.querySelectorAll('input[type="password"]').forEach((el) => (el.value = ""));
         } else {
             const error = await res.json();
-            showAppMessage(error.error || 'Failed to save configuration', 'error');
+            showAppMessage(error.error || "Failed to save configuration", "error");
         }
     } catch (error) {
-        showAppMessage('Error saving configuration', 'error');
+        showAppMessage("Error saving configuration", "error");
     }
 }
 
-// ============== MESSAGES ==============
-
 function showAppMessage(text, type) {
-    const container = document.getElementById('app-message');
+    const container = document.getElementById("app-message");
     if (!container) return;
 
     container.innerHTML = `<div class="message ${type}">${escapeHtml(text)}</div>`;
-    
-    if (type !== 'info') {
+
+    if (type !== "info") {
         setTimeout(() => {
-            container.innerHTML = '';
+            container.innerHTML = "";
         }, 5000);
     }
 }
 
-// ============== UTILITIES ==============
-
 function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
+    if (!text) return "";
+    const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
 }
 
-// ============== LAYOUT INITIALIZATION ==============
-
 function initAppLayout() {
-    // The HTML structure is already in the page, we just need to wire up events
-
-    // Gear button - open config modal
-    const gearBtn = document.getElementById('gear-btn');
+    const gearBtn = document.getElementById("gear-btn");
     if (gearBtn) {
-        gearBtn.addEventListener('click', openConfigModal);
+        gearBtn.addEventListener("click", openConfigModal);
     }
 
-    // Config modal close
-    const configModalOverlay = document.getElementById('config-modal');
+    const configModalOverlay = document.getElementById("config-modal");
     if (configModalOverlay) {
-        configModalOverlay.addEventListener('click', (e) => {
+        configModalOverlay.addEventListener("click", (e) => {
             if (e.target === configModalOverlay) closeConfigModal();
         });
     }
 
-    const configCloseBtn = document.getElementById('config-close-btn');
+    const configCloseBtn = document.getElementById("config-close-btn");
     if (configCloseBtn) {
-        configCloseBtn.addEventListener('click', closeConfigModal);
+        configCloseBtn.addEventListener("click", closeConfigModal);
     }
 
-    // Config form submit
-    const configForm = document.getElementById('config-form');
+    const configForm = document.getElementById("config-form");
     if (configForm) {
-        configForm.addEventListener('submit', saveConfig);
+        configForm.addEventListener("submit", saveConfig);
     }
 
-    // New prompt button
-    const newPromptBtn = document.getElementById('new-prompt-btn');
+    const newPromptBtn = document.getElementById("new-prompt-btn");
     if (newPromptBtn) {
-        newPromptBtn.addEventListener('click', openNewPromptModal);
+        newPromptBtn.addEventListener("click", openNewPromptModal);
     }
 
-    // New prompt modal close
-    const newPromptModalOverlay = document.getElementById('new-prompt-modal');
+    const newPromptModalOverlay = document.getElementById("new-prompt-modal");
     if (newPromptModalOverlay) {
-        newPromptModalOverlay.addEventListener('click', (e) => {
+        newPromptModalOverlay.addEventListener("click", (e) => {
             if (e.target === newPromptModalOverlay) closeNewPromptModal();
         });
     }
 
-    const newPromptCloseBtn = document.getElementById('new-prompt-close-btn');
+    const newPromptCloseBtn = document.getElementById("new-prompt-close-btn");
     if (newPromptCloseBtn) {
-        newPromptCloseBtn.addEventListener('click', closeNewPromptModal);
+        newPromptCloseBtn.addEventListener("click", closeNewPromptModal);
     }
 
-    // New prompt form submit
-    const newPromptForm = document.getElementById('new-prompt-form');
+    const newPromptForm = document.getElementById("new-prompt-form");
     if (newPromptForm) {
-        newPromptForm.addEventListener('submit', createNewPrompt);
+        newPromptForm.addEventListener("submit", createNewPrompt);
     }
 
-    // Edit prompt modal close
-    const editPromptModalOverlay = document.getElementById('edit-prompt-modal');
+    const editPromptModalOverlay = document.getElementById("edit-prompt-modal");
     if (editPromptModalOverlay) {
-        editPromptModalOverlay.addEventListener('click', (e) => {
+        editPromptModalOverlay.addEventListener("click", (e) => {
             if (e.target === editPromptModalOverlay) closeEditPromptModal();
         });
     }
 
-    const editPromptCloseBtn = document.getElementById('edit-prompt-close-btn');
+    const editPromptCloseBtn = document.getElementById("edit-prompt-close-btn");
     if (editPromptCloseBtn) {
-        editPromptCloseBtn.addEventListener('click', closeEditPromptModal);
+        editPromptCloseBtn.addEventListener("click", closeEditPromptModal);
     }
 
-    // Edit prompt form submit
-    const editPromptForm = document.getElementById('edit-prompt-form');
+    const editPromptForm = document.getElementById("edit-prompt-form");
     if (editPromptForm) {
-        editPromptForm.addEventListener('submit', saveEditedPrompt);
+        editPromptForm.addEventListener("submit", saveEditedPrompt);
     }
 
-    // Escape key to close modals
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
             closeConfigModal();
             closeNewPromptModal();
             closeEditPromptModal();
         }
     });
 
-    // Load sidebar prompts
     loadPromptSidebar();
 }
 
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAppLayout);
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAppLayout);
 } else {
     initAppLayout();
 }
 
-// Auto-open config modal if redirected from config.html
-if (window.location.search.includes('openConfig=true')) {
-    // Remove the query param from URL
+if (window.location.search.includes("openConfig=true")) {
     const url = new URL(window.location);
-    url.searchParams.delete('openConfig');
-    window.history.replaceState({}, '', url);
-    // Open config modal after a short delay to ensure DOM is ready
+    url.searchParams.delete("openConfig");
+    window.history.replaceState({}, "", url);
     setTimeout(() => {
         openConfigModal();
     }, 100);
 }
 
-// ============== SHARED HTML TEMPLATES ==============
-
-// These functions can be used to generate common HTML structures
 function getNavbarHtml() {
-    const navLinks = NAV_ITEMS.map(item => {
-        const isActive = CURRENT_PAGE === item.page || (CURRENT_PAGE === '' && item.page === 'index.html');
-        return `<a href="${item.href}" class="${isActive ? 'active' : ''}">${item.label}</a>`;
-    }).join('');
+    const navLinks = NAV_ITEMS.map((item) => {
+        const isActive =
+            CURRENT_PAGE === item.page || (CURRENT_PAGE === "" && item.page === "index.html");
+        return `<a href="${item.href}" class="${isActive ? "active" : ""}">${item.label}</a>`;
+    }).join("");
 
     return `
         <nav class="navbar">
@@ -661,7 +623,6 @@ function getNewPromptModalHtml() {
     `;
 }
 
-// Export for use in other scripts
 window.AppUtils = {
     getSelectedPromptId,
     setSelectedPromptId,
@@ -680,6 +641,5 @@ window.AppUtils = {
     getNavbarHtml,
     getSidebarHtml,
     getConfigModalHtml,
-    getNewPromptModalHtml
+    getNewPromptModalHtml,
 };
-

@@ -55,17 +55,12 @@ export interface RunResult {
     error?: string;
 }
 
-// Store for active test jobs (in-memory progress tracking)
 const activeJobs = new Map<string, TestProgress>();
 
 export function getTestProgress(jobId: string): TestProgress | null {
     return activeJobs.get(jobId) ?? null;
 }
 
-/**
- * Start a test run for a prompt
- * Returns jobId immediately, runs tests in background
- */
 export async function startTestRun(promptId: number): Promise<string> {
     const prompt = getPromptById(promptId);
     if (!prompt) {
@@ -96,7 +91,6 @@ export async function startTestRun(promptId: number): Promise<string> {
     };
     activeJobs.set(jobId, progress);
 
-    // Run tests in background
     runTests(jobId, prompt, testCases, clients).catch((error) => {
         console.error("Test run failed:", error);
         const progress = activeJobs.get(jobId);
@@ -110,10 +104,6 @@ export async function startTestRun(promptId: number): Promise<string> {
     return jobId;
 }
 
-/**
- * Run all tests - executes test cases in parallel across LLMs,
- * but runs each test case 10 times sequentially per LLM
- */
 async function runTests(
     jobId: string,
     prompt: Prompt,
@@ -127,18 +117,15 @@ async function runTests(
     const llmResults: LLMTestResult[] = [];
     let completedTests = 0;
 
-    // Run all LLMs in parallel, test cases in parallel, but runs sequentially
     const llmPromises = clients.map(async (client) => {
         const testCaseResults: TestCaseResult[] = [];
         let llmCorrectCount = 0;
         let llmTotalRuns = 0;
 
-        // Run all test cases in parallel for this LLM
         const testCasePromises = testCases.map(async (testCase) => {
             const runs: RunResult[] = [];
             let correctRuns = 0;
 
-            // Run 10 times sequentially
             for (let runNumber = 1; runNumber <= RUNS_PER_TEST; runNumber++) {
                 try {
                     const actualOutput = await client.complete(prompt.content, testCase.input);
@@ -188,7 +175,6 @@ async function runTests(
                     );
                 }
 
-                // Update progress
                 completedTests++;
                 progress.completedTests = completedTests;
                 progress.progress = Math.round((completedTests / progress.totalTests) * 100);
@@ -219,7 +205,6 @@ async function runTests(
     const results = await Promise.all(llmPromises);
     llmResults.push(...results);
 
-    // Calculate overall score
     const totalCorrect = llmResults.reduce((sum, r) => sum + r.correctCount, 0);
     const totalRuns = llmResults.reduce((sum, r) => sum + r.totalRuns, 0);
     const overallScore = totalRuns > 0 ? Math.round((totalCorrect / totalRuns) * 100) : 0;
@@ -240,10 +225,6 @@ async function runTests(
     });
 }
 
-/**
- * Run tests for a specific prompt content (used by improvement service)
- * Returns the overall score (0-100)
- */
 export async function runTestsForPromptContent(
     promptContent: string,
     testCases: TestCase[],
@@ -260,7 +241,6 @@ export async function runTestsForPromptContent(
             const runs: RunResult[] = [];
             let correctRuns = 0;
 
-            // Run 10 times sequentially
             for (let runNumber = 1; runNumber <= RUNS_PER_TEST; runNumber++) {
                 try {
                     const actualOutput = await client.complete(promptContent, testCase.input);
@@ -321,9 +301,6 @@ export async function runTestsForPromptContent(
     return { score, results: llmResults };
 }
 
-/**
- * Get test results summary suitable for improvement prompts
- */
 export function getTestResultSummary(results: LLMTestResult[]) {
     const summary: Array<{
         input: string;
@@ -333,7 +310,6 @@ export function getTestResultSummary(results: LLMTestResult[]) {
         error?: string;
     }> = [];
 
-    // Aggregate results across all LLMs
     const testCaseMap = new Map<
         number,
         {
@@ -364,13 +340,11 @@ export function getTestResultSummary(results: LLMTestResult[]) {
         }
     }
 
-    // Create summary - use most common wrong output for each test case
     for (const [, tc] of testCaseMap) {
         const wrongOutputs = tc.outputs.filter((o) => !o.isCorrect);
         const anyCorrect = tc.outputs.some((o) => o.isCorrect);
 
         if (wrongOutputs.length > 0) {
-            // Use first wrong output as representative
             const representative = wrongOutputs[0];
             summary.push({
                 input: tc.input,

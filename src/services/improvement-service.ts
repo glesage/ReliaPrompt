@@ -24,16 +24,12 @@ export interface ImprovementProgress {
     error?: string;
 }
 
-// Store for active improvement jobs
 const activeImprovementJobs = new Map<string, ImprovementProgress>();
 
 export function getImprovementProgress(jobId: string): ImprovementProgress | null {
     return activeImprovementJobs.get(jobId) ?? null;
 }
 
-/**
- * Start an improvement job for a prompt
- */
 export async function startImprovement(promptId: number, maxIterations: number): Promise<string> {
     const prompt = getPromptById(promptId);
     if (!prompt) {
@@ -65,7 +61,6 @@ export async function startImprovement(promptId: number, maxIterations: number):
     };
     activeImprovementJobs.set(jobId, progress);
 
-    // Run improvement in background
     runImprovement(jobId, prompt, testCases, clients, maxIterations).catch((error) => {
         console.error("Improvement job failed:", error);
         const progress = activeImprovementJobs.get(jobId);
@@ -102,7 +97,6 @@ async function runImprovement(
     log(`Test cases: ${testCases.length}`);
     log(`Configured LLMs: ${clients.map((c) => c.name).join(", ")}`);
 
-    // Test original prompt
     log("Testing original prompt...");
     const originalResult = await runTestsForPromptContent(prompt.content, testCases, clients);
     const originalScore = originalResult.score;
@@ -133,10 +127,8 @@ async function runImprovement(
         updateImprovementJob(jobId, { currentIteration: iteration });
         log(`\n--- Iteration ${iteration}/${maxIterations} ---`);
 
-        // Get test result summary for improvement
         const testSummary = getTestResultSummary(currentTestResults);
 
-        // Ask all LLMs to improve the prompt in parallel
         log("Requesting improvements from all LLMs...");
         const improvementPromises = clients.map(async (client) => {
             try {
@@ -149,7 +141,6 @@ async function runImprovement(
 
         const improvements = await Promise.all(improvementPromises);
 
-        // Test each improvement
         const improvementResults: Array<{
             llm: string;
             prompt: string;
@@ -163,7 +154,6 @@ async function runImprovement(
                 continue;
             }
 
-            // Skip if prompt didn't change
             if (improvement.prompt.trim() === currentBestPrompt.trim()) {
                 log(`${improvement.llm}: No changes proposed`);
                 continue;
@@ -189,7 +179,6 @@ async function runImprovement(
             }
         }
 
-        // Find the best improvement
         const bestImprovement = improvementResults
             .filter((r) => r.score > currentBestScore)
             .sort((a, b) => b.score - a.score)[0];
@@ -215,15 +204,12 @@ async function runImprovement(
             }
         } else {
             log("No improvement found this iteration");
-
-            // If no improvement, try a different approach - maybe increase temperature or try different prompting
             if (iteration < maxIterations) {
                 log("Will try again with fresh perspective...");
             }
         }
     }
 
-    // Save the best prompt as a new version
     if (currentBestScore > originalScore) {
         log(
             `\nImprovement complete! Score improved from ${originalScore}% to ${currentBestScore}%`

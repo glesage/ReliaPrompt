@@ -1,5 +1,3 @@
-// Unified interface for all LLM clients
-
 export interface LLMClient {
     name: string;
     isConfigured(): boolean;
@@ -23,7 +21,6 @@ export interface LLMConfig {
     deepseekApiKey?: string;
 }
 
-// Store active clients
 let activeClients: LLMClient[] = [];
 
 export function getActiveClients(): LLMClient[] {
@@ -38,7 +35,6 @@ export function getConfiguredClients(): LLMClient[] {
     return activeClients.filter((client) => client.isConfigured());
 }
 
-// Improvement prompt template
 export function buildImprovementPrompt(
     currentPrompt: string,
     testResults: TestResultSummary[]
@@ -60,7 +56,6 @@ ${currentPrompt}
     if (failedTests.length > 0) {
         prompt += `## Failed Test Cases:\n`;
         for (const test of failedTests.slice(0, 10)) {
-            // Limit to 10 failed tests
             prompt += `
 ### Test Input:
 ${test.input}

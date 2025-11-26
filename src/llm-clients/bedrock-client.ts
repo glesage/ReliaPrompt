@@ -37,7 +37,6 @@ export class BedrockClient implements LLMClient {
             throw new Error("Bedrock credentials not configured");
         }
 
-        // Using Claude 3 Sonnet on Bedrock
         const modelId = "anthropic.claude-3-sonnet-20240229-v1:0";
 
         const payload = {

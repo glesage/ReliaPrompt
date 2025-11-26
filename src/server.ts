@@ -26,15 +26,12 @@ import { startImprovement, getImprovementProgress } from "./services/improvement
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "..", "public")));
 
-// Database initialization flag
 let dbInitialized = false;
 
-// Middleware to ensure DB is ready
 app.use((req, res, next) => {
     if (!dbInitialized && !req.path.startsWith("/api")) {
         return next();
@@ -45,13 +42,9 @@ app.use((req, res, next) => {
     next();
 });
 
-// ============== CONFIG ROUTES ==============
-
-// Get all config
 app.get("/api/config", (req, res) => {
     try {
         const config = getAllConfig();
-        // Mask API keys for security
         const masked: Record<string, string> = {};
         for (const [key, value] of Object.entries(config)) {
             if (key.includes("key") || key.includes("secret")) {
@@ -66,7 +59,6 @@ app.get("/api/config", (req, res) => {
     }
 });
 
-// Update config
 app.post("/api/config", (req, res) => {
     try {
         const {
@@ -94,7 +86,6 @@ app.post("/api/config", (req, res) => {
     }
 });
 
-// Get configured LLM providers
 app.get("/api/config/providers", (req, res) => {
     try {
         const clients = getConfiguredClients();
@@ -107,9 +98,6 @@ app.get("/api/config/providers", (req, res) => {
     }
 });
 
-// ============== PROMPT ROUTES ==============
-
-// Get all prompts (latest versions)
 app.get("/api/prompts", (req, res) => {
     try {
         const prompts = getLatestPrompts();
@@ -119,7 +107,6 @@ app.get("/api/prompts", (req, res) => {
     }
 });
 
-// Get all prompt versions
 app.get("/api/prompts/all", (req, res) => {
     try {
         const prompts = getAllPrompts();
@@ -129,7 +116,6 @@ app.get("/api/prompts/all", (req, res) => {
     }
 });
 
-// Create a new prompt
 app.post("/api/prompts", (req, res) => {
     try {
         const { name, content, parentVersionId } = req.body;
@@ -145,7 +131,6 @@ app.post("/api/prompts", (req, res) => {
     }
 });
 
-// Get a specific prompt
 app.get("/api/prompts/:id", (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
@@ -161,7 +146,6 @@ app.get("/api/prompts/:id", (req, res) => {
     }
 });
 
-// Get versions of a prompt by name
 app.get("/api/prompts/:name/versions", (req, res) => {
     try {
         const versions = getPromptVersions(req.params.name);
@@ -171,7 +155,6 @@ app.get("/api/prompts/:name/versions", (req, res) => {
     }
 });
 
-// Delete a specific prompt version
 app.delete("/api/prompts/:id", (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
@@ -186,7 +169,6 @@ app.delete("/api/prompts/:id", (req, res) => {
     }
 });
 
-// Delete all versions of a prompt by name
 app.delete("/api/prompts/name/:name", (req, res) => {
     try {
         deletePromptByName(req.params.name);
@@ -196,9 +178,6 @@ app.delete("/api/prompts/name/:name", (req, res) => {
     }
 });
 
-// ============== TEST CASE ROUTES ==============
-
-// Get test cases for a prompt
 app.get("/api/prompts/:id/test-cases", (req, res) => {
     try {
         const promptId = parseInt(req.params.id, 10);
@@ -209,7 +188,6 @@ app.get("/api/prompts/:id/test-cases", (req, res) => {
     }
 });
 
-// Create a test case
 app.post("/api/prompts/:id/test-cases", (req, res) => {
     try {
         const promptId = parseInt(req.params.id, 10);
@@ -219,7 +197,6 @@ app.post("/api/prompts/:id/test-cases", (req, res) => {
             return res.status(400).json({ error: "Input and expected_output are required" });
         }
 
-        // Validate that expected_output is valid JSON
         try {
             JSON.parse(expected_output);
         } catch {
@@ -233,7 +210,6 @@ app.post("/api/prompts/:id/test-cases", (req, res) => {
     }
 });
 
-// Update a test case
 app.put("/api/test-cases/:id", (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
@@ -243,7 +219,6 @@ app.put("/api/test-cases/:id", (req, res) => {
             return res.status(400).json({ error: "Input and expected_output are required" });
         }
 
-        // Validate that expected_output is valid JSON
         try {
             JSON.parse(expected_output);
         } catch {
@@ -260,7 +235,6 @@ app.put("/api/test-cases/:id", (req, res) => {
     }
 });
 
-// Delete a test case
 app.delete("/api/test-cases/:id", (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
@@ -271,9 +245,6 @@ app.delete("/api/test-cases/:id", (req, res) => {
     }
 });
 
-// ============== TEST RUN ROUTES ==============
-
-// Start a test run
 app.post("/api/test/run", async (req, res) => {
     try {
         const { promptId } = req.body;
@@ -289,18 +260,15 @@ app.post("/api/test/run", async (req, res) => {
     }
 });
 
-// Get test run status
 app.get("/api/test/status/:jobId", (req, res) => {
     try {
         const { jobId } = req.params;
 
-        // First check in-memory progress
         const progress = getTestProgress(jobId);
         if (progress) {
             return res.json(progress);
         }
 
-        // Fall back to database
         const job = getTestJobById(jobId);
         if (!job) {
             return res.status(404).json({ error: "Job not found" });
@@ -320,9 +288,6 @@ app.get("/api/test/status/:jobId", (req, res) => {
     }
 });
 
-// ============== IMPROVEMENT ROUTES ==============
-
-// Start improvement job
 app.post("/api/improve/start", async (req, res) => {
     try {
         const { promptId, maxIterations } = req.body;
@@ -339,7 +304,6 @@ app.post("/api/improve/start", async (req, res) => {
     }
 });
 
-// Get improvement status
 app.get("/api/improve/status/:jobId", (req, res) => {
     try {
         const { jobId } = req.params;
@@ -349,7 +313,6 @@ app.get("/api/improve/status/:jobId", (req, res) => {
             return res.json(progress);
         }
 
-        // Fall back to database
         const job = require("./database").getImprovementJobById(jobId);
         if (!job) {
             return res.status(404).json({ error: "Job not found" });
@@ -370,13 +333,10 @@ app.get("/api/improve/status/:jobId", (req, res) => {
     }
 });
 
-// ============== SERVE FRONTEND ==============
-
 app.get("/{*splat}", (req, res) => {
     res.sendFile(path.join(__dirname, "..", "public", "index.html"));
 });
 
-// Initialize database and start server
 function start() {
     try {
         console.log("Initializing database...");

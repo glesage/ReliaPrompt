@@ -14,11 +14,8 @@ import {
     type ImprovementJob,
 } from "./db/schema";
 
-// Re-export initialization and types
 export { initializeDatabase } from "./db";
 export type { Prompt, TestCase, TestJob, TestResult, ImprovementJob };
-
-// ============== CONFIG OPERATIONS ==============
 
 export function getConfig(key: string): string | null {
     const result = getDb().select().from(config).where(eq(config.key, key)).get();
@@ -46,8 +43,6 @@ export function getAllConfig(): Record<string, string> {
     }
     return result;
 }
-
-// ============== PROMPT OPERATIONS ==============
 
 export function createPrompt(name: string, content: string, parentVersionId?: number) {
     return withSave(() => {
@@ -87,9 +82,7 @@ export function getPromptById(id: number): Prompt | null {
 export function deletePrompt(id: number): void {
     withSave(() => {
         const db = getDb();
-        // Delete all test cases for this prompt first
         db.delete(testCases).where(eq(testCases.promptId, id)).run();
-        // Delete the prompt
         db.delete(prompts).where(eq(prompts.id, id)).run();
     });
 }
@@ -97,7 +90,6 @@ export function deletePrompt(id: number): void {
 export function deletePromptByName(name: string): void {
     withSave(() => {
         const db = getDb();
-        // Get all prompt IDs with this name
         const promptIds = db
             .select({ id: prompts.id })
             .from(prompts)
@@ -106,16 +98,13 @@ export function deletePromptByName(name: string): void {
             .map((p) => p.id);
 
         if (promptIds.length > 0) {
-            // Delete all test cases for these prompts
             db.delete(testCases).where(inArray(testCases.promptId, promptIds)).run();
-            // Delete all versions of the prompt
             db.delete(prompts).where(eq(prompts.name, name)).run();
         }
     });
 }
 
 export function getLatestPrompts(): Prompt[] {
-    // Use raw SQL for the complex subquery since Drizzle doesn't support this well
     const sqlDb = getSqlDb();
     return sqlDb
         .query(
@@ -144,8 +133,6 @@ export function getPromptVersions(name: string): Prompt[] {
 export function getAllPrompts(): Prompt[] {
     return getDb().select().from(prompts).orderBy(prompts.name, desc(prompts.version)).all();
 }
-
-// ============== TEST CASE OPERATIONS ==============
 
 export function createTestCase(promptId: number, input: string, expectedOutput: string) {
     return withSave(() => {
@@ -177,7 +164,6 @@ export function getTestCasesForPrompt(promptId: number): TestCase[] {
 }
 
 export function getTestCasesForPromptName(promptName: string): TestCase[] {
-    // Use raw SQL for the join query
     const sqlDb = getSqlDb();
     return sqlDb
         .query(
@@ -203,8 +189,6 @@ export function updateTestCase(id: number, input: string, expectedOutput: string
     });
     return getTestCaseById(id);
 }
-
-// ============== TEST JOB OPERATIONS ==============
 
 export function createTestJob(id: string, promptId: number, totalTests: number) {
     return withSave(() => {
@@ -238,8 +222,6 @@ export function updateTestJob(id: string, updates: Partial<typeof testJobs.$infe
             .run();
     });
 }
-
-// ============== TEST RESULT OPERATIONS ==============
 
 export function createTestResult(
     jobId: string,
@@ -277,8 +259,6 @@ export function getTestResultsForJob(jobId: string): TestResult[] {
         .orderBy(testResults.testCaseId, testResults.llmProvider, testResults.runNumber)
         .all();
 }
-
-// ============== IMPROVEMENT JOB OPERATIONS ==============
 
 export function createImprovementJob(id: string, promptId: number, maxIterations: number) {
     return withSave(() => {

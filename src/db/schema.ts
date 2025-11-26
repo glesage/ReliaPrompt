@@ -1,12 +1,10 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 
-// Config table for API keys
 export const config = sqliteTable("config", {
     key: text("key").primaryKey(),
     value: text("value").notNull(),
 });
 
-// Prompts table with versioning
 export const prompts = sqliteTable("prompts", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     name: text("name").notNull(),
@@ -16,7 +14,6 @@ export const prompts = sqliteTable("prompts", {
     createdAt: text("created_at").notNull(),
 });
 
-// Test cases table
 export const testCases = sqliteTable("test_cases", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     promptId: integer("prompt_id").notNull(),
@@ -25,7 +22,6 @@ export const testCases = sqliteTable("test_cases", {
     createdAt: text("created_at").notNull(),
 });
 
-// Test jobs table for tracking async test runs
 export const testJobs = sqliteTable("test_jobs", {
     id: text("id").primaryKey(),
     promptId: integer("prompt_id").notNull(),
@@ -37,7 +33,6 @@ export const testJobs = sqliteTable("test_jobs", {
     updatedAt: text("updated_at").notNull(),
 });
 
-// Test results table
 export const testResults = sqliteTable("test_results", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     jobId: text("job_id").notNull(),
@@ -50,7 +45,6 @@ export const testResults = sqliteTable("test_results", {
     createdAt: text("created_at").notNull(),
 });
 
-// Improvement jobs table
 export const improvementJobs = sqliteTable("improvement_jobs", {
     id: text("id").primaryKey(),
     promptId: integer("prompt_id").notNull(),
@@ -65,7 +59,6 @@ export const improvementJobs = sqliteTable("improvement_jobs", {
     updatedAt: text("updated_at").notNull(),
 });
 
-// Type exports for use in other files
 export type Config = typeof config.$inferSelect;
 export type NewConfig = typeof config.$inferInsert;
 
