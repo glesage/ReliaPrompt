@@ -92,7 +92,6 @@ export async function startTestRun(promptId: number): Promise<string> {
     activeJobs.set(jobId, progress);
 
     runTests(jobId, prompt, testCases, clients).catch((error) => {
-        console.error("Test run failed:", error);
         const progress = activeJobs.get(jobId);
         if (progress) {
             progress.status = "failed";

@@ -65,10 +65,15 @@ function setSelectedPromptId(id) {
     window.history.replaceState({}, "", url);
 }
 
-// Track which prompt groups are expanded
+// Track which prompt groups are expanded (by promptGroupId)
 const expandedGroups = new Set();
-// Cache for prompt versions
+// Cache for prompt versions (keyed by promptGroupId)
 const versionsCache = {};
+
+// Helper to get the group ID from a prompt
+function getPromptGroupId(prompt) {
+    return prompt.prompt_group_id || prompt.promptGroupId || prompt.id;
+}
 
 async function loadPromptSidebar() {
     const sidebarList = document.getElementById("sidebar-prompts");
@@ -92,17 +97,18 @@ async function loadPromptSidebar() {
         if (selectedId) {
             const selectedPrompt = prompts.find((p) => p.id === selectedId);
             if (selectedPrompt) {
-                expandedGroups.add(selectedPrompt.name);
+                expandedGroups.add(getPromptGroupId(selectedPrompt));
             }
         }
 
         sidebarList.innerHTML = prompts
             .map((p) => {
-                const isExpanded = expandedGroups.has(p.name);
+                const groupId = getPromptGroupId(p);
+                const isExpanded = expandedGroups.has(groupId);
                 const hasVersions = p.version > 1;
                 return `
-                    <div class="sidebar-group ${isExpanded ? "expanded" : ""}" data-name="${escapeHtml(p.name)}">
-                        <div class="sidebar-group-header" data-name="${escapeHtml(p.name)}">
+                    <div class="sidebar-group ${isExpanded ? "expanded" : ""}" data-group-id="${groupId}" data-name="${escapeHtml(p.name)}">
+                        <div class="sidebar-group-header" data-group-id="${groupId}" data-id="${p.id}">
                             ${hasVersions ? `<span class="sidebar-expand-icon">${isExpanded ? ICONS.chevronDown : ICONS.chevronRight}</span>` : '<span class="sidebar-expand-icon-placeholder"></span>'}
                             <div class="sidebar-group-info">
                                 <div class="sidebar-group-name">${escapeHtml(p.name)}</div>
@@ -115,7 +121,7 @@ async function loadPromptSidebar() {
                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                     </svg>
                                 </button>
-                                <button class="sidebar-action-btn delete" data-id="${p.id}" data-name="${escapeHtml(p.name)}" title="Delete all versions">
+                                <button class="sidebar-action-btn delete" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-group-id="${groupId}" title="Delete all versions">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="3 6 5 6 21 6"/>
                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -123,8 +129,8 @@ async function loadPromptSidebar() {
                                 </button>
                             </div>
                         </div>
-                        <div class="sidebar-versions" id="versions-${escapeHtml(p.name).replace(/[^a-zA-Z0-9]/g, "_")}">
-                            ${isExpanded && versionsCache[p.name] ? renderVersionsList(versionsCache[p.name], selectedId) : ""}
+                        <div class="sidebar-versions" id="versions-${groupId}">
+                            ${isExpanded && versionsCache[groupId] ? renderVersionsList(versionsCache[groupId], selectedId) : ""}
                         </div>
                     </div>
                 `;
@@ -136,9 +142,10 @@ async function loadPromptSidebar() {
             header.addEventListener("click", async (e) => {
                 // Don't toggle if clicking on action buttons
                 if (e.target.closest(".sidebar-action-btn")) return;
-                
-                const name = header.dataset.name;
-                await toggleVersionsExpand(name);
+
+                const groupId = parseInt(header.dataset.groupId, 10);
+                const promptId = parseInt(header.dataset.id, 10);
+                await toggleVersionsExpand(groupId, promptId);
             });
         });
 
@@ -156,20 +163,24 @@ async function loadPromptSidebar() {
                 e.stopPropagation();
                 const id = parseInt(btn.dataset.id, 10);
                 const name = btn.dataset.name;
-                deletePromptFromSidebar(id, name);
+                const groupId = parseInt(btn.dataset.groupId, 10);
+                deletePromptFromSidebar(id, name, groupId);
             });
         });
 
         // If expanded, load and render versions
-        for (const name of expandedGroups) {
-            if (!versionsCache[name]) {
-                await loadVersionsForPrompt(name);
+        for (const groupId of expandedGroups) {
+            if (!versionsCache[groupId]) {
+                // Find a prompt in this group to get the ID for API call
+                const prompt = prompts.find((p) => getPromptGroupId(p) === groupId);
+                if (prompt) {
+                    await loadVersionsForPrompt(groupId, prompt.id);
+                }
             }
         }
 
         window.dispatchEvent(new CustomEvent("promptsLoaded", { detail: { prompts, selectedId } }));
     } catch (error) {
-        console.error("Error loading prompts:", error);
         sidebarList.innerHTML = '<div class="sidebar-empty">Error loading prompts</div>';
     }
 }
@@ -177,11 +188,11 @@ async function loadPromptSidebar() {
 function formatVersionDate(dateStr) {
     const d = new Date(dateStr);
     const yy = String(d.getFullYear()).slice(-2);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    const ss = String(d.getSeconds()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const min = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
     return `${yy}.${mm}.${dd} - ${hh}:${min}:${ss}`;
 }
 
@@ -189,12 +200,12 @@ function renderVersionsList(versions, selectedId) {
     return versions
         .map(
             (v) => `
-            <div class="sidebar-version-item ${v.id === selectedId ? "active" : ""}" data-id="${v.id}" data-name="${escapeHtml(v.name)}" data-version="${v.version}">
+            <div class="sidebar-version-item ${v.id === selectedId ? "active" : ""}" data-id="${v.id}" data-name="${escapeHtml(v.name)}" data-version="${v.version}" data-group-id="${getPromptGroupId(v)}">
                 <div class="sidebar-version-info">
                     <span class="badge badge-version">v${v.version}</span>
                     <span class="sidebar-version-date">${formatVersionDate(v.createdAt || v.created_at)}</span>
                 </div>
-                <button class="sidebar-action-btn delete version-delete" data-id="${v.id}" data-name="${escapeHtml(v.name)}" data-version="${v.version}" title="Delete this version">
+                <button class="sidebar-action-btn delete version-delete" data-id="${v.id}" data-name="${escapeHtml(v.name)}" data-version="${v.version}" data-group-id="${getPromptGroupId(v)}" title="Delete this version">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"/>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -206,11 +217,12 @@ function renderVersionsList(versions, selectedId) {
         .join("");
 }
 
-async function loadVersionsForPrompt(name) {
+async function loadVersionsForPrompt(groupId, promptId) {
     try {
-        const res = await fetch(`/api/prompts/${encodeURIComponent(name)}/versions`);
+        // Use the ID-based endpoint to get versions
+        const res = await fetch(`/api/prompts/${promptId}/versions`);
         const versions = await res.json();
-        versionsCache[name] = versions;
+        versionsCache[groupId] = versions;
         return versions;
     } catch (error) {
         console.error("Error loading versions:", error);
@@ -218,34 +230,34 @@ async function loadVersionsForPrompt(name) {
     }
 }
 
-async function toggleVersionsExpand(name) {
-    const group = document.querySelector(`.sidebar-group[data-name="${CSS.escape(name)}"]`);
+async function toggleVersionsExpand(groupId, promptId) {
+    const group = document.querySelector(`.sidebar-group[data-group-id="${groupId}"]`);
     if (!group) return;
 
-    const isExpanded = expandedGroups.has(name);
+    const isExpanded = expandedGroups.has(groupId);
     const versionsContainer = group.querySelector(".sidebar-versions");
     const expandIcon = group.querySelector(".sidebar-expand-icon");
 
     if (isExpanded) {
         // Collapse
-        expandedGroups.delete(name);
+        expandedGroups.delete(groupId);
         group.classList.remove("expanded");
         if (expandIcon) expandIcon.innerHTML = ICONS.chevronRight;
         versionsContainer.innerHTML = "";
     } else {
         // Expand
-        expandedGroups.add(name);
+        expandedGroups.add(groupId);
         group.classList.add("expanded");
         if (expandIcon) expandIcon.innerHTML = ICONS.chevronDown;
 
         // Load versions if not cached
-        if (!versionsCache[name]) {
+        if (!versionsCache[groupId]) {
             versionsContainer.innerHTML = '<div class="sidebar-versions-loading">Loading...</div>';
-            await loadVersionsForPrompt(name);
+            await loadVersionsForPrompt(groupId, promptId);
         }
 
         const selectedId = getSelectedPromptId();
-        versionsContainer.innerHTML = renderVersionsList(versionsCache[name], selectedId);
+        versionsContainer.innerHTML = renderVersionsList(versionsCache[groupId], selectedId);
 
         // Add click handlers for version items
         versionsContainer.querySelectorAll(".sidebar-version-item").forEach((item) => {
@@ -254,7 +266,8 @@ async function toggleVersionsExpand(name) {
                 if (e.target.closest(".version-delete")) return;
                 const id = parseInt(item.dataset.id, 10);
                 const itemName = item.dataset.name;
-                selectPrompt(id, itemName);
+                const itemGroupId = parseInt(item.dataset.groupId, 10);
+                selectPrompt(id, itemName, itemGroupId);
             });
         });
 
@@ -265,13 +278,14 @@ async function toggleVersionsExpand(name) {
                 const id = parseInt(btn.dataset.id, 10);
                 const name = btn.dataset.name;
                 const version = parseInt(btn.dataset.version, 10);
-                deleteVersionFromSidebar(id, name, version);
+                const versionGroupId = parseInt(btn.dataset.groupId, 10);
+                deleteVersionFromSidebar(id, name, version, versionGroupId);
             });
         });
     }
 }
 
-function selectPrompt(id, name) {
+function selectPrompt(id, name, groupId) {
     setSelectedPromptId(id);
 
     // Update active state for version items
@@ -280,11 +294,24 @@ function selectPrompt(id, name) {
     });
 
     // Expand the group for the selected prompt if not already
-    if (name && !expandedGroups.has(name)) {
-        toggleVersionsExpand(name);
+    if (groupId && !expandedGroups.has(groupId)) {
+        toggleVersionsExpand(groupId, id);
     }
 
-    window.dispatchEvent(new CustomEvent("promptSelected", { detail: { id, name } }));
+    window.dispatchEvent(new CustomEvent("promptSelected", { detail: { id, name, groupId } }));
+}
+
+function deselectPrompt() {
+    setSelectedPromptId(null);
+
+    // Remove active state from all version items
+    document.querySelectorAll(".sidebar-version-item").forEach((item) => {
+        item.classList.remove("active");
+    });
+
+    window.dispatchEvent(
+        new CustomEvent("promptSelected", { detail: { id: null, name: null, groupId: null } })
+    );
 }
 
 function openNewPromptModal() {
@@ -324,7 +351,7 @@ async function createNewPrompt(e) {
             const prompt = await res.json();
             closeNewPromptModal();
             await loadPromptSidebar();
-            selectPrompt(prompt.id, prompt.name);
+            selectPrompt(prompt.id, prompt.name, getPromptGroupId(prompt));
             showAppMessage("Prompt created successfully!", "success");
         } else {
             const error = await res.json();
@@ -337,6 +364,7 @@ async function createNewPrompt(e) {
 
 let editingPromptId = null;
 let editingPromptName = null;
+let editingPromptGroupId = null;
 
 async function openEditPromptModal(id, name) {
     editingPromptId = id;
@@ -348,6 +376,8 @@ async function openEditPromptModal(id, name) {
     try {
         const res = await fetch(`/api/prompts/${id}`);
         const prompt = await res.json();
+
+        editingPromptGroupId = getPromptGroupId(prompt);
 
         document.getElementById("edit-prompt-name-display").textContent = name;
         document.getElementById("edit-prompt-version").textContent = `v${prompt.version}`;
@@ -366,6 +396,7 @@ function closeEditPromptModal() {
         overlay.classList.remove("active");
         editingPromptId = null;
         editingPromptName = null;
+        editingPromptGroupId = null;
     }
 }
 
@@ -383,20 +414,21 @@ async function saveEditedPrompt(e) {
         const res = await fetch("/api/prompts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                name: editingPromptName, 
+            body: JSON.stringify({
+                name: editingPromptName,
                 content,
-                parentVersionId: editingPromptId 
+                parentVersionId: editingPromptId,
             }),
         });
 
         if (res.ok) {
             const prompt = await res.json();
+            const groupId = getPromptGroupId(prompt);
             closeEditPromptModal();
-            // Clear versions cache for this prompt name so it reloads
-            delete versionsCache[prompt.name];
+            // Clear versions cache for this prompt group so it reloads
+            delete versionsCache[groupId];
             await loadPromptSidebar();
-            selectPrompt(prompt.id, prompt.name);
+            selectPrompt(prompt.id, prompt.name, groupId);
             showAppMessage("New version saved!", "success");
         } else {
             const error = await res.json();
@@ -407,7 +439,7 @@ async function saveEditedPrompt(e) {
     }
 }
 
-async function deletePromptFromSidebar(id, name) {
+async function deletePromptFromSidebar(id, name, groupId) {
     if (
         !confirm(
             `Delete ALL versions of "${name}"? This will also delete all test cases. This cannot be undone.`
@@ -428,13 +460,15 @@ async function deletePromptFromSidebar(id, name) {
             if (selectedId === id) {
                 setSelectedPromptId(null);
                 window.dispatchEvent(
-                    new CustomEvent("promptSelected", { detail: { id: null, name: null } })
+                    new CustomEvent("promptSelected", {
+                        detail: { id: null, name: null, groupId: null },
+                    })
                 );
             }
 
-            // Clear cache for this prompt
-            delete versionsCache[name];
-            expandedGroups.delete(name);
+            // Clear cache for this prompt group
+            delete versionsCache[groupId];
+            expandedGroups.delete(groupId);
 
             await loadPromptSidebar();
         } else {
@@ -446,7 +480,7 @@ async function deletePromptFromSidebar(id, name) {
     }
 }
 
-async function deleteVersionFromSidebar(id, name, version) {
+async function deleteVersionFromSidebar(id, name, version, groupId) {
     if (
         !confirm(
             `Delete version ${version} of "${name}"? This will also delete its test cases. This cannot be undone.`
@@ -467,12 +501,14 @@ async function deleteVersionFromSidebar(id, name, version) {
             if (selectedId === id) {
                 setSelectedPromptId(null);
                 window.dispatchEvent(
-                    new CustomEvent("promptSelected", { detail: { id: null, name: null } })
+                    new CustomEvent("promptSelected", {
+                        detail: { id: null, name: null, groupId: null },
+                    })
                 );
             }
 
-            // Clear cache for this prompt so it reloads
-            delete versionsCache[name];
+            // Clear cache for this prompt group so it reloads
+            delete versionsCache[groupId];
 
             await loadPromptSidebar();
         } else {
@@ -640,6 +676,17 @@ function initAppLayout() {
     const editPromptForm = document.getElementById("edit-prompt-form");
     if (editPromptForm) {
         editPromptForm.addEventListener("submit", saveEditedPrompt);
+    }
+
+    // Deselect prompt when clicking on empty space in sidebar
+    const sidebarList = document.getElementById("sidebar-prompts");
+    if (sidebarList) {
+        sidebarList.addEventListener("click", (e) => {
+            // Only deselect if clicking directly on the sidebar-list container (empty space)
+            if (e.target === sidebarList || e.target.classList.contains("sidebar-empty")) {
+                deselectPrompt();
+            }
+        });
     }
 
     document.addEventListener("keydown", (e) => {
@@ -811,6 +858,7 @@ window.AppUtils = {
     getSelectedPromptId,
     setSelectedPromptId,
     selectPrompt,
+    deselectPrompt,
     loadPromptSidebar,
     showAppMessage,
     escapeHtml,
@@ -822,6 +870,7 @@ window.AppUtils = {
     closeEditPromptModal,
     deletePromptFromSidebar,
     deleteVersionFromSidebar,
+    getPromptGroupId,
     ICONS,
     getNavbarHtml,
     getSidebarHtml,

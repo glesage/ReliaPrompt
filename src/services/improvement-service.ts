@@ -62,7 +62,6 @@ export async function startImprovement(promptId: number, maxIterations: number):
     activeImprovementJobs.set(jobId, progress);
 
     runImprovement(jobId, prompt, testCases, clients, maxIterations).catch((error) => {
-        console.error("Improvement job failed:", error);
         const progress = activeImprovementJobs.get(jobId);
         if (progress) {
             progress.status = "failed";
@@ -89,7 +88,6 @@ async function runImprovement(
     const log = (message: string) => {
         progress.log.push(message);
         appendImprovementLog(jobId, message);
-        console.log(`[${jobId}] ${message}`);
     };
 
     log(`Starting improvement for prompt: "${prompt.name}" (id: ${prompt.id})`);

@@ -147,7 +147,27 @@ app.get("/api/prompts/:id", (req, res) => {
     }
 });
 
-app.get("/api/prompts/:name/versions", (req, res) => {
+// Get versions by prompt group ID (preferred)
+app.get("/api/prompts/:id/versions", (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const prompt = getPromptById(id);
+        
+        if (!prompt) {
+            return res.status(404).json({ error: "Prompt not found" });
+        }
+
+        // Use promptGroupId if available, otherwise fall back to the prompt's own ID
+        const groupId = prompt.promptGroupId ?? id;
+        const versions = getPromptVersionsByGroupId(groupId);
+        res.json(versions);
+    } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
+    }
+});
+
+// Legacy: Get versions by name (for backward compatibility)
+app.get("/api/prompts/by-name/:name/versions", (req, res) => {
     try {
         const versions = getPromptVersions(req.params.name);
         res.json(versions);
@@ -339,7 +359,7 @@ app.get("/api/improve/status/:jobId", (req, res) => {
     }
 });
 
-app.get("/{*splat}", (req, res) => {
+app.get("/{*path}", (req, res) => {
     res.sendFile(path.join(__dirname, "..", "public", "index.html"));
 });
 

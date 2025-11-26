@@ -251,7 +251,14 @@
                         selectedPromptName = prompt.name;
                         updateUI();
                         loadTestCases();
+                    } else {
+                        // Stored selection no longer exists, clear it
+                        AppUtils.setSelectedPromptId(null);
+                        updateUI();
                     }
+                } else {
+                    // No selection stored, ensure "Select a Prompt" UI is shown
+                    updateUI();
                 }
             });
 
