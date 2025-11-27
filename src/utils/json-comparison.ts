@@ -22,12 +22,16 @@ export function parseJSON(input: string): { success: boolean; value?: unknown; e
         const parsed = JSON.parse(trimmed);
         return { success: true, value: parsed };
     } catch (e) {
+        const errors: string[] = [`Direct parse failed: ${(e as Error).message}`];
+
         const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
         if (codeBlockMatch) {
             try {
                 const parsed = JSON.parse(codeBlockMatch[1].trim());
                 return { success: true, value: parsed };
-            } catch {}
+            } catch (codeBlockError) {
+                errors.push(`Code block extraction failed: ${(codeBlockError as Error).message}`);
+            }
         }
 
         const jsonMatch = trimmed.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
@@ -35,10 +39,12 @@ export function parseJSON(input: string): { success: boolean; value?: unknown; e
             try {
                 const parsed = JSON.parse(jsonMatch[1]);
                 return { success: true, value: parsed };
-            } catch {}
+            } catch (jsonMatchError) {
+                errors.push(`JSON extraction failed: ${(jsonMatchError as Error).message}`);
+            }
         }
 
-        return { success: false, error: `Invalid JSON: ${(e as Error).message}` };
+        return { success: false, error: `Invalid JSON - ${errors.join("; ")}` };
     }
 }
 

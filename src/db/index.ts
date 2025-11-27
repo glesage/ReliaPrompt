@@ -26,7 +26,16 @@ let sqlDb: Database | null = null;
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 export function withSave<T>(operation: () => T): T {
-    return operation();
+    const sqlite = getSqlDb();
+    sqlite.run("BEGIN TRANSACTION");
+    try {
+        const result = operation();
+        sqlite.run("COMMIT");
+        return result;
+    } catch (error) {
+        sqlite.run("ROLLBACK");
+        throw error;
+    }
 }
 
 export function initializeDatabase(): void {
