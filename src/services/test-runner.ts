@@ -12,7 +12,7 @@ import {
 import { getConfiguredClients, LLMClient } from "../llm-clients";
 import { compareJSON } from "../utils/json-comparison";
 
-const RUNS_PER_TEST = 10;
+const DEFAULT_RUNS_PER_TEST = 10;
 
 export interface TestProgress {
     jobId: string;
@@ -61,7 +61,7 @@ export function getTestProgress(jobId: string): TestProgress | null {
     return activeJobs.get(jobId) ?? null;
 }
 
-export async function startTestRun(promptId: number): Promise<string> {
+export async function startTestRun(promptId: number, runsPerTest: number = DEFAULT_RUNS_PER_TEST): Promise<string> {
     const prompt = getPromptById(promptId);
     if (!prompt) {
         throw new Error(`Prompt ${promptId} not found`);
@@ -78,7 +78,7 @@ export async function startTestRun(promptId: number): Promise<string> {
     }
 
     const jobId = crypto.randomUUID();
-    const totalTests = testCases.length * clients.length * RUNS_PER_TEST;
+    const totalTests = testCases.length * clients.length * runsPerTest;
 
     createTestJob(jobId, promptId, totalTests);
 
@@ -91,7 +91,7 @@ export async function startTestRun(promptId: number): Promise<string> {
     };
     activeJobs.set(jobId, progress);
 
-    runTests(jobId, prompt, testCases, clients).catch((error) => {
+    runTests(jobId, prompt, testCases, clients, runsPerTest).catch((error) => {
         const progress = activeJobs.get(jobId);
         if (progress) {
             progress.status = "failed";
@@ -107,7 +107,8 @@ async function runTests(
     jobId: string,
     prompt: Prompt,
     testCases: TestCase[],
-    clients: LLMClient[]
+    clients: LLMClient[],
+    runsPerTest: number = DEFAULT_RUNS_PER_TEST
 ): Promise<void> {
     const progress = activeJobs.get(jobId)!;
     progress.status = "running";
@@ -125,7 +126,7 @@ async function runTests(
             const runs: RunResult[] = [];
             let correctRuns = 0;
 
-            for (let runNumber = 1; runNumber <= RUNS_PER_TEST; runNumber++) {
+            for (let runNumber = 1; runNumber <= runsPerTest; runNumber++) {
                 try {
                     const actualOutput = await client.complete(prompt.content, testCase.input);
                     const comparison = compareJSON(testCase.expectedOutput, actualOutput);
@@ -227,7 +228,8 @@ async function runTests(
 export async function runTestsForPromptContent(
     promptContent: string,
     testCases: TestCase[],
-    clients: LLMClient[]
+    clients: LLMClient[],
+    runsPerTest: number = DEFAULT_RUNS_PER_TEST
 ): Promise<{ score: number; results: LLMTestResult[] }> {
     const llmResults: LLMTestResult[] = [];
 
@@ -240,7 +242,7 @@ export async function runTestsForPromptContent(
             const runs: RunResult[] = [];
             let correctRuns = 0;
 
-            for (let runNumber = 1; runNumber <= RUNS_PER_TEST; runNumber++) {
+            for (let runNumber = 1; runNumber <= runsPerTest; runNumber++) {
                 try {
                     const actualOutput = await client.complete(promptContent, testCase.input);
                     const comparison = compareJSON(testCase.expectedOutput, actualOutput);

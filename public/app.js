@@ -105,22 +105,15 @@ async function loadPromptSidebar() {
             .map((p) => {
                 const groupId = getPromptGroupId(p);
                 const isExpanded = expandedGroups.has(groupId);
-                const hasVersions = p.version > 1;
                 return `
                     <div class="sidebar-group ${isExpanded ? "expanded" : ""}" data-group-id="${groupId}" data-name="${escapeHtml(p.name)}">
                         <div class="sidebar-group-header" data-group-id="${groupId}" data-id="${p.id}">
-                            ${hasVersions ? `<span class="sidebar-expand-icon">${isExpanded ? ICONS.chevronDown : ICONS.chevronRight}</span>` : '<span class="sidebar-expand-icon-placeholder"></span>'}
+                            <span class="sidebar-expand-icon">${isExpanded ? ICONS.chevronDown : ICONS.chevronRight}</span>
                             <div class="sidebar-group-info">
                                 <div class="sidebar-group-name">${escapeHtml(p.name)}</div>
                                 <div class="sidebar-group-meta">${p.version} version${p.version > 1 ? "s" : ""}</div>
                             </div>
                             <div class="sidebar-group-actions">
-                                <button class="sidebar-action-btn edit" data-id="${p.id}" data-name="${escapeHtml(p.name)}" title="Edit (new version)">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                    </svg>
-                                </button>
                                 <button class="sidebar-action-btn delete" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-group-id="${groupId}" title="Delete all versions">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="3 6 5 6 21 6"/>
@@ -146,15 +139,6 @@ async function loadPromptSidebar() {
                 const groupId = parseInt(header.dataset.groupId, 10);
                 const promptId = parseInt(header.dataset.id, 10);
                 await toggleVersionsExpand(groupId, promptId);
-            });
-        });
-
-        sidebarList.querySelectorAll(".sidebar-action-btn.edit").forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                const id = parseInt(btn.dataset.id, 10);
-                const name = btn.dataset.name;
-                openEditPromptModal(id, name);
             });
         });
 
@@ -197,7 +181,8 @@ function formatVersionDate(dateStr) {
 }
 
 function renderVersionsList(versions, selectedId) {
-    return versions
+    const latestVersion = versions.length > 0 ? versions[0] : null;
+    const versionItems = versions
         .map(
             (v) => `
             <div class="sidebar-version-item ${v.id === selectedId ? "active" : ""}" data-id="${v.id}" data-name="${escapeHtml(v.name)}" data-version="${v.version}" data-group-id="${getPromptGroupId(v)}">
@@ -215,6 +200,19 @@ function renderVersionsList(versions, selectedId) {
         `
         )
         .join("");
+
+    // Add "Create New Version" button at the bottom
+    const newVersionBtn = latestVersion
+        ? `<button class="sidebar-new-version-btn" data-id="${latestVersion.id}" data-name="${escapeHtml(latestVersion.name)}" data-group-id="${getPromptGroupId(latestVersion)}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span>Create New Version</span>
+        </button>`
+        : "";
+
+    return versionItems + newVersionBtn;
 }
 
 async function loadVersionsForPrompt(groupId, promptId) {
@@ -245,6 +243,19 @@ async function toggleVersionsExpand(groupId, promptId) {
         if (expandIcon) expandIcon.innerHTML = ICONS.chevronRight;
         versionsContainer.innerHTML = "";
     } else {
+        // Collapse all other groups first (accordion behavior)
+        document.querySelectorAll(".sidebar-group.expanded").forEach((otherGroup) => {
+            const otherGroupId = parseInt(otherGroup.dataset.groupId, 10);
+            if (otherGroupId !== groupId) {
+                expandedGroups.delete(otherGroupId);
+                otherGroup.classList.remove("expanded");
+                const otherExpandIcon = otherGroup.querySelector(".sidebar-expand-icon");
+                if (otherExpandIcon) otherExpandIcon.innerHTML = ICONS.chevronRight;
+                const otherVersionsContainer = otherGroup.querySelector(".sidebar-versions");
+                if (otherVersionsContainer) otherVersionsContainer.innerHTML = "";
+            }
+        });
+
         // Expand
         expandedGroups.add(groupId);
         group.classList.add("expanded");
@@ -289,6 +300,17 @@ async function toggleVersionsExpand(groupId, promptId) {
                 deleteVersionFromSidebar(id, name, version, versionGroupId);
             });
         });
+
+        // Add click handler for "Create New Version" button
+        const newVersionBtn = versionsContainer.querySelector(".sidebar-new-version-btn");
+        if (newVersionBtn) {
+            newVersionBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const id = parseInt(newVersionBtn.dataset.id, 10);
+                const name = newVersionBtn.dataset.name;
+                openEditPromptModal(id, name);
+            });
+        }
     }
 }
 

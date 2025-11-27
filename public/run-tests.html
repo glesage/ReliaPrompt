@@ -75,6 +75,16 @@
                         <div class="card">
                             <h2>Test "<span id="selected-prompt-name"></span>"</h2>
                             <div id="test-case-count" style="color: var(--color-text-muted); margin-bottom: 16px;"></div>
+                            
+                            <div class="runs-config" style="margin-bottom: 16px;">
+                                <label for="runs-per-test" style="display: block; margin-bottom: 8px; font-weight: 500;">Runs per test case:</label>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <input type="range" id="runs-per-test" min="1" max="50" value="10" style="flex: 1; max-width: 200px;" />
+                                    <span id="runs-per-test-value" style="min-width: 24px; font-weight: 600;">10</span>
+                                </div>
+                                <small style="color: var(--color-text-muted); display: block; margin-top: 4px;">More runs = more reliable results, but takes longer</small>
+                            </div>
+                            
                             <button id="run-btn" disabled>Run Tests</button>
 
                             <div id="progress-section" class="progress-section hidden">
@@ -263,9 +273,31 @@
                 }
             }
 
+            function getRunsPerTest() {
+                return parseInt(document.getElementById('runs-per-test').value, 10) || 10;
+            }
+
+            function updateRunsDisplay() {
+                const runs = getRunsPerTest();
+                document.getElementById('runs-per-test-value').textContent = runs;
+                updateTestCaseCountText();
+            }
+
+            function updateTestCaseCountText() {
+                const countEl = document.getElementById('test-case-count');
+                if (!countEl.dataset.count) return;
+                
+                const count = parseInt(countEl.dataset.count, 10);
+                const runs = getRunsPerTest();
+                countEl.textContent = count > 0
+                    ? `${count} test case(s) will be run ${runs} time${runs !== 1 ? 's' : ''} each across all LLMs`
+                    : 'No test cases found. Add test cases first.';
+            }
+
             async function loadTestCaseCount() {
                 if (!selectedPromptId) {
                     document.getElementById('test-case-count').textContent = '';
+                    document.getElementById('test-case-count').dataset.count = '';
                     document.getElementById('run-btn').disabled = true;
                     return;
                 }
@@ -273,9 +305,11 @@
                     const res = await fetch(`/api/prompts/${selectedPromptId}/test-cases`);
                     const testCases = await res.json();
                     const count = testCases.length;
+                    const runs = getRunsPerTest();
+                    document.getElementById('test-case-count').dataset.count = count;
                     document.getElementById('test-case-count').textContent =
                         count > 0
-                            ? `${count} test case(s) will be run 10 times each across all LLMs`
+                            ? `${count} test case(s) will be run ${runs} time${runs !== 1 ? 's' : ''} each across all LLMs`
                             : 'No test cases found. Add test cases first.';
                     document.getElementById('run-btn').disabled = count === 0;
                 } catch (error) {
@@ -292,10 +326,11 @@
                 AppUtils.showAppMessage('Starting test run...', 'info');
 
                 try {
+                    const runsPerTest = getRunsPerTest();
                     const res = await fetch('/api/test/run', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ promptId: selectedPromptId }),
+                        body: JSON.stringify({ promptId: selectedPromptId, runsPerTest }),
                     });
                     if (!res.ok) {
                         const error = await res.json();
@@ -400,6 +435,7 @@
             }
 
             document.getElementById('run-btn').addEventListener('click', runTests);
+            document.getElementById('runs-per-test').addEventListener('input', updateRunsDisplay);
 
             // Initialize
             updateUI();

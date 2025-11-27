@@ -273,13 +273,18 @@ app.delete("/api/test-cases/:id", (req, res) => {
 
 app.post("/api/test/run", async (req, res) => {
     try {
-        const { promptId } = req.body;
+        const { promptId, runsPerTest } = req.body;
 
         if (!promptId) {
             return res.status(400).json({ error: "promptId is required" });
         }
 
-        const jobId = await startTestRun(promptId);
+        const runs = runsPerTest ? parseInt(runsPerTest, 10) : 10;
+        if (runs < 1 || runs > 100) {
+            return res.status(400).json({ error: "runsPerTest must be between 1 and 100" });
+        }
+
+        const jobId = await startTestRun(promptId, runs);
         res.json({ jobId });
     } catch (error) {
         res.status(500).json({ error: (error as Error).message });

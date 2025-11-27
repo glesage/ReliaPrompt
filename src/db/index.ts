@@ -5,8 +5,16 @@ import path from "path";
 import fs from "fs";
 import * as schema from "./schema";
 
-const dbPath = path.join(__dirname, "..", "..", "data", "prompts.db");
-const migrationsPath = path.join(__dirname, "..", "..", "drizzle");
+// Required environment variables
+if (!process.env.DATABASE_PATH) {
+    throw new Error("DATABASE_PATH environment variable is required");
+}
+if (!process.env.MIGRATIONS_PATH) {
+    throw new Error("MIGRATIONS_PATH environment variable is required");
+}
+
+const dbPath = process.env.DATABASE_PATH;
+const migrationsPath = process.env.MIGRATIONS_PATH;
 
 const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
