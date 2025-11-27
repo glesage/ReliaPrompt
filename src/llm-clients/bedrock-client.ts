@@ -1,4 +1,4 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import {
     BedrockClient as AWSBedrockClient,
     ListFoundationModelsCommand,
@@ -6,20 +6,6 @@ import {
 import { LLMClient, ModelInfo, TestResultSummary, buildImprovementPrompt } from "./llm-client";
 import { getConfig } from "../database";
 import { ConfigurationError } from "../errors";
-
-interface BedrockClaudeResponse {
-    content?: Array<{
-        type: string;
-        text?: string;
-    }>;
-    id?: string;
-    model?: string;
-    stop_reason?: string;
-    usage?: {
-        input_tokens: number;
-        output_tokens: number;
-    };
-}
 
 export class BedrockClient implements LLMClient {
     name = "Bedrock";
@@ -125,7 +111,6 @@ export class BedrockClient implements LLMClient {
 
     private async makeRequest(
         messages: Array<{ role: "user"; content: string }>,
-        temperature: number,
         modelId: string,
         systemPrompt?: string,
         defaultValue: string = ""
@@ -135,45 +120,25 @@ export class BedrockClient implements LLMClient {
             throw new ConfigurationError("Bedrock credentials not configured");
         }
 
-        const payload: {
-            anthropic_version: string;
-            max_tokens: number;
-            temperature: number;
-            system?: string;
-            messages: Array<{ role: "user"; content: string }>;
-        } = {
-            anthropic_version: "bedrock-2023-05-31",
-            max_tokens: 4096,
-            temperature,
-            messages,
-        };
-
-        if (systemPrompt) {
-            payload.system = systemPrompt;
-        }
-
-        const command = new InvokeModelCommand({
+        // Use the Converse API which provides a unified interface across all models
+        const command = new ConverseCommand({
             modelId,
-            contentType: "application/json",
-            accept: "application/json",
-            body: JSON.stringify(payload),
+            messages: messages.map((m) => ({
+                role: m.role,
+                content: [{ text: m.content }],
+            })),
+            system: systemPrompt ? [{ text: systemPrompt }] : undefined,
+            inferenceConfig: {
+                maxTokens: 4096,
+            },
         });
 
         const response = await client.send(command);
-        const responseBody = JSON.parse(
-            new TextDecoder().decode(response.body)
-        ) as BedrockClaudeResponse;
-
-        return responseBody.content?.[0]?.text ?? defaultValue;
+        return response.output?.message?.content?.[0]?.text ?? defaultValue;
     }
 
     async complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string> {
-        return this.makeRequest(
-            [{ role: "user", content: userMessage }],
-            0.1,
-            modelId,
-            systemPrompt
-        );
+        return this.makeRequest([{ role: "user", content: userMessage }], modelId, systemPrompt);
     }
 
     async improvePrompt(
@@ -184,7 +149,6 @@ export class BedrockClient implements LLMClient {
         const improvementPrompt = buildImprovementPrompt(currentPrompt, testResults);
         return this.makeRequest(
             [{ role: "user", content: improvementPrompt }],
-            0.7,
             modelId,
             undefined,
             currentPrompt

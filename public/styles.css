@@ -1685,3 +1685,64 @@ button.small,
     color: var(--color-text-muted);
     font-size: 13px;
 }
+
+/* Toggle Runs Button */
+.btn-toggle-runs {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-toggle-runs:hover {
+    background: var(--color-border);
+    border-color: var(--color-text-muted);
+}
+
+.btn-toggle-runs.active {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.btn-toggle-runs.active:hover {
+    background: rgba(16, 185, 129, 0.15);
+}
+
+/* Individual Runs Section */
+.individual-runs-section {
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.individual-run {
+    position: relative;
+}
+
+.run-status-icon.success {
+    color: #10b981;
+}
+
+.run-status-icon.failure {
+    color: #ef4444;
+}
+
+.individual-run .json-preview {
+    background: #fff;
+    border: 1px solid var(--color-border);
+}

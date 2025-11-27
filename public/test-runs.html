@@ -830,18 +830,23 @@
                 return `${(ms / 1000).toFixed(2)}s`;
             }
 
-            function openTestDetailsModal(llmName) {
-                const llm = storedLlmResults[llmName];
-                if (!llm) return;
+            let showAllRuns = false;
 
-                const badgeClass = llm.score >= 80 ? "" : llm.score >= 50 ? "medium" : "low";
+            function toggleShowAllRuns() {
+                showAllRuns = !showAllRuns;
+                const btn = document.getElementById("toggle-runs-btn");
+                if (btn) {
+                    btn.textContent = showAllRuns ? "Hide Individual Runs" : "Show Individual Runs";
+                    btn.classList.toggle("active", showAllRuns);
+                }
+                // Re-render the current modal content
+                const llmName = document.getElementById("test-details-llm-name").textContent;
+                if (llmName && storedLlmResults[llmName]) {
+                    renderTestDetailsContent(storedLlmResults[llmName]);
+                }
+            }
 
-                document.getElementById("test-details-llm-name").textContent = llm.llmName;
-                document.getElementById("test-details-score-badge").className =
-                    `score-badge ${badgeClass}`;
-                document.getElementById("test-details-score-badge").textContent =
-                    `${llm.correctCount}/${llm.totalRuns} correct (${llm.score}%)`;
-
+            function renderTestDetailsContent(llm) {
                 // Build duration stats section if available
                 let durationStatsHtml = '';
                 if (llm.durationStats) {
@@ -857,10 +862,47 @@
                     `;
                 }
 
-                document.getElementById("test-details-content").innerHTML = durationStatsHtml + llm.testCaseResults
+                // Toggle button
+                const toggleBtnHtml = `
+                    <div style="margin-bottom: 16px; display: flex; justify-content: flex-end;">
+                        <button type="button" id="toggle-runs-btn" class="btn-toggle-runs ${showAllRuns ? 'active' : ''}" onclick="toggleShowAllRuns()">
+                            ${showAllRuns ? "Hide Individual Runs" : "Show Individual Runs"}
+                        </button>
+                    </div>
+                `;
+
+                document.getElementById("test-details-content").innerHTML = durationStatsHtml + toggleBtnHtml + llm.testCaseResults
                     .map((tc, i) => {
                         const successRate = (tc.correctRuns / tc.runs.length) * 100;
                         const statusClass = successRate >= 80 ? "success" : "failure";
+                        
+                        // Individual runs section
+                        let runsHtml = '';
+                        if (showAllRuns && tc.runs && tc.runs.length > 0) {
+                            runsHtml = `
+                                <div class="individual-runs-section" style="margin-top: 12px; border-top: 1px solid var(--color-border); padding-top: 12px;">
+                                    <div style="margin-bottom: 8px; font-weight: 600; color: var(--color-text-muted);">Individual Runs:</div>
+                                    ${tc.runs.map((run, runIdx) => {
+                                        const runStatusClass = run.isCorrect ? "success" : "failure";
+                                        const runStatusIcon = run.isCorrect ? "✓" : "✗";
+                                        return `
+                                            <div class="individual-run" style="background: var(--color-bg-elevated); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid var(--color-${runStatusClass});">
+                                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                                    <span class="run-status-icon ${runStatusClass}" style="font-weight: bold;">${runStatusIcon}</span>
+                                                    <span style="font-weight: 500;">Run #${runIdx + 1}</span>
+                                                    <span class="run-status-badge ${runStatusClass}" style="font-size: 12px; padding: 2px 8px; border-radius: 4px; background: var(--color-${runStatusClass}-bg, ${run.isCorrect ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)'}); color: var(--color-${runStatusClass});">${run.isCorrect ? 'Correct' : 'Incorrect'}</span>
+                                                </div>
+                                                <div style="margin-top: 6px;">
+                                                    <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px;">Actual Output:</div>
+                                                    <div class="json-preview" style="font-size: 13px; max-height: 150px; overflow-y: auto;">${escapeHtml(run.actualOutput || "N/A")}</div>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            `;
+                        }
+                        
                         return `
                             <div class="test-case-detail">
                                 <div class="header"><strong>Test Case #${i + 1}</strong><span class="correct-count ${statusClass}">${tc.correctRuns}/${tc.runs.length} correct</span></div>
@@ -868,11 +910,27 @@
                                 <div class="json-preview">${escapeHtml(tc.input.substring(0, 200))}${tc.input.length > 200 ? "..." : ""}</div>
                                 <div style="margin-top: 10px; margin-bottom: 5px;"><strong>Expected:</strong></div>
                                 <div class="json-preview">${formatJSON(tc.expectedOutput)}</div>
-                                ${tc.runs.some((r) => !r.isCorrect) ? `<div style="margin-top: 10px; margin-bottom: 5px;"><strong>Sample Wrong Output:</strong></div><div class="json-preview">${escapeHtml((tc.runs.find((r) => !r.isCorrect)?.actualOutput || "N/A").substring(0, 500))}</div>` : ""}
+                                ${!showAllRuns && tc.runs.some((r) => !r.isCorrect) ? `<div style="margin-top: 10px; margin-bottom: 5px;"><strong>Sample Wrong Output:</strong></div><div class="json-preview">${escapeHtml((tc.runs.find((r) => !r.isCorrect)?.actualOutput || "N/A").substring(0, 500))}</div>` : ""}
+                                ${runsHtml}
                             </div>
                         `;
                     })
                     .join("");
+            }
+
+            function openTestDetailsModal(llmName) {
+                const llm = storedLlmResults[llmName];
+                if (!llm) return;
+
+                const badgeClass = llm.score >= 80 ? "" : llm.score >= 50 ? "medium" : "low";
+
+                document.getElementById("test-details-llm-name").textContent = llm.llmName;
+                document.getElementById("test-details-score-badge").className =
+                    `score-badge ${badgeClass}`;
+                document.getElementById("test-details-score-badge").textContent =
+                    `${llm.correctCount}/${llm.totalRuns} correct (${llm.score}%)`;
+
+                renderTestDetailsContent(llm);
 
                 document.getElementById("test-details-modal").classList.add("active");
             }

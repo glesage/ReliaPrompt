@@ -66,7 +66,6 @@ export class OpenAIClient implements LLMClient {
 
     private async makeRequest(
         messages: Array<{ role: "system" | "user"; content: string }>,
-        temperature: number,
         modelId: string,
         defaultValue: string = ""
     ): Promise<string> {
@@ -78,8 +77,7 @@ export class OpenAIClient implements LLMClient {
         const response = await client.chat.completions.create({
             model: modelId,
             messages,
-            temperature,
-            max_tokens: 4096,
+            max_completion_tokens: 4096,
         });
 
         return response.choices[0]?.message?.content ?? defaultValue;
@@ -91,7 +89,6 @@ export class OpenAIClient implements LLMClient {
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userMessage },
             ],
-            0.1,
             modelId
         );
     }
@@ -104,7 +101,6 @@ export class OpenAIClient implements LLMClient {
         const improvementPrompt = buildImprovementPrompt(currentPrompt, testResults);
         return this.makeRequest(
             [{ role: "user", content: improvementPrompt }],
-            0.7,
             modelId,
             currentPrompt
         );
