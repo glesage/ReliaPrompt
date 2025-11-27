@@ -31,7 +31,7 @@
                     <a href="/improve.html">Auto-Improve</a>
                 </div>
                 <div class="navbar-actions">
-                    <button class="btn-text" id="setup-btn" title="Setup">Setup</button>
+                    <button class="btn-text" id="setup-btn" title="LLMs">LLMs</button>
                 </div>
             </nav>
 
@@ -65,7 +65,24 @@
                     <div id="app-message"></div>
 
                     <div class="page-header">
-                        <h1>Test Cases</h1>
+                        <div class="page-header-row">
+                            <h1>Test Cases</h1>
+                            <button id="add-test-case-btn" class="hidden">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    style="width: 16px; height: 16px"
+                                >
+                                    <line x1="12" y1="5" x2="12" y2="19" />
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                </svg>
+                                Add Test Case
+                            </button>
+                        </div>
                         <p>Define test inputs and expected JSON outputs for your prompts</p>
                     </div>
 
@@ -91,39 +108,9 @@
 
                     <!-- Test Case Section (shown when prompt selected) -->
                     <div id="test-case-section" class="hidden">
-                        <div class="card">
-                            <h2>Add Test Case for "<span id="selected-prompt-name"></span>"</h2>
-                            <form id="test-case-form">
-                                <div class="form-group">
-                                    <label for="input">Input (User Message)</label>
-                                    <textarea
-                                        id="input"
-                                        name="input"
-                                        placeholder="The text or data to send to the LLM..."
-                                    ></textarea>
-                                    <small>This will be sent as the user message to the LLM</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="expected_output">Expected Output (JSON)</label>
-                                    <textarea
-                                        id="expected_output"
-                                        name="expected_output"
-                                        placeholder='{"key": "value"}'
-                                    ></textarea>
-                                    <small
-                                        >Must be valid JSON. The LLM's response will be compared
-                                        against this.</small
-                                    >
-                                </div>
-                                <button type="submit">Add Test Case</button>
-                            </form>
-                        </div>
-
-                        <div class="card">
-                            <h2>Existing Test Cases</h2>
-                            <div id="test-cases-list">
-                                <p style="color: var(--color-text-muted)">No test cases yet.</p>
-                            </div>
+                        <span id="selected-prompt-name" class="hidden"></span>
+                        <div id="test-cases-list">
+                            <p style="color: var(--color-text-muted)">No test cases yet.</p>
                         </div>
                     </div>
                 </main>
@@ -365,6 +352,59 @@
             </div>
         </div>
 
+        <!-- Add Test Case Modal -->
+        <div class="modal-overlay" id="add-test-case-modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>Add Test Case</h2>
+                    <button class="modal-close" id="add-test-case-close-btn">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+                <form id="test-case-form">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="input">Input (User Message)</label>
+                            <textarea
+                                id="input"
+                                name="input"
+                                placeholder="The text or data to send to the LLM..."
+                            ></textarea>
+                            <small>This will be sent as the user message to the LLM</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="expected_output">Expected Output (JSON)</label>
+                            <textarea
+                                id="expected_output"
+                                name="expected_output"
+                                placeholder='{"key": "value"}'
+                            ></textarea>
+                            <small
+                                >Must be valid JSON. The LLM's response will be compared against
+                                this.</small
+                            >
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="secondary" onclick="closeAddTestCaseModal()">
+                            Cancel
+                        </button>
+                        <button type="submit">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <script src="/app.js"></script>
         <script>
             let selectedPromptId = null;
@@ -410,6 +450,9 @@
                 document
                     .getElementById("no-prompt-message")
                     .classList.toggle("hidden", hasSelection);
+                document
+                    .getElementById("add-test-case-btn")
+                    .classList.toggle("hidden", !hasSelection);
                 document.querySelector(".navbar-nav").classList.toggle("hidden", !hasSelection);
                 if (selectedPromptName) {
                     document.getElementById("selected-prompt-name").textContent =
@@ -450,7 +493,7 @@
                                     </div>
                                     <div class="form-group">
                                         <label>Expected Output (JSON)</label>
-                                        <textarea id="edit-output-${tc.id}">${escapeHtml(tc.expected_output)}</textarea>
+                                        <textarea id="edit-output-${tc.id}">${escapeHtml(tc.expectedOutput)}</textarea>
                                     </div>
                                     <div class="button-group">
                                         <button class="success" onclick="saveTestCase(${tc.id})">Save</button>
@@ -462,15 +505,17 @@
                         }
                         return `
                         <div class="test-case-item" data-id="${tc.id}">
-                            <div class="action-buttons">
-                                <button onclick="startEdit(${tc.id})">Edit</button>
-                                <button class="danger" onclick="deleteTestCase(${tc.id})">Delete</button>
+                            <div class="test-case-header">
+                                <h4>Test Case #${i + 1}</h4>
+                                <div class="action-buttons">
+                                    <button onclick="startEdit(${tc.id})">Edit</button>
+                                    <button class="danger" onclick="deleteTestCase(${tc.id})">Delete</button>
+                                </div>
                             </div>
-                            <h4>Test Case #${i + 1}</h4>
                             <div class="label">Input:</div>
                             <div class="json-preview">${escapeHtml(tc.input)}</div>
                             <div class="label">Expected Output:</div>
-                            <div class="json-preview">${formatJSON(tc.expected_output)}</div>
+                            <div class="json-preview">${formatJSON(tc.expectedOutput)}</div>
                         </div>
                     `;
                     })
@@ -548,6 +593,45 @@
                 }
             }
 
+            // Add Test Case Modal functions
+            function openAddTestCaseModal() {
+                const overlay = document.getElementById("add-test-case-modal");
+                if (overlay) {
+                    overlay.classList.add("active");
+                    document.getElementById("input")?.focus();
+                }
+            }
+
+            function closeAddTestCaseModal() {
+                const overlay = document.getElementById("add-test-case-modal");
+                if (overlay) {
+                    overlay.classList.remove("active");
+                    document.getElementById("test-case-form")?.reset();
+                }
+            }
+
+            // Add Test Case button click handler
+            document
+                .getElementById("add-test-case-btn")
+                .addEventListener("click", openAddTestCaseModal);
+
+            // Close modal when clicking overlay
+            document.getElementById("add-test-case-modal").addEventListener("click", (e) => {
+                if (e.target === e.currentTarget) closeAddTestCaseModal();
+            });
+
+            // Close button handler
+            document
+                .getElementById("add-test-case-close-btn")
+                .addEventListener("click", closeAddTestCaseModal);
+
+            // Close modal on Escape key
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") {
+                    closeAddTestCaseModal();
+                }
+            });
+
             document.getElementById("test-case-form").addEventListener("submit", async (e) => {
                 e.preventDefault();
                 if (!selectedPromptId) {
@@ -572,7 +656,7 @@
                     });
                     if (res.ok) {
                         AppUtils.showAppMessage("Test case added!", "success");
-                        document.getElementById("test-case-form").reset();
+                        closeAddTestCaseModal();
                         loadTestCases();
                     } else {
                         const error = await res.json();

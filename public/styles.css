@@ -518,6 +518,17 @@ body {
     margin-bottom: 32px;
 }
 
+.page-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.page-header-row h1 {
+    margin-bottom: 0;
+}
+
 .page-header h1 {
     font-size: 28px;
     font-weight: 600;
@@ -545,6 +556,17 @@ body {
     font-weight: 600;
     color: var(--color-text);
     margin-bottom: 20px;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.card-header h2 {
+    margin-bottom: 0;
 }
 
 .card h3 {
@@ -1239,6 +1261,24 @@ button.small,
 .test-case-item.editing {
     border-color: var(--color-accent);
     background: rgba(16, 185, 129, 0.03);
+}
+
+.test-case-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.test-case-header h4 {
+    font-size: 15px;
+    margin: 0;
+}
+
+.test-case-header .action-buttons {
+    position: static;
+    display: flex;
+    gap: 6px;
 }
 
 .test-case-item h4 {

@@ -49,6 +49,13 @@ export class BedrockClient implements LLMClient {
         return !!(getConfig("bedrock_access_key_id") && getConfig("bedrock_secret_access_key"));
     }
 
+    /**
+     * Reset the cached client. Call this when the config changes.
+     */
+    reset(): void {
+        this.client = null;
+    }
+
     private async makeRequest(
         messages: Array<{ role: "user"; content: string }>,
         temperature: number,

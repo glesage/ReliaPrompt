@@ -149,14 +149,16 @@ async function loadPromptSidebar() {
             });
         });
 
-        sidebarList.querySelectorAll(".sidebar-group-actions .sidebar-action-btn.view").forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                const id = parseInt(btn.dataset.id, 10);
-                const name = btn.dataset.name;
-                openViewPromptModal(id, name);
+        sidebarList
+            .querySelectorAll(".sidebar-group-actions .sidebar-action-btn.view")
+            .forEach((btn) => {
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id, 10);
+                    const name = btn.dataset.name;
+                    openViewPromptModal(id, name);
+                });
             });
-        });
 
         sidebarList.querySelectorAll(".sidebar-action-btn.delete").forEach((btn) => {
             btn.addEventListener("click", (e) => {
@@ -640,9 +642,9 @@ async function loadConfigStatus() {
             "bedrock_access_key_id",
             "bedrock_secret_access_key",
             "deepseek_api_key",
-            "bedrock_region"
+            "bedrock_region",
         ];
-        
+
         for (const field of fields) {
             const input = document.getElementById(field);
             if (input) {
@@ -840,8 +842,8 @@ function getNavbarHtml() {
                 ${navLinks}
             </div>
             <div class="navbar-actions">
-                <button class="btn-text" id="setup-btn" title="Setup">
-                    Setup
+                <button class="btn-text" id="setup-btn" title="LLMs">
+                    LLMs
                 </button>
             </div>
         </nav>

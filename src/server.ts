@@ -49,6 +49,7 @@ app.use((req, res, next) => {
 
 app.get("/api/config", (req, res) => {
     try {
+        res.set("Cache-Control", "no-store, no-cache, must-revalidate");
         const config = getAllConfig();
         res.json(config);
     } catch (error) {

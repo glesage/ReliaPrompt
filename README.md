@@ -153,7 +153,6 @@ A web application for testing agentic server-side prompts against multiple LLMs 
 │       └── json-comparison.ts
 ├── public/                 # Frontend files
 │   ├── index.html
-│   ├── config.html
 │   ├── prompts.html
 │   ├── test-cases.html
 │   ├── run-tests.html
