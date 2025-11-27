@@ -21,6 +21,7 @@ import {
     updateTestCase,
     getTestJobById,
     getTestJobByIdOrFail,
+    getTestJobsForPrompt,
     getImprovementJobByIdOrFail,
 } from "./database";
 import { refreshClients, getConfiguredClients } from "./llm-clients";
@@ -295,6 +296,16 @@ app.get("/api/test/status/:jobId", (req, res) => {
                 job.totalTests > 0 ? Math.round((job.completedTests / job.totalTests) * 100) : 0,
             results,
         });
+    } catch (error) {
+        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
+    }
+});
+
+app.get("/api/prompts/:id/test-jobs", (req, res) => {
+    try {
+        const promptId = parseInt(req.params.id, 10);
+        const jobs = getTestJobsForPrompt(promptId);
+        res.json(jobs);
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
     }

@@ -319,6 +319,15 @@ export function getTestJobByIdOrFail(id: string): TestJob {
     return ensureExists(getTestJobById(id), "Test job", id);
 }
 
+export function getTestJobsForPrompt(promptId: number): TestJob[] {
+    return getDb()
+        .select()
+        .from(testJobs)
+        .where(eq(testJobs.promptId, promptId))
+        .orderBy(desc(testJobs.createdAt))
+        .all();
+}
+
 export function updateTestJob(id: string, updates: Partial<typeof testJobs.$inferSelect>): void {
     withSave(() => {
         getDb()

@@ -154,6 +154,14 @@
                                 <div id="llm-results" class="llm-results"></div>
                             </div>
                         </div>
+
+                        <!-- Previous Test Runs Section -->
+                        <div id="previous-runs-section" class="card" style="margin-top: 24px;">
+                            <h2>Previous Test Runs</h2>
+                            <div id="previous-runs-list">
+                                <div style="color: var(--color-text-muted);">Loading...</div>
+                            </div>
+                        </div>
                     </div>
                 </main>
             </div>
@@ -442,6 +450,7 @@
                 selectedPromptName = e.detail.name;
                 updateUI();
                 loadTestCaseCount();
+                loadPreviousTestRuns();
                 document.getElementById("results-section").classList.add("hidden");
                 document.getElementById("progress-section").classList.add("hidden");
             });
@@ -456,6 +465,7 @@
                         selectedPromptName = prompt.name;
                         updateUI();
                         loadTestCaseCount();
+                        loadPreviousTestRuns();
                     }
                 }
             });
@@ -520,6 +530,72 @@
                 }
             }
 
+            async function loadPreviousTestRuns() {
+                const container = document.getElementById("previous-runs-list");
+                if (!selectedPromptId) {
+                    container.innerHTML = '<div style="color: var(--color-text-muted);">Select a prompt to see previous test runs</div>';
+                    return;
+                }
+                
+                try {
+                    const res = await fetch(`/api/prompts/${selectedPromptId}/test-jobs`);
+                    const jobs = await res.json();
+                    
+                    if (jobs.length === 0) {
+                        container.innerHTML = '<div style="color: var(--color-text-muted);">No previous test runs for this prompt</div>';
+                        return;
+                    }
+                    
+                    container.innerHTML = jobs.map(job => {
+                        const date = new Date(job.createdAt);
+                        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                        const statusClass = job.status === 'completed' ? 'success' : job.status === 'failed' ? 'failure' : 'pending';
+                        const statusText = job.status.charAt(0).toUpperCase() + job.status.slice(1);
+                        
+                        let scoreHtml = '';
+                        if (job.status === 'completed' && job.results) {
+                            try {
+                                const results = JSON.parse(job.results);
+                                const badgeClass = results.overallScore >= 80 ? '' : results.overallScore >= 50 ? 'medium' : 'low';
+                                scoreHtml = `<span class="score-badge ${badgeClass}">${results.overallScore}%</span>`;
+                            } catch {}
+                        }
+                        
+                        return `
+                            <div class="previous-run-item" data-job-id="${job.id}" onclick="viewPreviousRun('${job.id}')">
+                                <div class="previous-run-info">
+                                    <span class="previous-run-date">${escapeHtml(formattedDate)}</span>
+                                    <span class="previous-run-tests">${job.totalTests} tests</span>
+                                </div>
+                                <div class="previous-run-status">
+                                    ${scoreHtml}
+                                    <span class="status-indicator ${statusClass}">${statusText}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } catch (error) {
+                    container.innerHTML = '<div style="color: var(--color-text-muted);">Error loading previous test runs</div>';
+                }
+            }
+
+            async function viewPreviousRun(jobId) {
+                try {
+                    const res = await fetch(`/api/test/status/${jobId}`);
+                    const status = await res.json();
+                    
+                    if (status.results) {
+                        showResults(status.results);
+                        // Scroll to results
+                        document.getElementById("results-section").scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        AppUtils.showAppMessage("No results available for this test run", "info");
+                    }
+                } catch (error) {
+                    AppUtils.showAppMessage("Error loading test run results", "error");
+                }
+            }
+
             async function runTests() {
                 if (!selectedPromptId) return;
                 document.getElementById("run-btn").disabled = true;
@@ -560,10 +636,12 @@
                             document.getElementById("run-btn").disabled = false;
                             document.getElementById("app-message").innerHTML = "";
                             showResults(status.results);
+                            loadPreviousTestRuns(); // Refresh the list after completion
                         } else if (status.status === "failed") {
                             clearInterval(pollInterval);
                             document.getElementById("run-btn").disabled = false;
                             AppUtils.showAppMessage(status.error || "Test run failed", "error");
+                            loadPreviousTestRuns(); // Refresh the list after failure too
                         }
                     } catch (error) {
                         AppUtils.showAppMessage("Error checking test status", "error");
