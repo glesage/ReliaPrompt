@@ -346,7 +346,7 @@ app.get("/api/prompts/:id/test-jobs", (req, res) => {
 
 app.post("/api/improve/start", async (req, res) => {
     try {
-        const { promptId, maxIterations, runsPerLlm } = req.body;
+        const { promptId, maxIterations, runsPerLlm, selectedModels } = req.body;
 
         if (!promptId) {
             throw new ValidationError("promptId is required");
@@ -354,7 +354,14 @@ app.post("/api/improve/start", async (req, res) => {
 
         const iterations = maxIterations || 5;
         const runs = runsPerLlm || 1;
-        const jobId = await startImprovement(promptId, iterations, runs);
+
+        // Parse selectedModels - can be passed as array or retrieved from config
+        let models: ModelSelection[] | undefined;
+        if (selectedModels && Array.isArray(selectedModels) && selectedModels.length > 0) {
+            models = selectedModels as ModelSelection[];
+        }
+
+        const jobId = await startImprovement(promptId, iterations, runs, models);
         res.json({ jobId });
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });

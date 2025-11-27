@@ -89,7 +89,12 @@ function getSavedModelRunners(): ModelRunner[] {
     );
 }
 
-export async function startImprovement(promptId: number, maxIterations: number, runsPerLlm: number = 1): Promise<string> {
+export async function startImprovement(
+    promptId: number,
+    maxIterations: number,
+    runsPerLlm: number = 1,
+    selectedModels?: ModelSelection[]
+): Promise<string> {
     // Use OrFail variant for cleaner code - throws NotFoundError if prompt doesn't exist
     const prompt = getPromptByIdOrFail(promptId);
 
@@ -97,7 +102,10 @@ export async function startImprovement(promptId: number, maxIterations: number, 
     // Use requireEntity for explicit assertion with clear error message
     requireEntity(testCases.length > 0 ? testCases : null, `Test cases for prompt ${promptId}`);
 
-    const modelRunners = getSavedModelRunners();
+    // Get model runners based on selection or saved settings
+    const modelRunners = selectedModels && selectedModels.length > 0
+        ? getModelRunnersFromSelections(selectedModels)
+        : getSavedModelRunners();
     if (modelRunners.length === 0) {
         throw new ConfigurationError("No LLM models selected. Please select at least one model in settings.");
     }

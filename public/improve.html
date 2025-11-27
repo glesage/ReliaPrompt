@@ -116,6 +116,21 @@
                                 </div>
                                 <button id="start-btn" disabled>Start Improvement</button>
                             </div>
+
+                            <div class="model-selection-section" style="margin-bottom: 16px">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500">
+                                    Models to use:
+                                    <span
+                                        id="selected-models-count"
+                                        style="font-weight: normal; color: var(--color-text-muted)"
+                                        >(0 selected)</span
+                                    >
+                                </label>
+                                <div id="improve-models-selection" class="model-selection-container">
+                                    <div class="no-models">Loading models...</div>
+                                </div>
+                            </div>
+
                             <div
                                 id="test-case-count"
                                 style="color: var(--color-text-muted); font-size: 14px"
@@ -409,8 +424,14 @@
                 loadTestCaseCount();
             });
 
+            // Listen for model selection changes
+            window.addEventListener("modelsSelectionChanged", (e) => {
+                updateSelectedModelsCount();
+                updateStartButtonState();
+            });
+
             // Check for initial selection
-            window.addEventListener("promptsLoaded", (e) => {
+            window.addEventListener("promptsLoaded", async (e) => {
                 const { prompts, selectedId } = e.detail;
                 if (selectedId) {
                     const prompt = prompts.find((p) => p.id === selectedId);
@@ -428,7 +449,23 @@
                     // No selection stored, ensure "Select a Prompt" UI is shown
                     updateUI();
                 }
+                // Load models for the improve section
+                await loadImproveModels();
             });
+
+            async function loadImproveModels() {
+                await AppUtils.loadAvailableModels();
+                await AppUtils.loadSelectedModels();
+                AppUtils.renderModelCheckboxes("improve-models-selection");
+                updateSelectedModelsCount();
+                updateStartButtonState();
+            }
+
+            function updateSelectedModelsCount() {
+                const count = AppUtils.getSelectedModelsCount();
+                document.getElementById("selected-models-count").textContent =
+                    `(${count} selected)`;
+            }
 
             function updateUI() {
                 const hasSelection = !!selectedPromptId;
@@ -445,35 +482,42 @@
                 }
             }
 
+            function updateStartButtonState() {
+                const countEl = document.getElementById("test-case-count");
+                const testCaseCount = countEl.dataset.count
+                    ? parseInt(countEl.dataset.count, 10)
+                    : 0;
+                const modelCount = AppUtils.getSelectedModelsCount();
+                document.getElementById("start-btn").disabled =
+                    testCaseCount === 0 || modelCount === 0;
+            }
+
             async function loadTestCaseCount() {
                 if (!selectedPromptId) {
                     document.getElementById("test-case-count").textContent = "";
-                    document.getElementById("start-btn").disabled = true;
+                    document.getElementById("test-case-count").dataset.count = "";
+                    updateStartButtonState();
                     return;
                 }
                 try {
-                    const [tcRes, provRes] = await Promise.all([
-                        fetch(`/api/prompts/${selectedPromptId}/test-cases`),
-                        fetch("/api/config/providers"),
-                    ]);
+                    const tcRes = await fetch(`/api/prompts/${selectedPromptId}/test-cases`);
                     const testCases = await tcRes.json();
-                    const providers = await provRes.json();
                     const tcCount = testCases.length;
-                    const provCount = providers.count;
+                    const modelCount = AppUtils.getSelectedModelsCount();
+
+                    document.getElementById("test-case-count").dataset.count = tcCount;
 
                     if (tcCount === 0) {
                         document.getElementById("test-case-count").textContent =
                             "No test cases found. Add test cases first.";
-                        document.getElementById("start-btn").disabled = true;
-                    } else if (provCount === 0) {
+                    } else if (modelCount === 0) {
                         document.getElementById("test-case-count").textContent =
-                            "No LLM providers configured. Add API keys first.";
-                        document.getElementById("start-btn").disabled = true;
+                            `${tcCount} test case(s) available. Select at least one model to start.`;
                     } else {
                         document.getElementById("test-case-count").textContent =
-                            `${tcCount} test case(s) will be used with ${provCount} LLM provider(s): ${providers.providers.join(", ")}`;
-                        document.getElementById("start-btn").disabled = false;
+                            `${tcCount} test case(s) will be used with ${modelCount} selected model(s)`;
                     }
+                    updateStartButtonState();
                 } catch (error) {
                     document.getElementById("test-case-count").textContent = "Error loading info";
                     document.getElementById("start-btn").disabled = true;
@@ -482,6 +526,16 @@
 
             async function startImprovement() {
                 if (!selectedPromptId) return;
+
+                const selectedModels = AppUtils.getSelectedModels();
+                if (selectedModels.length === 0) {
+                    AppUtils.showAppMessage(
+                        "Please select at least one model to run improvement",
+                        "error"
+                    );
+                    return;
+                }
+
                 const maxIterations = parseInt(document.getElementById("max-iterations").value, 10);
                 const runsPerLlm = parseInt(document.getElementById("runs-per-llm").value, 10);
 
@@ -500,7 +554,12 @@
                     const res = await fetch("/api/improve/start", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ promptId: selectedPromptId, maxIterations, runsPerLlm }),
+                        body: JSON.stringify({
+                            promptId: selectedPromptId,
+                            maxIterations,
+                            runsPerLlm,
+                            selectedModels,
+                        }),
                     });
                     if (!res.ok) {
                         const error = await res.json();
