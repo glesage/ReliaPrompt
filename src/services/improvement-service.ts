@@ -188,8 +188,6 @@ async function runImprovement(
         log(`\n--- Iteration ${iteration}/${maxIterations} ---`);
 
         const testSummary = getTestResultSummary(currentTestResults);
-
-        log("Requesting improvements from all models...");
         const improvementPromises = modelRunners.map(async (runner) => {
             try {
                 const improved = await runner.client.improvePrompt(
@@ -223,7 +221,6 @@ async function runImprovement(
                 continue;
             }
 
-            log(`Testing ${improvement.llm}'s improvement...`);
             try {
                 const result = await runTestsForPromptContent(
                     improvement.prompt,
