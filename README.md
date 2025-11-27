@@ -1,12 +1,12 @@
 # LLM Prompt Testing Tool
 
-A web application for testing agentic server-side prompts against multiple LLMs (OpenAI, AWS Bedrock, Deepseek) with automated scoring and prompt improvement capabilities.
+A web application for testing agentic server-side prompts against multiple LLMs with automated scoring and prompt improvement capabilities.
 
 ## Features
 
 - **Multi-LLM Testing**: Test prompts against OpenAI (GPT-4o), AWS Bedrock (Claude 3 Sonnet), and Deepseek
 - **Parallel Execution**: Run tests in parallel across all LLMs
-- **10x Repeatability**: Each test case runs 10 times per LLM to measure consistency
+- **10x Repeatability**: Each test case runs n times per LLM to measure consistency
 - **JSON Comparison**: Exact JSON matching (ignoring formatting)
 - **Auto-Improvement**: LLMs automatically suggest and test prompt improvements
 - **Version Control**: All prompts are versioned with full history
@@ -124,14 +124,6 @@ A web application for testing agentic server-side prompts against multiple LLMs 
 - `POST /api/improve/start` - Start improvement job
 - `GET /api/improve/status/:jobId` - Poll improvement progress
 
-## Tech Stack
-
-- **Runtime**: Bun
-- **Backend**: Express, TypeScript
-- **Database**: SQLite (Bun built-in), Drizzle ORM
-- **Frontend**: Plain HTML, CSS, JavaScript
-- **LLM APIs**: OpenAI SDK, AWS Bedrock SDK, Deepseek API
-
 ## Project Structure
 
 ```
@@ -165,22 +157,11 @@ A web application for testing agentic server-side prompts against multiple LLMs 
 ## Development
 
 ```bash
-# Development mode with hot reload
 bun dev
-
-# Build for production
 bun run build
-
-# Run production build
 bun start
-
-# Format code
 bun run format
-
-# Generate database migrations
 bun run db:generate
-
-# Open Drizzle Studio (database GUI)
 bun run db:studio
 ```
 
