@@ -104,6 +104,16 @@
                                         max="20"
                                     />
                                 </div>
+                                <div class="form-group small">
+                                    <label for="runs-per-llm">Runs Per LLM</label>
+                                    <input
+                                        type="number"
+                                        id="runs-per-llm"
+                                        value="1"
+                                        min="1"
+                                        max="10"
+                                    />
+                                </div>
                                 <button id="start-btn" disabled>Start Improvement</button>
                             </div>
                             <div
@@ -473,6 +483,7 @@
             async function startImprovement() {
                 if (!selectedPromptId) return;
                 const maxIterations = parseInt(document.getElementById("max-iterations").value, 10);
+                const runsPerLlm = parseInt(document.getElementById("runs-per-llm").value, 10);
 
                 document.getElementById("start-btn").disabled = true;
                 document.getElementById("progress-section").classList.remove("hidden");
@@ -489,7 +500,7 @@
                     const res = await fetch("/api/improve/start", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ promptId: selectedPromptId, maxIterations }),
+                        body: JSON.stringify({ promptId: selectedPromptId, maxIterations, runsPerLlm }),
                     });
                     if (!res.ok) {
                         const error = await res.json();

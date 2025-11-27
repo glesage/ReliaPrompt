@@ -120,21 +120,95 @@ export class BedrockClient implements LLMClient {
             throw new ConfigurationError("Bedrock credentials not configured");
         }
 
-        // Use the Converse API which provides a unified interface across all models
-        const command = new ConverseCommand({
-            modelId,
-            messages: messages.map((m) => ({
-                role: m.role,
-                content: [{ text: m.content }],
-            })),
-            system: systemPrompt ? [{ text: systemPrompt }] : undefined,
-            inferenceConfig: {
-                maxTokens: 4096,
-            },
-        });
+        // Helper to send the converse command
+        const sendConverse = async (useSystemParam: boolean) => {
+            // If not using system param, prepend system prompt to first user message
+            let finalMessages = messages;
+            if (!useSystemParam && systemPrompt) {
+                finalMessages = messages.map((m, i) => {
+                    if (i === 0) {
+                        return {
+                            ...m,
+                            content: `${systemPrompt}\n\n${m.content}`,
+                        };
+                    }
+                    return m;
+                });
+            }
 
-        const response = await client.send(command);
-        return response.output?.message?.content?.[0]?.text ?? defaultValue;
+            const command = new ConverseCommand({
+                modelId,
+                messages: finalMessages.map((m) => ({
+                    role: m.role,
+                    content: [{ text: m.content }],
+                })),
+                system: useSystemParam && systemPrompt ? [{ text: systemPrompt }] : undefined,
+                inferenceConfig: {
+                    maxTokens: 4096,
+                },
+            });
+
+            return client.send(command);
+        };
+
+        try {
+            // First try with system message parameter
+            let response;
+            try {
+                response = await sendConverse(true);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                // If model doesn't support system messages, retry with system prompt in user message
+                if (errorMessage.includes("system messages") && systemPrompt) {
+                    response = await sendConverse(false);
+                } else {
+                    throw error;
+                }
+            }
+
+            const text = response.output?.message?.content?.[0]?.text;
+
+            if (text === undefined || text === null) {
+                // Check stop reason for more context
+                const stopReason = response.stopReason;
+                if (stopReason && stopReason !== "end_turn") {
+                    throw new Error(`Model stopped unexpectedly: ${stopReason}`);
+                }
+                // Return defaultValue for improvement prompts, throw for completions
+                if (defaultValue) {
+                    return defaultValue;
+                }
+                throw new Error("Model returned empty response");
+            }
+
+            return text;
+        } catch (error) {
+            // Re-throw ConfigurationError as-is
+            if (error instanceof ConfigurationError) {
+                throw error;
+            }
+
+            // Check for common Bedrock errors and provide clearer messages
+            const errorMessage = error instanceof Error ? error.message : String(error);
+
+            if (errorMessage.includes("ValidationException")) {
+                throw new Error(
+                    `Model ${modelId} may not support the Converse API: ${errorMessage}`
+                );
+            }
+            if (errorMessage.includes("AccessDeniedException")) {
+                throw new Error(
+                    `Access denied for model ${modelId}. Ensure model access is enabled in AWS Bedrock console.`
+                );
+            }
+            if (errorMessage.includes("ResourceNotFoundException")) {
+                throw new Error(
+                    `Model ${modelId} not found. It may not be available in your region.`
+                );
+            }
+
+            throw error;
+        }
     }
 
     async complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string> {

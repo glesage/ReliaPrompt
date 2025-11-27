@@ -346,14 +346,15 @@ app.get("/api/prompts/:id/test-jobs", (req, res) => {
 
 app.post("/api/improve/start", async (req, res) => {
     try {
-        const { promptId, maxIterations } = req.body;
+        const { promptId, maxIterations, runsPerLlm } = req.body;
 
         if (!promptId) {
             throw new ValidationError("promptId is required");
         }
 
         const iterations = maxIterations || 5;
-        const jobId = await startImprovement(promptId, iterations);
+        const runs = runsPerLlm || 1;
+        const jobId = await startImprovement(promptId, iterations, runs);
         res.json({ jobId });
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });

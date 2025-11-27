@@ -36,10 +36,11 @@ async function handleImprovementRun(
     prompt: Prompt,
     testCases: TestCase[],
     modelRunners: ModelRunner[],
-    maxIterations: number
+    maxIterations: number,
+    runsPerLlm: number
 ): Promise<void> {
     try {
-        await runImprovement(jobId, prompt, testCases, modelRunners, maxIterations);
+        await runImprovement(jobId, prompt, testCases, modelRunners, maxIterations, runsPerLlm);
     } catch (error) {
         const progress = activeImprovementJobs.get(jobId);
         if (progress) {
@@ -88,7 +89,7 @@ function getSavedModelRunners(): ModelRunner[] {
     );
 }
 
-export async function startImprovement(promptId: number, maxIterations: number): Promise<string> {
+export async function startImprovement(promptId: number, maxIterations: number, runsPerLlm: number = 1): Promise<string> {
     // Use OrFail variant for cleaner code - throws NotFoundError if prompt doesn't exist
     const prompt = getPromptByIdOrFail(promptId);
 
@@ -116,7 +117,7 @@ export async function startImprovement(promptId: number, maxIterations: number):
     };
     activeImprovementJobs.set(jobId, progress);
 
-    handleImprovementRun(jobId, prompt, testCases, modelRunners, maxIterations);
+    handleImprovementRun(jobId, prompt, testCases, modelRunners, maxIterations, runsPerLlm);
 
     return jobId;
 }
@@ -126,7 +127,8 @@ async function runImprovement(
     prompt: Prompt,
     testCases: TestCase[],
     modelRunners: ModelRunner[],
-    maxIterations: number
+    maxIterations: number,
+    runsPerLlm: number = 1
 ): Promise<void> {
     const progress = activeImprovementJobs.get(jobId)!;
     progress.status = "running";
@@ -139,11 +141,12 @@ async function runImprovement(
 
     log(`Starting improvement for prompt: "${prompt.name}" (id: ${prompt.id})`);
     log(`Max iterations: ${maxIterations}`);
+    log(`Runs per LLM: ${runsPerLlm}`);
     log(`Test cases: ${testCases.length}`);
     log(`Configured models: ${modelRunners.map((r) => r.displayName).join(", ")}`);
 
     log("Testing original prompt...");
-    const originalResult = await runTestsForPromptContent(prompt.content, testCases, modelRunners);
+    const originalResult = await runTestsForPromptContent(prompt.content, testCases, modelRunners, runsPerLlm);
     const originalScore = originalResult.score;
 
     progress.originalScore = originalScore;
@@ -209,7 +212,8 @@ async function runImprovement(
                 const result = await runTestsForPromptContent(
                     improvement.prompt,
                     testCases,
-                    modelRunners
+                    modelRunners,
+                    runsPerLlm
                 );
                 log(`${improvement.llm}: Score = ${result.score}% (was ${currentBestScore}%)`);
 
