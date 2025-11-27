@@ -1,5 +1,5 @@
 {
-    "name": "ReliaPrompt",
+    "name": "relia-prompt",
     "version": "1.0.0",
     "description": "Tool for testing llm prompts against multiple LLMs and improving them.",
     "main": "dist/server.js",
