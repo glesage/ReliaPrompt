@@ -8,9 +8,9 @@ import {
     Prompt,
     TestCase,
 } from "../database";
-import { getConfiguredClients, LLMClient, TestResultSummary } from "../llm-clients";
+import { getConfiguredClients, LLMClient } from "../llm-clients";
 import { runTestsForPromptContent, getTestResultSummary, LLMTestResult } from "./test-runner";
-import { NotFoundError, ConfigurationError, getErrorMessage, requireEntity } from "../errors";
+import { ConfigurationError, getErrorMessage, requireEntity } from "../errors";
 
 export interface ImprovementProgress {
     jobId: string;

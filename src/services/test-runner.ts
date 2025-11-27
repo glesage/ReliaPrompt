@@ -9,7 +9,7 @@ import {
 } from "../database";
 import { getConfiguredClients, LLMClient } from "../llm-clients";
 import { compareJSON } from "../utils/json-comparison";
-import { NotFoundError, ConfigurationError, getErrorMessage, requireEntity } from "../errors";
+import { ConfigurationError, getErrorMessage, requireEntity } from "../errors";
 
 const DEFAULT_RUNS_PER_TEST = 10;
 
