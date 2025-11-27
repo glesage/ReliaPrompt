@@ -27,6 +27,7 @@
         "@types/cors": "^2.8.19",
         "@types/express": "^5.0.5",
         "@types/node": "^24.10.1",
+        "better-sqlite3": "^12.4.6",
         "drizzle-kit": "^0.31.7",
         "eslint": "^9.39.1",
         "prettier": "^3.6.2",
