@@ -114,8 +114,25 @@ export function getPromptByIdOrFail(id: number): Prompt {
 export function deletePrompt(id: number): void {
     withSave(() => {
         const db = getDb();
-        db.delete(testCases).where(eq(testCases.promptId, id)).run();
+        const prompt = db.select().from(prompts).where(eq(prompts.id, id)).get();
+        if (!prompt) return;
+
+        const groupId = prompt.promptGroupId ?? id;
+        
+        // Count how many prompts are in this group
+        const totalInGroup = db
+            .select()
+            .from(prompts)
+            .where(eq(prompts.promptGroupId, groupId))
+            .all().length;
+
+        // Delete the prompt
         db.delete(prompts).where(eq(prompts.id, id)).run();
+
+        // Only delete test cases if this was the last prompt in the group
+        if (totalInGroup <= 1) {
+            db.delete(testCases).where(eq(testCases.promptGroupId, groupId)).run();
+        }
     });
 }
 
@@ -128,23 +145,20 @@ export function deleteAllVersionsOfPrompt(id: number): void {
             throw new NotFoundError("Prompt", id);
         }
 
-        if (!prompt.promptGroupId) {
-            // Fallback: just delete this single prompt
-            db.delete(testCases).where(eq(testCases.promptId, id)).run();
-            db.delete(prompts).where(eq(prompts.id, id)).run();
-            return;
-        }
+        const groupId = prompt.promptGroupId ?? id;
 
-        // Get all prompt IDs with the same promptGroupId
+        // Delete all test cases for this prompt group
+        db.delete(testCases).where(eq(testCases.promptGroupId, groupId)).run();
+
+        // Get all prompt IDs with the same promptGroupId and delete them
         const promptIds = db
             .select({ id: prompts.id })
             .from(prompts)
-            .where(eq(prompts.promptGroupId, prompt.promptGroupId))
+            .where(eq(prompts.promptGroupId, groupId))
             .all()
             .map((p) => p.id);
 
         if (promptIds.length > 0) {
-            db.delete(testCases).where(inArray(testCases.promptId, promptIds)).run();
             db.delete(prompts).where(inArray(prompts.id, promptIds)).run();
         }
     });
@@ -214,13 +228,13 @@ export function getAllPrompts(): Prompt[] {
         .all();
 }
 
-export function createTestCase(promptId: number, input: string, expectedOutput: string) {
+export function createTestCase(promptGroupId: number, input: string, expectedOutput: string) {
     return withSave(() => {
         const createdAt = new Date().toISOString();
         return getDb()
             .insert(testCases)
             .values({
-                promptId,
+                promptGroupId,
                 input,
                 expectedOutput,
                 createdAt,
@@ -243,45 +257,45 @@ export function getTestCaseByIdOrFail(id: number): TestCase {
 }
 
 export function getTestCasesForPrompt(promptId: number): TestCase[] {
+    // Get the prompt to find its promptGroupId
+    const prompt = getDb().select().from(prompts).where(eq(prompts.id, promptId)).get();
+    if (!prompt) {
+        return [];
+    }
+    const groupId = prompt.promptGroupId ?? promptId;
+    return getTestCasesForPromptGroup(groupId);
+}
+
+export function getTestCasesForPromptGroup(promptGroupId: number): TestCase[] {
     return getDb()
         .select()
         .from(testCases)
-        .where(eq(testCases.promptId, promptId))
+        .where(eq(testCases.promptGroupId, promptGroupId))
         .orderBy(testCases.createdAt)
         .all();
 }
 
+// Legacy function - now just an alias for getTestCasesForPromptGroup
 export function getTestCasesForPromptGroupId(groupId: number): TestCase[] {
-    return getDb()
-        .select({
-            id: testCases.id,
-            promptId: testCases.promptId,
-            input: testCases.input,
-            expectedOutput: testCases.expectedOutput,
-            createdAt: testCases.createdAt,
-        })
-        .from(testCases)
-        .innerJoin(prompts, eq(testCases.promptId, prompts.id))
-        .where(eq(prompts.promptGroupId, groupId))
-        .orderBy(testCases.createdAt)
-        .all();
+    return getTestCasesForPromptGroup(groupId);
 }
 
 // Legacy function for backward compatibility
 export function getTestCasesForPromptName(promptName: string): TestCase[] {
-    return getDb()
-        .select({
-            id: testCases.id,
-            promptId: testCases.promptId,
-            input: testCases.input,
-            expectedOutput: testCases.expectedOutput,
-            createdAt: testCases.createdAt,
-        })
-        .from(testCases)
-        .innerJoin(prompts, eq(testCases.promptId, prompts.id))
+    // Find a prompt with this name and get its group ID
+    const prompt = getDb()
+        .select()
+        .from(prompts)
         .where(eq(prompts.name, promptName))
-        .orderBy(testCases.createdAt)
-        .all();
+        .limit(1)
+        .get();
+    
+    if (!prompt) {
+        return [];
+    }
+    
+    const groupId = prompt.promptGroupId ?? prompt.id;
+    return getTestCasesForPromptGroup(groupId);
 }
 
 export function deleteTestCase(id: number): void {

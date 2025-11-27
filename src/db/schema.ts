@@ -23,14 +23,12 @@ export const testCases = sqliteTable(
     "test_cases",
     {
         id: integer("id").primaryKey({ autoIncrement: true }),
-        promptId: integer("prompt_id")
-            .notNull()
-            .references(() => prompts.id),
+        promptGroupId: integer("prompt_group_id").notNull(),
         input: text("input").notNull(),
         expectedOutput: text("expected_output").notNull(),
         createdAt: text("created_at").notNull(),
     },
-    (table) => [index("test_cases_prompt_id_idx").on(table.promptId)]
+    (table) => [index("test_cases_prompt_group_id_idx").on(table.promptGroupId)]
 );
 
 export const testJobs = sqliteTable(

@@ -669,7 +669,7 @@ async function saveEditedPrompt(e) {
 async function deletePromptFromSidebar(id, name, groupId) {
     if (
         !confirm(
-            `Delete ALL versions of "${name}"? This will also delete all test cases. This cannot be undone.`
+            `Delete ALL versions of "${name}"? This will also delete all test cases (which are shared across all versions). This cannot be undone.`
         )
     ) {
         return;
@@ -710,7 +710,7 @@ async function deletePromptFromSidebar(id, name, groupId) {
 async function deleteVersionFromSidebar(id, name, version, groupId) {
     if (
         !confirm(
-            `Delete version ${version} of "${name}"? This will also delete its test cases. This cannot be undone.`
+            `Delete version ${version} of "${name}"? Test cases are shared across all versions and will be preserved. This cannot be undone.`
         )
     ) {
         return;
@@ -778,6 +778,7 @@ async function loadConfigStatus() {
             !!(config.bedrock_access_key_id && config.bedrock_secret_access_key)
         );
         updateConfigBadge("deepseek-status", !!config.deepseek_api_key);
+        updateConfigBadge("gemini-status", !!config.gemini_api_key);
 
         // Populate input fields with values from the database
         const fields = [
@@ -787,6 +788,7 @@ async function loadConfigStatus() {
             "bedrock_session_token",
             "deepseek_api_key",
             "bedrock_region",
+            "gemini_api_key",
         ];
 
         for (const field of fields) {
@@ -815,6 +817,7 @@ async function loadConfigStatus() {
         renderModelCheckboxes("openai-models", "OpenAI");
         renderModelCheckboxes("bedrock-models", "Bedrock");
         renderModelCheckboxes("deepseek-models", "Deepseek");
+        renderModelCheckboxes("gemini-models", "Gemini");
     } catch (error) {
         showAppMessage("Error loading configuration", "error");
     }
@@ -1093,6 +1096,16 @@ function getConfigModalHtml() {
                             </h3>
                             <div class="form-group">
                                 <input type="text" id="deepseek_api_key" name="deepseek_api_key" placeholder="API Key (sk-...)" />
+                            </div>
+                        </div>
+
+                        <div class="provider-section">
+                            <h3>
+                                Gemini
+                                <span id="gemini-status" class="status-badge not-configured">Not configured</span>
+                            </h3>
+                            <div class="form-group">
+                                <input type="text" id="gemini_api_key" name="gemini_api_key" placeholder="API Key" />
                             </div>
                         </div>
                     </div>

@@ -73,6 +73,7 @@ app.post("/api/config", (req, res) => {
             bedrock_session_token,
             bedrock_region,
             deepseek_api_key,
+            gemini_api_key,
             selected_models,
         } = req.body;
 
@@ -86,6 +87,7 @@ app.post("/api/config", (req, res) => {
         if (bedrock_region !== undefined)
             setConfig("bedrock_region", bedrock_region || "ap-southeast-2");
         if (deepseek_api_key !== undefined) setConfig("deepseek_api_key", deepseek_api_key);
+        if (gemini_api_key !== undefined) setConfig("gemini_api_key", gemini_api_key);
         if (selected_models !== undefined) {
             // Store selected models as JSON string
             const modelsJson = Array.isArray(selected_models)
@@ -270,7 +272,11 @@ app.post("/api/prompts/:id/test-cases", (req, res) => {
             throw new ValidationError("expected_output must be valid JSON");
         }
 
-        const testCase = createTestCase(promptId, input, expected_output);
+        // Get the prompt to find its promptGroupId
+        const prompt = getPromptByIdOrFail(promptId);
+        const promptGroupId = prompt.promptGroupId ?? promptId;
+
+        const testCase = createTestCase(promptGroupId, input, expected_output);
         res.json(testCase);
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });

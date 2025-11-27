@@ -4,13 +4,11 @@ A web application for testing agentic server-side prompts against multiple LLMs 
 
 ## Features
 
-- **Multi-LLM Testing**: Test prompts against OpenAI (GPT-4o), AWS Bedrock (Claude 3 Sonnet), and Deepseek
+- **Multi-LLM Testing**: Test prompts against Multiple LLMs and models
 - **Parallel Execution**: Run tests in parallel across all LLMs
 - **10x Repeatability**: Each test case runs n times per LLM to measure consistency
-- **JSON Comparison**: Exact JSON matching (ignoring formatting)
 - **Auto-Improvement**: LLMs automatically suggest and test prompt improvements
 - **Version Control**: All prompts are versioned with full history
-- **Progress Tracking**: Real-time progress bars with polling
 
 ## Quick Start
 

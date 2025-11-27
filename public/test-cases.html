@@ -84,6 +84,14 @@
                             </button>
                         </div>
                         <p>Define test inputs and expected JSON outputs for your prompts</p>
+                        <p id="shared-test-cases-note" class="hidden" style="color: var(--color-text-muted); font-size: 0.85rem; margin-top: 0.5rem;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="16" x2="12" y2="12"/>
+                                <line x1="12" y1="8" x2="12.01" y2="8"/>
+                            </svg>
+                            Test cases are shared across all versions of this prompt
+                        </p>
                     </div>
 
                     <!-- No Prompt Selected State -->
@@ -203,6 +211,23 @@
                                     id="deepseek_api_key"
                                     name="deepseek_api_key"
                                     placeholder="API Key (sk-...)"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="provider-section">
+                            <h3>
+                                Gemini
+                                <span id="gemini-status" class="status-badge not-configured"
+                                    >Not configured</span
+                                >
+                            </h3>
+                            <div class="form-group">
+                                <input
+                                    type="text"
+                                    id="gemini_api_key"
+                                    name="gemini_api_key"
+                                    placeholder="API Key"
                                 />
                             </div>
                         </div>
@@ -448,6 +473,9 @@
                     .classList.toggle("hidden", hasSelection);
                 document
                     .getElementById("add-test-case-btn")
+                    .classList.toggle("hidden", !hasSelection);
+                document
+                    .getElementById("shared-test-cases-note")
                     .classList.toggle("hidden", !hasSelection);
                 document.querySelector(".navbar-nav").classList.toggle("hidden", !hasSelection);
                 if (selectedPromptName) {

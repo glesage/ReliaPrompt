@@ -29,6 +29,13 @@
       "when": 1764400000000,
       "tag": "0003_add_score_metrics",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1764500000000,
+      "tag": "0004_share_test_cases_in_group",
+      "breakpoints": true
     }
   ]
 }

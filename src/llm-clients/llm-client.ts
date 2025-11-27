@@ -39,6 +39,7 @@ export interface LLMConfig {
     bedrockSecretAccessKey?: string;
     bedrockRegion?: string;
     deepseekApiKey?: string;
+    geminiApiKey?: string;
 }
 
 let activeClients: LLMClient[] = [];
