@@ -4,6 +4,7 @@ import path from "path";
 
 import {
     initializeDatabase,
+    initializeDefaultConfigs,
     getAllConfig,
     setConfig,
     createPrompt,
@@ -27,6 +28,8 @@ import {
     getConfiguredClients,
     getAllAvailableModels,
     ModelSelection,
+    DEFAULT_IMPROVEMENT_PROMPT_TEMPLATE,
+    getImprovementPromptTemplate,
 } from "./llm-clients";
 import { startTestRun, getTestProgress, TestResults } from "./services/test-runner";
 import { startImprovement, getImprovementProgress } from "./services/improvement-service";
@@ -115,6 +118,38 @@ app.get("/api/models", async (req, res) => {
     try {
         const models = await getAllAvailableModels();
         res.json(models);
+    } catch (error) {
+        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
+    }
+});
+
+app.get("/api/config/improvement-prompt", (req, res) => {
+    try {
+        res.json({
+            template: getImprovementPromptTemplate(),
+            defaultTemplate: DEFAULT_IMPROVEMENT_PROMPT_TEMPLATE,
+        });
+    } catch (error) {
+        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
+    }
+});
+
+app.put("/api/config/improvement-prompt", (req, res) => {
+    try {
+        const { template } = req.body;
+
+        if (template === undefined) {
+            throw new ValidationError("template is required");
+        }
+
+        if (!template.trim()) {
+            throw new ValidationError("template cannot be empty");
+        }
+
+        // Always store the template in the database
+        setConfig("improvement_prompt_template", template);
+
+        res.json({ success: true, message: "Improvement prompt template updated" });
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
     }
@@ -401,6 +436,7 @@ function start() {
     try {
         console.log("Initializing database...");
         initializeDatabase();
+        initializeDefaultConfigs();
         dbInitialized = true;
         console.log("Database initialized");
 

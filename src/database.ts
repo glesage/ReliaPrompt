@@ -14,6 +14,7 @@ import {
     type ImprovementJob,
 } from "./db/schema";
 import { NotFoundError, ensureExists } from "./errors";
+import { DEFAULT_IMPROVEMENT_PROMPT_TEMPLATE } from "./constants";
 
 export { initializeDatabase } from "./db";
 export type { Prompt, TestCase, TestJob, TestResult, ImprovementJob };
@@ -43,6 +44,14 @@ export function getAllConfig(): Record<string, string> {
         result[row.key] = row.value;
     }
     return result;
+}
+
+export function initializeDefaultConfigs(): void {
+    // Initialize improvement prompt template if not set
+    const existingTemplate = getConfig("improvement_prompt_template");
+    if (!existingTemplate) {
+        setConfig("improvement_prompt_template", DEFAULT_IMPROVEMENT_PROMPT_TEMPLATE);
+    }
 }
 
 export function createPrompt(name: string, content: string, parentVersionId?: number) {

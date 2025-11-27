@@ -89,6 +89,92 @@
                         <p>Choose a prompt from the sidebar to start auto-improvement</p>
                     </div>
 
+                    <!-- Improvement Prompt Template Section -->
+                    <div class="card" style="margin-bottom: 24px">
+                        <div
+                            class="improvement-template-header"
+                            id="template-toggle"
+                            style="
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                                cursor: pointer;
+                                user-select: none;
+                            "
+                        >
+                            <svg
+                                id="template-chevron"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                style="
+                                    width: 16px;
+                                    height: 16px;
+                                    transition: transform 0.2s;
+                                "
+                            >
+                                <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                            <h2 style="margin: 0">Improvement Prompt Template</h2>
+                            <span
+                                id="template-status"
+                                style="
+                                    font-size: 12px;
+                                    color: var(--color-text-muted);
+                                    margin-left: 8px;
+                                "
+                                >(using default)</span
+                            >
+                        </div>
+                        <div id="template-content" class="hidden" style="margin-top: 16px">
+                            <p style="color: var(--color-text-muted); margin-bottom: 12px">
+                                Customize the prompt used to ask LLMs to improve your prompts.
+                                Available placeholders:
+                            </p>
+                            <ul
+                                style="
+                                    color: var(--color-text-muted);
+                                    font-size: 13px;
+                                    margin-bottom: 16px;
+                                    padding-left: 20px;
+                                "
+                            >
+                                <li>
+                                    <code>{{CURRENT_PROMPT}}</code> - The prompt being improved
+                                </li>
+                                <li><code>{{TEST_SUMMARY}}</code> - Pass/fail/score summary</li>
+                                <li>
+                                    <code>{{FAILURE_ANALYSIS}}</code> - Missing/extra items count
+                                </li>
+                                <li>
+                                    <code>{{FAILED_TEST_CASES}}</code> - Details of failed tests
+                                </li>
+                                <li>
+                                    <code>{{ANALYSIS_HINTS}}</code> - Hints based on failure types
+                                </li>
+                            </ul>
+                            <div class="form-group">
+                                <textarea
+                                    id="improvement-template"
+                                    style="
+                                        min-height: 300px;
+                                        font-family: monospace;
+                                        font-size: 13px;
+                                    "
+                                ></textarea>
+                            </div>
+                            <div style="display: flex; gap: 8px">
+                                <button id="save-template-btn">Save Template</button>
+                                <button id="reset-template-btn" class="secondary">
+                                    Reset to Default
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Improve Section (shown when prompt selected) -->
                     <div id="improve-section" class="hidden">
                         <div class="card">
@@ -655,6 +741,86 @@
             }
 
             document.getElementById("start-btn").addEventListener("click", startImprovement);
+
+            // Template editor state
+            let defaultTemplate = "";
+            let templateExpanded = false;
+
+            async function loadImprovementTemplate() {
+                try {
+                    const res = await fetch("/api/config/improvement-prompt");
+                    const data = await res.json();
+                    defaultTemplate = data.defaultTemplate;
+                    document.getElementById("improvement-template").value = data.template;
+                    updateTemplateStatus(data.template, data.defaultTemplate);
+                } catch (error) {
+                    console.error("Error loading improvement template:", error);
+                }
+            }
+
+            function updateTemplateStatus(current, defaultTpl) {
+                const statusEl = document.getElementById("template-status");
+                if (current.trim() === defaultTpl.trim()) {
+                    statusEl.textContent = "(using default)";
+                    statusEl.style.color = "var(--color-text-muted)";
+                } else {
+                    statusEl.textContent = "(customized)";
+                    statusEl.style.color = "var(--color-success)";
+                }
+            }
+
+            function toggleTemplateSection() {
+                templateExpanded = !templateExpanded;
+                const content = document.getElementById("template-content");
+                const chevron = document.getElementById("template-chevron");
+                content.classList.toggle("hidden", !templateExpanded);
+                chevron.style.transform = templateExpanded ? "rotate(90deg)" : "";
+            }
+
+            async function saveTemplate() {
+                const template = document.getElementById("improvement-template").value;
+                try {
+                    const res = await fetch("/api/config/improvement-prompt", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ template }),
+                    });
+                    if (res.ok) {
+                        AppUtils.showAppMessage("Template saved!", "success");
+                        updateTemplateStatus(template, defaultTemplate);
+                    } else {
+                        const error = await res.json();
+                        AppUtils.showAppMessage(error.error || "Failed to save template", "error");
+                    }
+                } catch (error) {
+                    AppUtils.showAppMessage("Error saving template", "error");
+                }
+            }
+
+            async function resetTemplate() {
+                if (!confirm("Reset the improvement prompt template to the default?")) return;
+                document.getElementById("improvement-template").value = defaultTemplate;
+                try {
+                    const res = await fetch("/api/config/improvement-prompt", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ template: defaultTemplate }),
+                    });
+                    if (res.ok) {
+                        AppUtils.showAppMessage("Template reset to default!", "success");
+                        updateTemplateStatus(defaultTemplate, defaultTemplate);
+                    }
+                } catch (error) {
+                    AppUtils.showAppMessage("Error resetting template", "error");
+                }
+            }
+
+            document.getElementById("template-toggle").addEventListener("click", toggleTemplateSection);
+            document.getElementById("save-template-btn").addEventListener("click", saveTemplate);
+            document.getElementById("reset-template-btn").addEventListener("click", resetTemplate);
+
+            // Load template on page load
+            loadImprovementTemplate();
 
             // Initialize
             updateUI();
