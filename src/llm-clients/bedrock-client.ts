@@ -49,7 +49,12 @@ export class BedrockClient implements LLMClient {
         return !!(getConfig("bedrock_access_key_id") && getConfig("bedrock_secret_access_key"));
     }
 
-    async complete(systemPrompt: string, userMessage: string): Promise<string> {
+    private async makeRequest(
+        messages: Array<{ role: "user"; content: string }>,
+        temperature: number,
+        systemPrompt?: string,
+        defaultValue: string = ""
+    ): Promise<string> {
         const client = this.getClient();
         if (!client) {
             throw new ConfigurationError("Bedrock credentials not configured");
@@ -57,18 +62,22 @@ export class BedrockClient implements LLMClient {
 
         const modelId = "anthropic.claude-3-sonnet-20240229-v1:0";
 
-        const payload = {
+        const payload: {
+            anthropic_version: string;
+            max_tokens: number;
+            temperature: number;
+            system?: string;
+            messages: Array<{ role: "user"; content: string }>;
+        } = {
             anthropic_version: "bedrock-2023-05-31",
             max_tokens: 4096,
-            temperature: 0.1,
-            system: systemPrompt,
-            messages: [
-                {
-                    role: "user",
-                    content: userMessage,
-                },
-            ],
+            temperature,
+            messages,
         };
+
+        if (systemPrompt) {
+            payload.system = systemPrompt;
+        }
 
         const command = new InvokeModelCommand({
             modelId,
@@ -82,43 +91,25 @@ export class BedrockClient implements LLMClient {
             new TextDecoder().decode(response.body)
         ) as BedrockClaudeResponse;
 
-        return responseBody.content?.[0]?.text ?? "";
+        return responseBody.content?.[0]?.text ?? defaultValue;
+    }
+
+    async complete(systemPrompt: string, userMessage: string): Promise<string> {
+        return this.makeRequest(
+            [{ role: "user", content: userMessage }],
+            0.1,
+            systemPrompt
+        );
     }
 
     async improvePrompt(currentPrompt: string, testResults: TestResultSummary[]): Promise<string> {
-        const client = this.getClient();
-        if (!client) {
-            throw new ConfigurationError("Bedrock credentials not configured");
-        }
-
         const improvementPrompt = buildImprovementPrompt(currentPrompt, testResults);
-        const modelId = "anthropic.claude-3-sonnet-20240229-v1:0";
-
-        const payload = {
-            anthropic_version: "bedrock-2023-05-31",
-            max_tokens: 4096,
-            temperature: 0.7,
-            messages: [
-                {
-                    role: "user",
-                    content: improvementPrompt,
-                },
-            ],
-        };
-
-        const command = new InvokeModelCommand({
-            modelId,
-            contentType: "application/json",
-            accept: "application/json",
-            body: JSON.stringify(payload),
-        });
-
-        const response = await client.send(command);
-        const responseBody = JSON.parse(
-            new TextDecoder().decode(response.body)
-        ) as BedrockClaudeResponse;
-
-        return responseBody.content?.[0]?.text ?? currentPrompt;
+        return this.makeRequest(
+            [{ role: "user", content: improvementPrompt }],
+            0.7,
+            undefined,
+            currentPrompt
+        );
     }
 }
 

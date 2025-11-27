@@ -43,7 +43,11 @@ export class OpenAIClient implements LLMClient {
         this.client = null;
     }
 
-    async complete(systemPrompt: string, userMessage: string): Promise<string> {
+    private async makeRequest(
+        messages: Array<{ role: "system" | "user"; content: string }>,
+        temperature: number,
+        defaultValue: string = ""
+    ): Promise<string> {
         const client = this.getClient();
         if (!client) {
             throw new ConfigurationError("OpenAI API key not configured");
@@ -51,33 +55,27 @@ export class OpenAIClient implements LLMClient {
 
         const response = await client.chat.completions.create({
             model: "gpt-4o",
-            messages: [
+            messages,
+            temperature,
+            max_tokens: 4096,
+        });
+
+        return response.choices[0]?.message?.content ?? defaultValue;
+    }
+
+    async complete(systemPrompt: string, userMessage: string): Promise<string> {
+        return this.makeRequest(
+            [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userMessage },
             ],
-            temperature: 0.1,
-            max_tokens: 4096,
-        });
-
-        return response.choices[0]?.message?.content ?? "";
+            0.1
+        );
     }
 
     async improvePrompt(currentPrompt: string, testResults: TestResultSummary[]): Promise<string> {
-        const client = this.getClient();
-        if (!client) {
-            throw new ConfigurationError("OpenAI API key not configured");
-        }
-
         const improvementPrompt = buildImprovementPrompt(currentPrompt, testResults);
-
-        const response = await client.chat.completions.create({
-            model: "gpt-4o",
-            messages: [{ role: "user", content: improvementPrompt }],
-            temperature: 0.7,
-            max_tokens: 4096,
-        });
-
-        return response.choices[0]?.message?.content ?? currentPrompt;
+        return this.makeRequest([{ role: "user", content: improvementPrompt }], 0.7, currentPrompt);
     }
 }
 

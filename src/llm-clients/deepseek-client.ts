@@ -14,7 +14,11 @@ export class DeepseekClient implements LLMClient {
         return !!this.getApiKey();
     }
 
-    async complete(systemPrompt: string, userMessage: string): Promise<string> {
+    private async makeRequest(
+        messages: Array<{ role: "system" | "user"; content: string }>,
+        temperature: number,
+        defaultValue: string = ""
+    ): Promise<string> {
         const apiKey = this.getApiKey();
         if (!apiKey) {
             throw new ConfigurationError("Deepseek API key not configured");
@@ -28,11 +32,8 @@ export class DeepseekClient implements LLMClient {
             },
             body: JSON.stringify({
                 model: "deepseek-chat",
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userMessage },
-                ],
-                temperature: 0.1,
+                messages,
+                temperature,
                 max_tokens: 4096,
             }),
         });
@@ -45,40 +46,26 @@ export class DeepseekClient implements LLMClient {
         const data = (await response.json()) as {
             choices?: Array<{ message?: { content?: string } }>;
         };
-        return data.choices?.[0]?.message?.content ?? "";
+        return data.choices?.[0]?.message?.content ?? defaultValue;
+    }
+
+    async complete(systemPrompt: string, userMessage: string): Promise<string> {
+        return this.makeRequest(
+            [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userMessage },
+            ],
+            0.1
+        );
     }
 
     async improvePrompt(currentPrompt: string, testResults: TestResultSummary[]): Promise<string> {
-        const apiKey = this.getApiKey();
-        if (!apiKey) {
-            throw new ConfigurationError("Deepseek API key not configured");
-        }
-
         const improvementPrompt = buildImprovementPrompt(currentPrompt, testResults);
-
-        const response = await fetch(`${this.baseUrl}/chat/completions`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-                model: "deepseek-chat",
-                messages: [{ role: "user", content: improvementPrompt }],
-                temperature: 0.7,
-                max_tokens: 4096,
-            }),
-        });
-
-        if (!response.ok) {
-            const error = await response.text();
-            throw new LLMError("Deepseek", `API error: ${response.status} - ${error}`);
-        }
-
-        const data = (await response.json()) as {
-            choices?: Array<{ message?: { content?: string } }>;
-        };
-        return data.choices?.[0]?.message?.content ?? currentPrompt;
+        return this.makeRequest(
+            [{ role: "user", content: improvementPrompt }],
+            0.7,
+            currentPrompt
+        );
     }
 }
 
