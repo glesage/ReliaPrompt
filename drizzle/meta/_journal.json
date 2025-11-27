@@ -15,6 +15,13 @@
       "when": 1764234567890,
       "tag": "0001_add_prompt_group_id",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1764300000000,
+      "tag": "0002_add_duration_ms",
+      "breakpoints": true
     }
   ]
 }

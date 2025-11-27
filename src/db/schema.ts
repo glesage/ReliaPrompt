@@ -68,6 +68,7 @@ export const testResults = sqliteTable(
         actualOutput: text("actual_output"),
         isCorrect: integer("is_correct").notNull().default(0),
         error: text("error"),
+        durationMs: integer("duration_ms"),
         createdAt: text("created_at").notNull(),
     },
     (table) => [

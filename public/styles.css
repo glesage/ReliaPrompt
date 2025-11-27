@@ -1,5 +1,6 @@
 :root {
     --color-bg: #f4f5f7;
+    --color-bg-elevated: #eef0f3;
     --color-sidebar: #1e1e2f;
     --color-sidebar-hover: #2a2a3d;
     --color-sidebar-active: #10b981;
@@ -1198,6 +1199,16 @@ button.small,
 .score-badge.best {
     background: #fef3c7;
     color: #92400e;
+}
+
+.duration-badge {
+    padding: 4px 12px;
+    background: #e0e7ff;
+    color: #3730a3;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
 .btn-view-details {

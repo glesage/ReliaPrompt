@@ -107,7 +107,6 @@ export class BedrockClient implements LLMClient {
             const models: ModelInfo[] = [];
 
             for (const model of response.modelSummaries ?? []) {
-                console.log("bedrock", { model });
                 if (model.modelId && model.modelName) {
                     models.push({
                         id: model.modelId,

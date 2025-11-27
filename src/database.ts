@@ -345,7 +345,8 @@ export function createTestResult(
     runNumber: number,
     actualOutput: string | null,
     isCorrect: boolean,
-    error?: string
+    error?: string,
+    durationMs?: number
 ) {
     return withSave(() => {
         const createdAt = new Date().toISOString();
@@ -359,6 +360,7 @@ export function createTestResult(
                 actualOutput,
                 isCorrect: isCorrect ? 1 : 0,
                 error: error ?? null,
+                durationMs: durationMs ?? null,
                 createdAt,
             })
             .returning()

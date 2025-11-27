@@ -805,10 +805,14 @@
                     .map((llm) => {
                         const badgeClass =
                             llm.score >= 80 ? "" : llm.score >= 50 ? "medium" : "low";
+                        const avgDurationText = llm.durationStats 
+                            ? `<span class="duration-badge" title="Average response time">⏱ ${formatDuration(llm.durationStats.avgMs)}</span>` 
+                            : '';
                         return `
                         <div class="llm-result-row">
                             <span class="llm-result-name">${llm.llmName}</span>
                             <span class="score-badge ${badgeClass}">${llm.correctCount}/${llm.totalRuns} correct (${llm.score}%)</span>
+                            ${avgDurationText}
                             <button class="btn-view-details" onclick="openTestDetailsModal('${llm.llmName}')" title="View details">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -819,6 +823,11 @@
                     `;
                     })
                     .join("");
+            }
+
+            function formatDuration(ms) {
+                if (ms < 1000) return `${ms}ms`;
+                return `${(ms / 1000).toFixed(2)}s`;
             }
 
             function openTestDetailsModal(llmName) {
@@ -833,7 +842,22 @@
                 document.getElementById("test-details-score-badge").textContent =
                     `${llm.correctCount}/${llm.totalRuns} correct (${llm.score}%)`;
 
-                document.getElementById("test-details-content").innerHTML = llm.testCaseResults
+                // Build duration stats section if available
+                let durationStatsHtml = '';
+                if (llm.durationStats) {
+                    durationStatsHtml = `
+                        <div class="duration-stats-section" style="background: var(--color-bg-elevated); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
+                            <strong style="display: block; margin-bottom: 8px;">⏱ Response Time Statistics</strong>
+                            <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                                <div><span style="color: var(--color-text-muted);">Min:</span> <strong>${formatDuration(llm.durationStats.minMs)}</strong></div>
+                                <div><span style="color: var(--color-text-muted);">Max:</span> <strong>${formatDuration(llm.durationStats.maxMs)}</strong></div>
+                                <div><span style="color: var(--color-text-muted);">Average:</span> <strong>${formatDuration(llm.durationStats.avgMs)}</strong></div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                document.getElementById("test-details-content").innerHTML = durationStatsHtml + llm.testCaseResults
                     .map((tc, i) => {
                         const successRate = (tc.correctRuns / tc.runs.length) * 100;
                         const statusClass = successRate >= 80 ? "success" : "failure";

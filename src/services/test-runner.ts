@@ -45,6 +45,11 @@ export interface LLMTestResult {
     totalRuns: number;
     score: number; // 0-100
     testCaseResults: TestCaseResult[];
+    durationStats?: {
+        minMs: number;
+        maxMs: number;
+        avgMs: number;
+    };
 }
 
 export interface TestCaseResult {
@@ -60,6 +65,7 @@ export interface RunResult {
     actualOutput: string | null;
     isCorrect: boolean;
     error?: string;
+    durationMs?: number;
 }
 
 const activeJobs = new Map<string, TestProgress>();
@@ -192,7 +198,9 @@ async function runTests(
 
             for (let runNumber = 1; runNumber <= runsPerTest; runNumber++) {
                 try {
+                    const startTime = Date.now();
                     const actualOutput = await runner.client.complete(prompt.content, testCase.input, runner.modelId);
+                    const durationMs = Date.now() - startTime;
                     const comparison = compareJSON(testCase.expectedOutput, actualOutput);
 
                     const isCorrect = comparison.isEqual;
@@ -207,6 +215,7 @@ async function runTests(
                         actualOutput,
                         isCorrect,
                         error: comparison.error,
+                        durationMs,
                     });
 
                     createTestResult(
@@ -216,7 +225,8 @@ async function runTests(
                         runNumber,
                         actualOutput,
                         isCorrect,
-                        comparison.error
+                        comparison.error,
+                        durationMs
                     );
                 } catch (error) {
                     llmTotalRuns++;
@@ -257,12 +267,23 @@ async function runTests(
         const results = await Promise.all(testCasePromises);
         testCaseResults.push(...results);
 
+        // Calculate duration stats from all runs
+        const allDurations = testCaseResults.flatMap(tc => 
+            tc.runs.map(r => r.durationMs).filter((d): d is number => d !== undefined)
+        );
+        const durationStats = allDurations.length > 0 ? {
+            minMs: Math.min(...allDurations),
+            maxMs: Math.max(...allDurations),
+            avgMs: Math.round(allDurations.reduce((a, b) => a + b, 0) / allDurations.length),
+        } : undefined;
+
         return {
             llmName: runner.displayName,
             correctCount: llmCorrectCount,
             totalRuns: llmTotalRuns,
             score: llmTotalRuns > 0 ? Math.round((llmCorrectCount / llmTotalRuns) * 100) : 0,
             testCaseResults,
+            durationStats,
         } as LLMTestResult;
     });
 
@@ -308,7 +329,9 @@ export async function runTestsForPromptContent(
 
             for (let runNumber = 1; runNumber <= runsPerTest; runNumber++) {
                 try {
+                    const startTime = Date.now();
                     const actualOutput = await runner.client.complete(promptContent, testCase.input, runner.modelId);
+                    const durationMs = Date.now() - startTime;
                     const comparison = compareJSON(testCase.expectedOutput, actualOutput);
 
                     const isCorrect = comparison.isEqual;
@@ -323,6 +346,7 @@ export async function runTestsForPromptContent(
                         actualOutput,
                         isCorrect,
                         error: comparison.error,
+                        durationMs,
                     });
                 } catch (error) {
                     llmTotalRuns++;
@@ -347,12 +371,23 @@ export async function runTestsForPromptContent(
         const results = await Promise.all(testCasePromises);
         testCaseResults.push(...results);
 
+        // Calculate duration stats from all runs
+        const allDurations = testCaseResults.flatMap(tc => 
+            tc.runs.map(r => r.durationMs).filter((d): d is number => d !== undefined)
+        );
+        const durationStats = allDurations.length > 0 ? {
+            minMs: Math.min(...allDurations),
+            maxMs: Math.max(...allDurations),
+            avgMs: Math.round(allDurations.reduce((a, b) => a + b, 0) / allDurations.length),
+        } : undefined;
+
         return {
             llmName: runner.displayName,
             correctCount: llmCorrectCount,
             totalRuns: llmTotalRuns,
             score: llmTotalRuns > 0 ? Math.round((llmCorrectCount / llmTotalRuns) * 100) : 0,
             testCaseResults,
+            durationStats,
         } as LLMTestResult;
     });
 
