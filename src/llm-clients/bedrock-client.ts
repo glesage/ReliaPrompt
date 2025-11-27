@@ -117,11 +117,9 @@ export class BedrockClient implements LLMClient {
                 }
             }
 
-            // Sort by model name
             models.sort((a, b) => a.name.localeCompare(b.name));
             return models;
         } catch {
-            // Return empty array if API call fails
             return [];
         }
     }
