@@ -955,12 +955,14 @@
                                             </div>`;
                                             }
 
+                                            const durationText = run.durationMs !== undefined ? `<span class="duration-badge" style="font-size: 11px; opacity: 0.8;">⏱ ${formatDuration(run.durationMs)}</span>` : "";
                                             return `
                                             <div class="individual-run" style="background: var(--color-bg-elevated); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid var(--color-${runScoreClass});">
                                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
                                                     <span class="run-status-icon ${runScoreClass}" style="font-weight: bold;">${runStatusIcon}</span>
                                                     <span style="font-weight: 500;">Run #${runIdx + 1}</span>
                                                     <span class="score-badge ${runScoreClass}" style="font-size: 12px;">${runScore}%</span>
+                                                    ${durationText}
                                                 </div>
                                                 ${scoreBreakdown}
                                                 <div style="margin-top: 6px;">
@@ -1032,9 +1034,10 @@
                                                     : runScore >= 80
                                                       ? "◐"
                                                       : "✗";
-                                                return `<div style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; background: ${bgColor}; font-size: 12px;" title="Run #${runIdx + 1}: ${runScore}%">
+                                                const compactDuration = run.durationMs !== undefined ? ` · ${formatDuration(run.durationMs)}` : "";
+                                                return `<div style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; background: ${bgColor}; font-size: 12px;" title="Run #${runIdx + 1}: ${runScore}%${run.durationMs !== undefined ? ', ' + formatDuration(run.durationMs) : ''}">
                                                 <span style="color: ${textColor}; font-weight: bold;">${icon}</span>
-                                                <span style="color: ${textColor};">${runScore}%</span>
+                                                <span style="color: ${textColor};">${runScore}%${compactDuration}</span>
                                             </div>`;
                                             })
                                             .join("")}
@@ -1043,11 +1046,23 @@
                             `;
                             }
 
+                            // Calculate average duration for this test case
+                            const tcDurations = tc.runs
+                                .map(r => r.durationMs)
+                                .filter(d => d !== undefined && d !== null);
+                            const tcAvgDuration = tcDurations.length > 0
+                                ? Math.round(tcDurations.reduce((a, b) => a + b, 0) / tcDurations.length)
+                                : null;
+                            const tcAvgDurationHtml = tcAvgDuration !== null
+                                ? `<span class="duration-badge" title="Average response time for this test case">⏱ ${formatDuration(tcAvgDuration)}</span>`
+                                : "";
+
                             return `
                             <div class="test-case-detail">
                                 <div class="header">
                                     <strong>Test Case #${i + 1}</strong>
                                     <span class="score-badge ${scoreClass}">${avgScore}%</span>
+                                    ${tcAvgDurationHtml}
                                 </div>
                                 ${tcMetricsSummary}
                                 <div style="margin-top: 10px; margin-bottom: 5px;"><strong>Input:</strong></div>
