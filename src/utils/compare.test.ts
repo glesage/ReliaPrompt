@@ -155,7 +155,7 @@ describe("compare", () => {
         test("should handle empty arrays", () => {
             const result = compare([], [], ParseType.ARRAY);
             expect(result).toEqual({
-                score: 0, // 0/1 = 0 (division by zero protection uses 1 as denominator)
+                score: 1, // Empty arrays are equal
                 expectedTotal: 0,
                 expectedFound: 0,
                 unexpectedFound: 0,
@@ -305,7 +305,7 @@ describe("compare", () => {
         test("should handle empty objects", () => {
             const result = compare({}, {}, ParseType.OBJECT);
             expect(result).toEqual({
-                score: 0, // 0/1 = 0 (division by zero protection uses 1 as denominator)
+                score: 1, // Empty objects are equal
                 expectedTotal: 0,
                 expectedFound: 0,
                 unexpectedFound: 0,

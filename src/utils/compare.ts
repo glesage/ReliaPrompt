@@ -139,8 +139,15 @@ export function compare(
 
     const metrics = calculateMetrics(expectedType, expected, output);
 
+    let score: number;
+    if (metrics.expectedTotal === 0 && metrics.unexpectedCount === 0) {
+        score = 1;
+    } else {
+        score = metrics.expectedFound / (metrics.expectedTotal > 0 ? metrics.expectedTotal : 1);
+    }
+
     return {
-        score: metrics.expectedFound / (metrics.expectedTotal > 0 ? metrics.expectedTotal : 1),
+        score,
         expectedTotal: metrics.expectedTotal,
         expectedFound: metrics.expectedFound,
         unexpectedFound: metrics.unexpectedCount,
