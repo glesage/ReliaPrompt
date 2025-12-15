@@ -48,8 +48,7 @@ export class OpenAIClient implements LLMClient {
             const models: ModelInfo[] = [];
 
             for await (const model of response) {
-                const isGPT5Plus = model.id.startsWith("gpt-5");
-                if (!isGPT5Plus) continue;
+                if (!model.id.startsWith("gpt-5") || model.id.includes("2025")) continue;
                 models.push({
                     id: model.id,
                     name: model.id,

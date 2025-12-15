@@ -97,11 +97,29 @@
                                 id="test-case-count"
                                 style="color: var(--color-text-muted); margin-bottom: 16px"
                             ></div>
-                            <div id="shared-test-cases-note" style="color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 16px; display: flex; align-items: center; gap: 6px;">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; flex-shrink: 0;">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <line x1="12" y1="16" x2="12" y2="12"/>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                            <div
+                                id="shared-test-cases-note"
+                                style="
+                                    color: var(--color-text-muted);
+                                    font-size: 0.85rem;
+                                    margin-bottom: 16px;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 6px;
+                                "
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    style="width: 14px; height: 14px; flex-shrink: 0"
+                                >
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="16" x2="12" y2="12" />
+                                    <line x1="12" y1="8" x2="12.01" y2="8" />
                                 </svg>
                                 Test cases are shared across all versions of this prompt
                             </div>
@@ -117,7 +135,7 @@
                                         type="range"
                                         id="runs-per-test"
                                         min="1"
-                                        max="50"
+                                        max="10"
                                         value="1"
                                         style="flex: 1; max-width: 200px"
                                     />
@@ -697,7 +715,9 @@
                             if (job.status === "completed" && job.results) {
                                 try {
                                     const results = JSON.parse(job.results);
-                                    const overallScorePercent = AppUtils.scoreToPercent(results.overallScore);
+                                    const overallScorePercent = AppUtils.scoreToPercent(
+                                        results.overallScore
+                                    );
                                     const overallBadgeClass =
                                         overallScorePercent >= 90
                                             ? ""
@@ -957,7 +977,9 @@
                                     <div style="margin-bottom: 8px; font-weight: 600; color: var(--color-text-muted);">Individual Runs:</div>
                                     ${tc.runs
                                         .map((run, runIdx) => {
-                                            const runScore = AppUtils.scoreToPercent(run.score || 0);
+                                            const runScore = AppUtils.scoreToPercent(
+                                                run.score || 0
+                                            );
                                             const runScoreClass =
                                                 runScore >= 90
                                                     ? "success"
@@ -982,7 +1004,10 @@
                                             </div>`;
                                             }
 
-                                            const durationText = run.durationMs !== undefined ? `<span class="duration-badge" style="font-size: 11px; opacity: 0.8;">⏱ ${formatDuration(run.durationMs)}</span>` : "";
+                                            const durationText =
+                                                run.durationMs !== undefined
+                                                    ? `<span class="duration-badge" style="font-size: 11px; opacity: 0.8;">⏱ ${formatDuration(run.durationMs)}</span>`
+                                                    : "";
                                             return `
                                             <div class="individual-run" style="background: var(--color-bg-elevated); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid var(--color-${runScoreClass});">
                                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
@@ -1037,7 +1062,9 @@
                                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">
                                         ${tc.runs
                                             .map((run, runIdx) => {
-                                                const runScore = AppUtils.scoreToPercent(run.score || 0);
+                                                const runScore = AppUtils.scoreToPercent(
+                                                    run.score || 0
+                                                );
                                                 const runScoreClass =
                                                     runScore >= 90
                                                         ? "success"
@@ -1061,8 +1088,11 @@
                                                     : runScore >= 80
                                                       ? "◐"
                                                       : "✗";
-                                                const compactDuration = run.durationMs !== undefined ? ` · ${formatDuration(run.durationMs)}` : "";
-                                                return `<div style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; background: ${bgColor}; font-size: 12px;" title="Run #${runIdx + 1}: ${runScore}%${run.durationMs !== undefined ? ', ' + formatDuration(run.durationMs) : ''}">
+                                                const compactDuration =
+                                                    run.durationMs !== undefined
+                                                        ? ` · ${formatDuration(run.durationMs)}`
+                                                        : "";
+                                                return `<div style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; background: ${bgColor}; font-size: 12px;" title="Run #${runIdx + 1}: ${runScore}%${run.durationMs !== undefined ? ", " + formatDuration(run.durationMs) : ""}">
                                                 <span style="color: ${textColor}; font-weight: bold;">${icon}</span>
                                                 <span style="color: ${textColor};">${runScore}%${compactDuration}</span>
                                             </div>`;
@@ -1075,14 +1105,19 @@
 
                             // Calculate average duration for this test case
                             const tcDurations = tc.runs
-                                .map(r => r.durationMs)
-                                .filter(d => d !== undefined && d !== null);
-                            const tcAvgDuration = tcDurations.length > 0
-                                ? Math.round(tcDurations.reduce((a, b) => a + b, 0) / tcDurations.length)
-                                : null;
-                            const tcAvgDurationHtml = tcAvgDuration !== null
-                                ? `<span class="duration-badge" title="Average response time for this test case">⏱ ${formatDuration(tcAvgDuration)}</span>`
-                                : "";
+                                .map((r) => r.durationMs)
+                                .filter((d) => d !== undefined && d !== null);
+                            const tcAvgDuration =
+                                tcDurations.length > 0
+                                    ? Math.round(
+                                          tcDurations.reduce((a, b) => a + b, 0) /
+                                              tcDurations.length
+                                      )
+                                    : null;
+                            const tcAvgDurationHtml =
+                                tcAvgDuration !== null
+                                    ? `<span class="duration-badge" title="Average response time for this test case">⏱ ${formatDuration(tcAvgDuration)}</span>`
+                                    : "";
 
                             return `
                             <div class="test-case-detail">
@@ -1109,7 +1144,8 @@
                 if (!llm) return;
 
                 const llmScorePercent = AppUtils.scoreToPercent(llm.score);
-                const badgeClass = llmScorePercent >= 90 ? "" : llmScorePercent >= 80 ? "medium" : "low";
+                const badgeClass =
+                    llmScorePercent >= 90 ? "" : llmScorePercent >= 80 ? "medium" : "low";
 
                 document.getElementById("test-details-llm-name").textContent = llm.llmName;
                 document.getElementById("test-details-score-badge").className =
