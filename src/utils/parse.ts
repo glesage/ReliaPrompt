@@ -34,7 +34,7 @@ function matchesParseType(value: unknown, type: ParseType): value is ParsedJSON 
     }
 }
 
-export function parse(input: string, type: ParseType): ParsedJSON | undefined {
+export function parse(input: string, type: ParseType): ParsedJSON {
     const trimmed = input.trim();
 
     try {
@@ -43,4 +43,5 @@ export function parse(input: string, type: ParseType): ParsedJSON | undefined {
     } catch {
         if (type === ParseType.STRING) return trimmed;
     }
+    throw new Error("Invalid input");
 }

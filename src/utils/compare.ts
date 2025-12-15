@@ -129,8 +129,8 @@ function calculateMetrics(
 }
 
 export function compare(
-    expected: ParsedJSON | undefined,
-    output: ParsedJSON | undefined,
+    expected: ParsedJSON,
+    output: ParsedJSON,
     expectedType: ParseType
 ): ComparisonResult {
     if (expected === undefined) {
