@@ -1,5 +1,5 @@
 // Default improvement prompt template with placeholders
-export const DEFAULT_IMPROVEMENT_PROMPT_TEMPLATE = `You are an expert prompt engineer. Your task is to improve the following prompt to make it return better results.
+export const DEFAULT_IMPROVEMENT_PROMPT_TEMPLATE = `You are an expert prompt engineer. Your task is to improve the following prompt by removing unnecessary fields/values and making it more concise and clear to make it return better results.
 
 ## Current Prompt:
 {{CURRENT_PROMPT}}
@@ -24,4 +24,3 @@ The improved prompt should:
 4. Not include extra fields or values beyond what is expected
 
 IMPORTANT: Return ONLY the improved prompt text, nothing else. Do not include any explanations, markdown formatting, or code blocks. Just the raw prompt text.`;
-

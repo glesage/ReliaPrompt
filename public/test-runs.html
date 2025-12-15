@@ -674,7 +674,7 @@
                             if (job.status === "completed" && job.results) {
                                 try {
                                     const results = JSON.parse(job.results);
-                                    const overallScorePercent = scoreToPercent(results.overallScore);
+                                    const overallScorePercent = AppUtils.scoreToPercent(results.overallScore);
                                     const overallBadgeClass =
                                         overallScorePercent >= 90
                                             ? ""
@@ -804,17 +804,10 @@
                     `${status.completedTests || 0} / ${status.totalTests || 0} tests completed`;
             }
 
-            // Convert score from 0-1 range to 0-100 percentage for display
-            function scoreToPercent(score) {
-                // Handle both 0-1 and 0-100 formats for backward compatibility
-                if (score > 1) return score; // Already in 0-100 format
-                return Math.round(score * 100);
-            }
-
             function getBestLLMScore(llmResults) {
                 if (!llmResults || llmResults.length === 0) return null;
                 const maxScore = Math.max(...llmResults.map((llm) => llm.score));
-                return scoreToPercent(maxScore);
+                return AppUtils.scoreToPercent(maxScore);
             }
 
             function showResults(results) {
@@ -829,7 +822,7 @@
 
                 // Get best LLM score
                 const bestScore = getBestLLMScore(results.llmResults);
-                const overallScorePercent = scoreToPercent(results.overallScore);
+                const overallScorePercent = AppUtils.scoreToPercent(results.overallScore);
 
                 // Set overall score badge next to Results heading
                 const overallBadgeClass =
@@ -855,7 +848,7 @@
 
                 document.getElementById("llm-results").innerHTML = results.llmResults
                     .map((llm) => {
-                        const llmScorePercent = scoreToPercent(llm.score);
+                        const llmScorePercent = AppUtils.scoreToPercent(llm.score);
                         const badgeClass =
                             llmScorePercent >= 90 ? "" : llmScorePercent >= 80 ? "medium" : "low";
                         const avgDurationText = llm.durationStats
@@ -929,7 +922,7 @@
                     toggleBtnHtml +
                     llm.testCaseResults
                         .map((tc, i) => {
-                            const avgScore = scoreToPercent(tc.averageScore || 0);
+                            const avgScore = AppUtils.scoreToPercent(tc.averageScore || 0);
                             const scoreClass =
                                 avgScore >= 90 ? "" : avgScore >= 80 ? "medium" : "low";
 
@@ -941,7 +934,7 @@
                                     <div style="margin-bottom: 8px; font-weight: 600; color: var(--color-text-muted);">Individual Runs:</div>
                                     ${tc.runs
                                         .map((run, runIdx) => {
-                                            const runScore = scoreToPercent(run.score || 0);
+                                            const runScore = AppUtils.scoreToPercent(run.score || 0);
                                             const runScoreClass =
                                                 runScore >= 90
                                                     ? "success"
@@ -1021,7 +1014,7 @@
                                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">
                                         ${tc.runs
                                             .map((run, runIdx) => {
-                                                const runScore = scoreToPercent(run.score || 0);
+                                                const runScore = AppUtils.scoreToPercent(run.score || 0);
                                                 const runScoreClass =
                                                     runScore >= 90
                                                         ? "success"
@@ -1092,7 +1085,7 @@
                 const llm = storedLlmResults[llmName];
                 if (!llm) return;
 
-                const llmScorePercent = scoreToPercent(llm.score);
+                const llmScorePercent = AppUtils.scoreToPercent(llm.score);
                 const badgeClass = llmScorePercent >= 90 ? "" : llmScorePercent >= 80 ? "medium" : "low";
 
                 document.getElementById("test-details-llm-name").textContent = llm.llmName;

@@ -726,13 +726,17 @@
             function updateProgress(status) {
                 document.getElementById("iteration-display").textContent =
                     `Iteration ${status.currentIteration}/${status.maxIterations}`;
-                if (status.originalScore !== null)
+                if (status.originalScore !== null) {
+                    const originalScorePercent = AppUtils.scoreToPercent(status.originalScore);
                     document.getElementById("original-score").textContent =
-                        status.originalScore + "%";
+                        originalScorePercent + "%";
+                }
                 if (status.bestScore !== null) {
-                    document.getElementById("best-score").textContent = status.bestScore + "%";
+                    const bestScorePercent = AppUtils.scoreToPercent(status.bestScore);
+                    document.getElementById("best-score").textContent = bestScorePercent + "%";
                     if (status.originalScore !== null) {
-                        const improvement = status.bestScore - status.originalScore;
+                        const originalScorePercent = AppUtils.scoreToPercent(status.originalScore);
+                        const improvement = bestScorePercent - originalScorePercent;
                         const el = document.getElementById("improvement");
                         el.textContent = (improvement >= 0 ? "+" : "") + improvement + "%";
                         el.className = "value" + (improvement > 0 ? " improved" : "");

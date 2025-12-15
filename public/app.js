@@ -896,6 +896,11 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function scoreToPercent(score) {
+    if (score > 1) return score;
+    return Math.round(score * 100);
+}
+
 function initAppLayout() {
     const setupBtn = document.getElementById("setup-btn");
     if (setupBtn) {
@@ -1195,6 +1200,7 @@ window.AppUtils = {
     loadPromptSidebar,
     showAppMessage,
     escapeHtml,
+    scoreToPercent,
     openConfigModal,
     closeConfigModal,
     openNewPromptModal,
