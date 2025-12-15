@@ -115,7 +115,7 @@ describe("compare", () => {
         test("should count unexpected items", () => {
             const result = compare([1, 2], [1, 2, 3, 4], ParseType.ARRAY);
             expect(result).toEqual({
-                score: 1,
+                score: 0, // (2 - 2) / 2 = 0
                 expectedTotal: 2,
                 expectedFound: 2,
                 unexpectedFound: 2, // 3 and 4 are unexpected
@@ -125,7 +125,7 @@ describe("compare", () => {
         test("should return zero score for no matches", () => {
             const result = compare([1, 2, 3], [4, 5, 6], ParseType.ARRAY);
             expect(result).toEqual({
-                score: 0,
+                score: 0, // (0 - 3) / 3 = -1, clamped to 0
                 expectedTotal: 3,
                 expectedFound: 0,
                 unexpectedFound: 3,
@@ -213,7 +213,7 @@ describe("compare", () => {
         test("should handle partial match with unexpected items", () => {
             const result = compare([1, 2, 3], [1, 2, 4, 5], ParseType.ARRAY);
             expect(result).toEqual({
-                score: 2 / 3,
+                score: 0, // (2 - 2) / 3 = 0
                 expectedTotal: 3,
                 expectedFound: 2,
                 unexpectedFound: 2, // 4 and 5
@@ -265,7 +265,7 @@ describe("compare", () => {
         test("should count extra keys as unexpected", () => {
             const result = compare({ a: 1 }, { a: 1, b: 2, c: 3 }, ParseType.OBJECT);
             expect(result).toEqual({
-                score: 1,
+                score: 0, // (1 - 2) / 1 = -1, clamped to 0
                 expectedTotal: 1,
                 expectedFound: 1,
                 unexpectedFound: 2, // 'b' and 'c' are unexpected
@@ -275,7 +275,7 @@ describe("compare", () => {
         test("should return zero score for no matching keys", () => {
             const result = compare({ a: 1, b: 2 }, { c: 3, d: 4 }, ParseType.OBJECT);
             expect(result).toEqual({
-                score: 0,
+                score: 0, // (0 - 2) / 2 = -1, clamped to 0
                 expectedTotal: 2,
                 expectedFound: 0,
                 unexpectedFound: 2,
@@ -371,7 +371,7 @@ describe("compare", () => {
                 ParseType.OBJECT
             );
             expect(result).toEqual({
-                score: 1,
+                score: 0, // (2 - 2) / 2 = 0
                 expectedTotal: 2,
                 expectedFound: 2,
                 unexpectedFound: 2, // 'c' and 'd'
@@ -385,7 +385,7 @@ describe("compare", () => {
                 ParseType.OBJECT
             );
             expect(result).toEqual({
-                score: 1 / 3, // only 'a' matches
+                score: 0, // (1 - 1) / 3 = 0
                 expectedTotal: 3,
                 expectedFound: 1,
                 unexpectedFound: 1, // 'd' is unexpected
@@ -446,7 +446,7 @@ describe("compare", () => {
 
         test("should handle score calculation with floating point precision", () => {
             const result = compare([1, 2, 3, 4, 5], [1, 2], ParseType.ARRAY);
-            expect(result.score).toBeCloseTo(0.4, 10); // 2/5 = 0.4
+            expect(result.score).toBeCloseTo(0.4, 10); // (2 - 0) / 5 = 0.4 (no unexpected items)
             expect(result.expectedTotal).toBe(5);
             expect(result.expectedFound).toBe(2);
         });

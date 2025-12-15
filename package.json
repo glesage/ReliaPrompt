@@ -10,8 +10,8 @@
         "format": "bun run prettier --write \"src/**/*.ts\" \"public/**/*.{html,js,css}\" \"*.json\" \"drizzle.config.ts\"",
         "lint": "eslint src/**/*.ts",
         "lint:fix": "eslint src/**/*.ts --fix",
-        "test": "bun test",
-        "test:watch": "bun test --watch",
+        "test": "bun test src",
+        "test:watch": "bun test --watch src",
         "db:generate": "bun run drizzle-kit generate",
         "db:studio": "bun run drizzle-kit studio"
     },

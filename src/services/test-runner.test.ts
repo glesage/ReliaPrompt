@@ -23,6 +23,44 @@ const mockGetConfig = mock(() => null as string | null);
 // Mock LLM clients module
 const mockGetConfiguredClients = mock(() => [] as LLMClient[]);
 
+// Mock the db module to prevent database initialization errors
+mock.module("../db", () => ({
+    getDb: () => ({
+        select: () => ({
+            from: () => ({
+                where: () => ({
+                    get: () => null,
+                    all: () => [],
+                }),
+            }),
+        }),
+        insert: () => ({
+            values: () => ({
+                returning: () => ({
+                    get: () => ({}),
+                }),
+            }),
+        }),
+        update: () => ({
+            set: () => ({
+                where: () => ({
+                    run: () => {},
+                }),
+            }),
+        }),
+        delete: () => ({
+            where: () => ({
+                run: () => {},
+            }),
+        }),
+    }),
+    getSqlDb: () => ({
+        run: () => {},
+    }),
+    withSave: <T>(operation: () => T): T => operation(),
+    initializeDatabase: () => {},
+}));
+
 // Mock the database module
 mock.module("../database", () => ({
     createTestJob: mockCreateTestJob,
