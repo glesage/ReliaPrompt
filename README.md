@@ -1,7 +1,8 @@
 # LLM Prompt Testing Tool
 
 A web application for testing agentic server-side prompts against multiple LLMs with automated scoring and prompt improvement capabilities.
-<img width="1203" height="852" alt="Screenshot 2025-12-15 at 11 38 23 pm" src="https://github.com/user-attachments/assets/747d1489-23c3-4a18-a4e9-895c9e03b1ba" />
+<img width="1133" height="777" alt="Screenshot 2025-12-15 at 11 39 59 pm" src="https://github.com/user-attachments/assets/22eb23d9-b824-4402-aab6-255e541f8120" />
+
 
 ## Features
 
