@@ -30,11 +30,26 @@ import {
 } from "./llm-clients";
 import { startTestRun, getTestProgress, TestResults } from "./services/test-runner";
 import { startImprovement, getImprovementProgress } from "./services/improvement-service";
-import { getErrorMessage, getErrorStatusCode, NotFoundError, ValidationError } from "./errors";
+import { getErrorMessage, getErrorStatusCode, NotFoundError } from "./errors";
 import { parse, ParseType } from "./utils/parse";
+import { validate, validateIdParam } from "./middleware/validation";
+import {
+    configBodySchema,
+    improvementPromptTemplateSchema,
+    createPromptSchema,
+    createTestCaseSchema,
+    updateTestCaseSchema,
+    testRunSchema,
+    improveStartSchema,
+    jobIdParamSchema,
+} from "./validation/schemas";
+import { validateEnv } from "./config/env";
+
+// Validate environment variables at startup
+const env = validateEnv();
+const PORT = env.PORT;
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -62,7 +77,7 @@ app.get("/api/config", (req, res) => {
     }
 });
 
-app.post("/api/config", (req, res) => {
+app.post("/api/config", validate(configBodySchema), (req, res) => {
     try {
         const {
             openai_api_key,
@@ -129,17 +144,9 @@ app.get("/api/config/improvement-prompt", (req, res) => {
     }
 });
 
-app.put("/api/config/improvement-prompt", (req, res) => {
+app.put("/api/config/improvement-prompt", validate(improvementPromptTemplateSchema), (req, res) => {
     try {
         const { template } = req.body;
-
-        if (template === undefined) {
-            throw new ValidationError("template is required");
-        }
-
-        if (!template.trim()) {
-            throw new ValidationError("template cannot be empty");
-        }
 
         setConfig("improvement_prompt_template", template);
 
@@ -158,13 +165,9 @@ app.get("/api/prompts", (req, res) => {
     }
 });
 
-app.post("/api/prompts", (req, res) => {
+app.post("/api/prompts", validate(createPromptSchema), (req, res) => {
     try {
         const { name, content, parentVersionId } = req.body;
-
-        if (!name || !content) {
-            throw new ValidationError("Name and content are required");
-        }
 
         const prompt = createPrompt(name, content, parentVersionId);
         res.json(prompt);
@@ -173,7 +176,7 @@ app.post("/api/prompts", (req, res) => {
     }
 });
 
-app.get("/api/prompts/:id", (req, res) => {
+app.get("/api/prompts/:id", validateIdParam, (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
         const prompt = getPromptByIdOrFail(id);
@@ -183,7 +186,7 @@ app.get("/api/prompts/:id", (req, res) => {
     }
 });
 
-app.get("/api/prompts/:id/versions", (req, res) => {
+app.get("/api/prompts/:id/versions", validateIdParam, (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
         const prompt = getPromptByIdOrFail(id);
@@ -196,7 +199,7 @@ app.get("/api/prompts/:id/versions", (req, res) => {
     }
 });
 
-app.delete("/api/prompts/:id", (req, res) => {
+app.delete("/api/prompts/:id", validateIdParam, (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
         getPromptByIdOrFail(id);
@@ -207,7 +210,7 @@ app.delete("/api/prompts/:id", (req, res) => {
     }
 });
 
-app.delete("/api/prompts/:id/all-versions", (req, res) => {
+app.delete("/api/prompts/:id/all-versions", validateIdParam, (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
         deleteAllVersionsOfPrompt(id);
@@ -217,7 +220,7 @@ app.delete("/api/prompts/:id/all-versions", (req, res) => {
     }
 });
 
-app.get("/api/prompts/:id/test-cases", (req, res) => {
+app.get("/api/prompts/:id/test-cases", validateIdParam, (req, res) => {
     try {
         const promptId = parseInt(req.params.id, 10);
         const testCases = getTestCasesForPrompt(promptId);
@@ -227,21 +230,18 @@ app.get("/api/prompts/:id/test-cases", (req, res) => {
     }
 });
 
-app.post("/api/prompts/:id/test-cases", (req, res) => {
+app.post("/api/prompts/:id/test-cases", validateIdParam, validate(createTestCaseSchema), (req, res) => {
     try {
         const promptId = parseInt(req.params.id, 10);
         const { input, expected_output, expected_output_type } = req.body;
 
-        if (!input || !expected_output) {
-            throw new ValidationError("Input and expected_output are required");
-        }
-
-        if (!Object.values(ParseType).includes(expected_output_type as ParseType)) {
-            throw new ValidationError("expected_output_type must be one of: string, array, object");
-        }
-
-        if (parse(expected_output, expected_output_type as ParseType) === undefined) {
-            throw new ValidationError("expected_output must be valid JSON");
+        // Additional validation: ensure expected_output can be parsed with the specified type
+        try {
+            parse(expected_output, expected_output_type as ParseType);
+        } catch {
+            return res.status(400).json({
+                error: "Validation error: expected_output must be valid JSON matching the expected_output_type",
+            });
         }
 
         const prompt = getPromptByIdOrFail(promptId);
@@ -259,26 +259,18 @@ app.post("/api/prompts/:id/test-cases", (req, res) => {
     }
 });
 
-app.put("/api/test-cases/:id", (req, res) => {
+app.put("/api/test-cases/:id", validateIdParam, validate(updateTestCaseSchema), (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
         const { input, expected_output, expected_output_type } = req.body;
 
-        if (!input || !expected_output) {
-            throw new ValidationError("Input and expected_output are required");
-        }
-
+        // Additional validation: ensure expected_output can be parsed with the specified type
         try {
-            JSON.parse(expected_output);
+            parse(expected_output, expected_output_type as ParseType);
         } catch {
-            throw new ValidationError("expected_output must be valid JSON");
-        }
-
-        if (!expected_output_type) {
-            throw new ValidationError("expected_output_type is required");
-        }
-        if (!Object.values(ParseType).includes(expected_output_type as ParseType)) {
-            throw new ValidationError("expected_output_type must be one of: string, array, object");
+            return res.status(400).json({
+                error: "Validation error: expected_output must be valid JSON matching the expected_output_type",
+            });
         }
 
         const testCase = updateTestCase(id, input, expected_output, expected_output_type);
@@ -291,7 +283,7 @@ app.put("/api/test-cases/:id", (req, res) => {
     }
 });
 
-app.delete("/api/test-cases/:id", (req, res) => {
+app.delete("/api/test-cases/:id", validateIdParam, (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
         deleteTestCase(id);
@@ -301,36 +293,18 @@ app.delete("/api/test-cases/:id", (req, res) => {
     }
 });
 
-app.post("/api/test/run", async (req, res) => {
+app.post("/api/test/run", validate(testRunSchema), async (req, res) => {
     try {
         const { promptId, runsPerTest, selectedModels } = req.body;
 
-        if (!promptId) {
-            throw new ValidationError("promptId is required");
-        }
-
-        if (runsPerTest === undefined || runsPerTest === null) {
-            throw new ValidationError("runsPerTest is required");
-        }
-
-        const runs = parseInt(runsPerTest, 10);
-        if (isNaN(runs) || runs < 1 || runs > 100) {
-            throw new ValidationError("runsPerTest must be a number between 1 and 100");
-        }
-
-        let models: ModelSelection[] | undefined;
-        if (selectedModels && Array.isArray(selectedModels) && selectedModels.length > 0) {
-            models = selectedModels as ModelSelection[];
-        }
-
-        const jobId = await startTestRun(promptId, runs, models);
+        const jobId = await startTestRun(promptId, runsPerTest, selectedModels);
         res.json({ jobId });
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
     }
 });
 
-app.get("/api/test/status/:jobId", (req, res) => {
+app.get("/api/test/status/:jobId", validate(jobIdParamSchema, "params"), (req, res) => {
     try {
         const { jobId } = req.params;
 
@@ -357,7 +331,7 @@ app.get("/api/test/status/:jobId", (req, res) => {
     }
 });
 
-app.get("/api/prompts/:id/test-jobs", (req, res) => {
+app.get("/api/prompts/:id/test-jobs", validateIdParam, (req, res) => {
     try {
         const promptId = parseInt(req.params.id, 10);
         const jobs = getTestJobsForPrompt(promptId);
@@ -367,13 +341,9 @@ app.get("/api/prompts/:id/test-jobs", (req, res) => {
     }
 });
 
-app.post("/api/improve/start", async (req, res) => {
+app.post("/api/improve/start", validate(improveStartSchema), async (req, res) => {
     try {
         const { promptId, maxIterations, runsPerLlm, improvementModel, benchmarkModels, selectedModels } = req.body;
-
-        if (!promptId) {
-            throw new ValidationError("promptId is required");
-        }
 
         const iterations = maxIterations || 5;
         const runs = runsPerLlm || 1;
@@ -385,11 +355,7 @@ app.post("/api/improve/start", async (req, res) => {
         if (improvementModel && benchmarkModels) {
             // New API: separate improvement and benchmark models
             improvement = improvementModel as ModelSelection;
-            if (Array.isArray(benchmarkModels) && benchmarkModels.length > 0) {
-                benchmarks = benchmarkModels as ModelSelection[];
-            } else {
-                throw new ValidationError("At least one benchmark model is required");
-            }
+            benchmarks = benchmarkModels as ModelSelection[];
         } else if (selectedModels && Array.isArray(selectedModels) && selectedModels.length > 0) {
             // Backward compatibility: use first model as improvement, all as benchmarks
             const models = selectedModels as ModelSelection[];
@@ -397,11 +363,11 @@ app.post("/api/improve/start", async (req, res) => {
             benchmarks = models;
         }
 
-        if (!improvement) {
-            throw new ValidationError("improvementModel is required");
-        }
-        if (!benchmarks || benchmarks.length === 0) {
-            throw new ValidationError("At least one benchmark model is required");
+        // This should not happen due to validation, but TypeScript needs this check
+        if (!improvement || !benchmarks || benchmarks.length === 0) {
+            return res.status(400).json({
+                error: "Either (improvementModel and benchmarkModels) or selectedModels must be provided",
+            });
         }
 
         const jobId = await startImprovement(promptId, iterations, runs, improvement, benchmarks);
@@ -411,7 +377,7 @@ app.post("/api/improve/start", async (req, res) => {
     }
 });
 
-app.get("/api/improve/status/:jobId", (req, res) => {
+app.get("/api/improve/status/:jobId", validate(jobIdParamSchema, "params"), (req, res) => {
     try {
         const { jobId } = req.params;
 

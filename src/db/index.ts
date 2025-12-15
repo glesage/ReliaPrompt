@@ -4,18 +4,13 @@ import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import path from "path";
 import fs from "fs";
 import * as schema from "./schema";
-import { ConfigurationError, DatabaseError } from "../errors";
+import { DatabaseError } from "../errors";
+import { validateEnv } from "../config/env";
 
-// Required environment variables
-if (!process.env.DATABASE_PATH) {
-    throw new ConfigurationError("DATABASE_PATH environment variable is required");
-}
-if (!process.env.MIGRATIONS_PATH) {
-    throw new ConfigurationError("MIGRATIONS_PATH environment variable is required");
-}
-
-const dbPath = process.env.DATABASE_PATH;
-const migrationsPath = process.env.MIGRATIONS_PATH;
+// Validate environment variables
+const env = validateEnv();
+const dbPath = env.DATABASE_PATH;
+const migrationsPath = env.MIGRATIONS_PATH;
 
 const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
