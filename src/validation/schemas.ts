@@ -111,6 +111,13 @@ export const updateTestCaseSchema = Joi.object({
         }),
 }).unknown(false);
 
+export const importTestCasesSchema = Joi.array()
+    .items(createTestCaseSchema)
+    .min(0)
+    .messages({
+        "array.base": "Test cases must be an array",
+    });
+
 // Test run schema
 export const testRunSchema = Joi.object({
     promptId: Joi.number().integer().positive().required().messages({

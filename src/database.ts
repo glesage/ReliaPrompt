@@ -277,6 +277,40 @@ export function updateTestCase(
     return getTestCaseById(id);
 }
 
+export function deleteAllTestCasesForPromptGroup(promptGroupId: number): void {
+    withSave(() => {
+        getDb().delete(testCases).where(eq(testCases.promptGroupId, promptGroupId)).run();
+    });
+}
+
+export function bulkCreateTestCases(
+    promptGroupId: number,
+    testCasesData: Array<{ input: string; expectedOutput: string; expectedOutputType: string }>
+): TestCase[] {
+    return withSave(() => {
+        const db = getDb();
+        const createdAt = new Date().toISOString();
+        const created: TestCase[] = [];
+
+        for (const tc of testCasesData) {
+            const result = db
+                .insert(testCases)
+                .values({
+                    promptGroupId,
+                    input: tc.input,
+                    expectedOutput: tc.expectedOutput,
+                    expectedOutputType: tc.expectedOutputType,
+                    createdAt,
+                })
+                .returning()
+                .get();
+            created.push(result);
+        }
+
+        return created;
+    });
+}
+
 export function createTestJob(id: string, promptId: number, totalTests: number) {
     return withSave(() => {
         const now = new Date().toISOString();

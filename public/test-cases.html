@@ -67,28 +67,83 @@
                     <div class="page-header">
                         <div class="page-header-row">
                             <h1>Test Cases</h1>
-                            <button id="add-test-case-btn" class="hidden">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    style="width: 16px; height: 16px"
-                                >
-                                    <line x1="12" y1="5" x2="12" y2="19" />
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                </svg>
-                                Add Test Case
-                            </button>
+                            <div class="button-group" style="display: flex; gap: 0.5rem">
+                                <button id="export-test-cases-btn" class="hidden secondary">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        style="width: 16px; height: 16px"
+                                    >
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                        <polyline points="7 10 12 15 17 10" />
+                                        <line x1="12" y1="15" x2="12" y2="3" />
+                                    </svg>
+                                    Export
+                                </button>
+                                <button id="import-test-cases-btn" class="hidden secondary">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        style="width: 16px; height: 16px"
+                                    >
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                        <polyline points="17 8 12 3 7 8" />
+                                        <line x1="12" y1="3" x2="12" y2="15" />
+                                    </svg>
+                                    Import
+                                </button>
+                                <button id="add-test-case-btn" class="hidden">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        style="width: 16px; height: 16px"
+                                    >
+                                        <line x1="12" y1="5" x2="12" y2="19" />
+                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                    </svg>
+                                    Add Test Case
+                                </button>
+                            </div>
                         </div>
                         <p>Define test inputs and expected JSON outputs for your prompts</p>
-                        <p id="shared-test-cases-note" class="hidden" style="color: var(--color-text-muted); font-size: 0.85rem; margin-top: 0.5rem;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;">
-                                <circle cx="12" cy="12" r="10"/>
-                                <line x1="12" y1="16" x2="12" y2="12"/>
-                                <line x1="12" y1="8" x2="12.01" y2="8"/>
+                        <p
+                            id="shared-test-cases-note"
+                            class="hidden"
+                            style="
+                                color: var(--color-text-muted);
+                                font-size: 0.85rem;
+                                margin-top: 0.5rem;
+                            "
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                style="
+                                    width: 14px;
+                                    height: 14px;
+                                    vertical-align: middle;
+                                    margin-right: 4px;
+                                "
+                            >
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="16" x2="12" y2="12" />
+                                <line x1="12" y1="8" x2="12.01" y2="8" />
                             </svg>
                             Test cases are shared across all versions of this prompt
                         </p>
@@ -518,6 +573,12 @@
                     .getElementById("add-test-case-btn")
                     .classList.toggle("hidden", !hasSelection);
                 document
+                    .getElementById("export-test-cases-btn")
+                    .classList.toggle("hidden", !hasSelection);
+                document
+                    .getElementById("import-test-cases-btn")
+                    .classList.toggle("hidden", !hasSelection);
+                document
                     .getElementById("shared-test-cases-note")
                     .classList.toggle("hidden", !hasSelection);
                 document.querySelector(".navbar-nav").classList.toggle("hidden", !hasSelection);
@@ -534,9 +595,9 @@
                     testCasesData = await res.json();
                     // Debug: log first test case to see structure
                     if (testCasesData.length > 0) {
-                        console.log('Test case data structure:', testCasesData[0]);
-                        console.log('expectedOutputType:', testCasesData[0].expectedOutputType);
-                        console.log('expected_output_type:', testCasesData[0].expected_output_type);
+                        console.log("Test case data structure:", testCasesData[0]);
+                        console.log("expectedOutputType:", testCasesData[0].expectedOutputType);
+                        console.log("expected_output_type:", testCasesData[0].expected_output_type);
                     }
                     renderTestCases();
                 } catch (error) {
@@ -573,9 +634,9 @@
                                     <div class="form-group">
                                         <label>Expected Output Type</label>
                                         <select id="edit-output-type-${tc.id}">
-                                            <option value="string" ${(tc.expectedOutputType || tc.expected_output_type) === 'string' ? 'selected' : ''}>String</option>
-                                            <option value="array" ${(tc.expectedOutputType || tc.expected_output_type) === 'array' || (!tc.expectedOutputType && !tc.expected_output_type) ? 'selected' : ''}>Array</option>
-                                            <option value="object" ${(tc.expectedOutputType || tc.expected_output_type) === 'object' ? 'selected' : ''}>Object</option>
+                                            <option value="string" ${(tc.expectedOutputType || tc.expected_output_type) === "string" ? "selected" : ""}>String</option>
+                                            <option value="array" ${(tc.expectedOutputType || tc.expected_output_type) === "array" || (!tc.expectedOutputType && !tc.expected_output_type) ? "selected" : ""}>Array</option>
+                                            <option value="object" ${(tc.expectedOutputType || tc.expected_output_type) === "object" ? "selected" : ""}>Object</option>
                                         </select>
                                     </div>
                                     <div class="button-group">
@@ -618,7 +679,9 @@
             async function saveTestCase(id) {
                 const input = document.getElementById(`edit-input-${id}`).value.trim();
                 const expected_output = document.getElementById(`edit-output-${id}`).value.trim();
-                const expected_output_type = document.getElementById(`edit-output-type-${id}`).value;
+                const expected_output_type = document.getElementById(
+                    `edit-output-type-${id}`
+                ).value;
                 try {
                     JSON.parse(expected_output);
                 } catch {
@@ -663,14 +726,14 @@
             }
 
             function formatOutputType(type) {
-                if (!type || typeof type !== 'string') return 'Array';
+                if (!type || typeof type !== "string") return "Array";
                 // Handle case where type might be the literal string "Expected_output_type" or similar
                 const normalized = type.toLowerCase();
-                if (normalized === 'string' || normalized === 'array' || normalized === 'object') {
+                if (normalized === "string" || normalized === "array" || normalized === "object") {
                     return type.charAt(0).toUpperCase() + type.slice(1);
                 }
                 // If it's not a valid type, return default
-                return 'Array';
+                return "Array";
             }
 
             async function deleteTestCase(id) {
@@ -762,6 +825,145 @@
                     AppUtils.showAppMessage("Error adding test case", "error");
                 }
             });
+
+            // Export and Import functions
+            async function exportTestCases() {
+                if (!selectedPromptId || !selectedPromptName) {
+                    AppUtils.showAppMessage("Please select a prompt first", "error");
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/prompts/${selectedPromptId}/test-cases/export`);
+                    if (!res.ok) {
+                        const error = await res.json();
+                        AppUtils.showAppMessage(
+                            error.error || "Failed to export test cases",
+                            "error"
+                        );
+                        return;
+                    }
+
+                    const data = await res.json();
+                    const jsonStr = JSON.stringify(data, null, 2);
+                    const blob = new Blob([jsonStr], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `test-cases-${selectedPromptName.replace(/[^a-z0-9]/gi, "_")}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    AppUtils.showAppMessage(
+                        `Exported ${data.length} test case${data.length !== 1 ? "s" : ""}`,
+                        "success"
+                    );
+                } catch (error) {
+                    AppUtils.showAppMessage("Error exporting test cases", "error");
+                }
+            }
+
+            async function importTestCases() {
+                if (!selectedPromptId) {
+                    AppUtils.showAppMessage("Please select a prompt first", "error");
+                    return;
+                }
+
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = "application/json";
+                input.onchange = async (e) => {
+                    const fileInput = e.target;
+                    const file =
+                        fileInput && fileInput.files && fileInput.files[0]
+                            ? fileInput.files[0]
+                            : null;
+                    if (!file) return;
+
+                    try {
+                        const text = await file.text();
+                        let testCasesData;
+
+                        try {
+                            testCasesData = JSON.parse(text);
+                        } catch {
+                            AppUtils.showAppMessage("Invalid JSON file", "error");
+                            return;
+                        }
+
+                        if (!Array.isArray(testCasesData)) {
+                            AppUtils.showAppMessage("JSON must be an array of test cases", "error");
+                            return;
+                        }
+
+                        // Validate structure
+                        for (let i = 0; i < testCasesData.length; i++) {
+                            const tc = testCasesData[i];
+                            if (!tc.input || !tc.expected_output || !tc.expected_output_type) {
+                                AppUtils.showAppMessage(
+                                    `Test case ${i + 1} is missing required fields (input, expected_output, expected_output_type)`,
+                                    "error"
+                                );
+                                return;
+                            }
+                            try {
+                                JSON.parse(tc.expected_output);
+                            } catch {
+                                AppUtils.showAppMessage(
+                                    `Test case ${i + 1} has invalid JSON in expected_output`,
+                                    "error"
+                                );
+                                return;
+                            }
+                        }
+
+                        const count = testCasesData.length;
+                        const confirmMessage =
+                            count === 0
+                                ? "This will delete all existing test cases. Continue?"
+                                : `This will replace all existing test cases with ${count} new test case${count !== 1 ? "s" : ""}. Continue?`;
+
+                        if (!confirm(confirmMessage)) return;
+
+                        const res = await fetch(
+                            `/api/prompts/${selectedPromptId}/test-cases/import`,
+                            {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(testCasesData),
+                            }
+                        );
+
+                        if (res.ok) {
+                            const result = await res.json();
+                            AppUtils.showAppMessage(
+                                `Successfully imported ${result.count} test case${result.count !== 1 ? "s" : ""}`,
+                                "success"
+                            );
+                            loadTestCases();
+                        } else {
+                            const error = await res.json();
+                            AppUtils.showAppMessage(
+                                error.error || "Failed to import test cases",
+                                "error"
+                            );
+                        }
+                    } catch (error) {
+                        AppUtils.showAppMessage("Error reading file", "error");
+                    }
+                };
+                input.click();
+            }
+
+            // Export and Import button handlers
+            document
+                .getElementById("export-test-cases-btn")
+                ?.addEventListener("click", exportTestCases);
+            document
+                .getElementById("import-test-cases-btn")
+                ?.addEventListener("click", importTestCases);
 
             // Initialize
             updateUI();

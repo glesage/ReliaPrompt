@@ -20,6 +20,8 @@ import {
     getTestJobByIdOrFail,
     getTestJobsForPrompt,
     getImprovementJobByIdOrFail,
+    deleteAllTestCasesForPromptGroup,
+    bulkCreateTestCases,
 } from "./database";
 import {
     refreshClients,
@@ -39,6 +41,7 @@ import {
     createPromptSchema,
     createTestCaseSchema,
     updateTestCaseSchema,
+    importTestCasesSchema,
     testRunSchema,
     improveStartSchema,
     jobIdParamSchema,
@@ -230,6 +233,24 @@ app.get("/api/prompts/:id/test-cases", validateIdParam, (req, res) => {
     }
 });
 
+app.get("/api/prompts/:id/test-cases/export", validateIdParam, (req, res) => {
+    try {
+        const promptId = parseInt(req.params.id, 10);
+        const testCases = getTestCasesForPrompt(promptId);
+        
+        // Export format: exclude internal IDs and timestamps
+        const exportData = testCases.map((tc) => ({
+            input: tc.input,
+            expected_output: tc.expectedOutput,
+            expected_output_type: tc.expectedOutputType,
+        }));
+        
+        res.json(exportData);
+    } catch (error) {
+        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
+    }
+});
+
 app.post("/api/prompts/:id/test-cases", validateIdParam, validate(createTestCaseSchema), (req, res) => {
     try {
         const promptId = parseInt(req.params.id, 10);
@@ -288,6 +309,48 @@ app.delete("/api/test-cases/:id", validateIdParam, (req, res) => {
         const id = parseInt(req.params.id, 10);
         deleteTestCase(id);
         res.json({ success: true });
+    } catch (error) {
+        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
+    }
+});
+
+app.post("/api/prompts/:id/test-cases/import", validateIdParam, validate(importTestCasesSchema), (req, res) => {
+    try {
+        const promptId = parseInt(req.params.id, 10);
+        const testCasesData = req.body as Array<{
+            input: string;
+            expected_output: string;
+            expected_output_type: string;
+        }>;
+
+        // Validate all test cases can be parsed with their specified types
+        for (const tc of testCasesData) {
+            try {
+                parse(tc.expected_output, tc.expected_output_type as ParseType);
+            } catch {
+                return res.status(400).json({
+                    error: `Validation error: expected_output for test case "${tc.input.substring(0, 50)}..." must be valid JSON matching the expected_output_type`,
+                });
+            }
+        }
+
+        const prompt = getPromptByIdOrFail(promptId);
+        const promptGroupId = prompt.promptGroupId ?? promptId;
+
+        // Delete all existing test cases for this prompt group
+        deleteAllTestCasesForPromptGroup(promptGroupId);
+
+        // Create new test cases from imported data
+        const created = bulkCreateTestCases(
+            promptGroupId,
+            testCasesData.map((tc) => ({
+                input: tc.input,
+                expectedOutput: tc.expected_output,
+                expectedOutputType: tc.expected_output_type,
+            }))
+        );
+
+        res.json({ success: true, count: created.length });
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
     }
