@@ -22,6 +22,7 @@ import {
     getImprovementJobByIdOrFail,
     deleteAllTestCasesForPromptGroup,
     bulkCreateTestCases,
+    clearAllData,
 } from "./database";
 import {
     refreshClients,
@@ -50,7 +51,7 @@ import { validateEnv } from "./config/env";
 
 // Validate environment variables at startup
 const env = validateEnv();
-const PORT = env.PORT;
+const DEFAULT_PORT = env.PORT;
 
 const app = express();
 
@@ -237,48 +238,53 @@ app.get("/api/prompts/:id/test-cases/export", validateIdParam, (req, res) => {
     try {
         const promptId = parseInt(req.params.id, 10);
         const testCases = getTestCasesForPrompt(promptId);
-        
+
         // Export format: exclude internal IDs and timestamps
         const exportData = testCases.map((tc) => ({
             input: tc.input,
             expected_output: tc.expectedOutput,
             expected_output_type: tc.expectedOutputType,
         }));
-        
+
         res.json(exportData);
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
     }
 });
 
-app.post("/api/prompts/:id/test-cases", validateIdParam, validate(createTestCaseSchema), (req, res) => {
-    try {
-        const promptId = parseInt(req.params.id, 10);
-        const { input, expected_output, expected_output_type } = req.body;
-
-        // Additional validation: ensure expected_output can be parsed with the specified type
+app.post(
+    "/api/prompts/:id/test-cases",
+    validateIdParam,
+    validate(createTestCaseSchema),
+    (req, res) => {
         try {
-            parse(expected_output, expected_output_type as ParseType);
-        } catch {
-            return res.status(400).json({
-                error: "Validation error: expected_output must be valid JSON matching the expected_output_type",
-            });
+            const promptId = parseInt(req.params.id, 10);
+            const { input, expected_output, expected_output_type } = req.body;
+
+            // Additional validation: ensure expected_output can be parsed with the specified type
+            try {
+                parse(expected_output, expected_output_type as ParseType);
+            } catch {
+                return res.status(400).json({
+                    error: "Validation error: expected_output must be valid JSON matching the expected_output_type",
+                });
+            }
+
+            const prompt = getPromptByIdOrFail(promptId);
+            const promptGroupId = prompt.promptGroupId ?? promptId;
+
+            const testCase = createTestCase(
+                promptGroupId,
+                input,
+                expected_output,
+                expected_output_type
+            );
+            res.json(testCase);
+        } catch (error) {
+            res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
         }
-
-        const prompt = getPromptByIdOrFail(promptId);
-        const promptGroupId = prompt.promptGroupId ?? promptId;
-
-        const testCase = createTestCase(
-            promptGroupId,
-            input,
-            expected_output,
-            expected_output_type
-        );
-        res.json(testCase);
-    } catch (error) {
-        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
     }
-});
+);
 
 app.put("/api/test-cases/:id", validateIdParam, validate(updateTestCaseSchema), (req, res) => {
     try {
@@ -314,47 +320,52 @@ app.delete("/api/test-cases/:id", validateIdParam, (req, res) => {
     }
 });
 
-app.post("/api/prompts/:id/test-cases/import", validateIdParam, validate(importTestCasesSchema), (req, res) => {
-    try {
-        const promptId = parseInt(req.params.id, 10);
-        const testCasesData = req.body as Array<{
-            input: string;
-            expected_output: string;
-            expected_output_type: string;
-        }>;
+app.post(
+    "/api/prompts/:id/test-cases/import",
+    validateIdParam,
+    validate(importTestCasesSchema),
+    (req, res) => {
+        try {
+            const promptId = parseInt(req.params.id, 10);
+            const testCasesData = req.body as Array<{
+                input: string;
+                expected_output: string;
+                expected_output_type: string;
+            }>;
 
-        // Validate all test cases can be parsed with their specified types
-        for (const tc of testCasesData) {
-            try {
-                parse(tc.expected_output, tc.expected_output_type as ParseType);
-            } catch {
-                return res.status(400).json({
-                    error: `Validation error: expected_output for test case "${tc.input.substring(0, 50)}..." must be valid JSON matching the expected_output_type`,
-                });
+            // Validate all test cases can be parsed with their specified types
+            for (const tc of testCasesData) {
+                try {
+                    parse(tc.expected_output, tc.expected_output_type as ParseType);
+                } catch {
+                    return res.status(400).json({
+                        error: `Validation error: expected_output for test case "${tc.input.substring(0, 50)}..." must be valid JSON matching the expected_output_type`,
+                    });
+                }
             }
+
+            const prompt = getPromptByIdOrFail(promptId);
+            const promptGroupId = prompt.promptGroupId ?? promptId;
+
+            // Delete all existing test cases for this prompt group
+            deleteAllTestCasesForPromptGroup(promptGroupId);
+
+            // Create new test cases from imported data
+            const created = bulkCreateTestCases(
+                promptGroupId,
+                testCasesData.map((tc) => ({
+                    input: tc.input,
+                    expectedOutput: tc.expected_output,
+                    expectedOutputType: tc.expected_output_type,
+                }))
+            );
+
+            res.json({ success: true, count: created.length });
+        } catch (error) {
+            res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
         }
-
-        const prompt = getPromptByIdOrFail(promptId);
-        const promptGroupId = prompt.promptGroupId ?? promptId;
-
-        // Delete all existing test cases for this prompt group
-        deleteAllTestCasesForPromptGroup(promptGroupId);
-
-        // Create new test cases from imported data
-        const created = bulkCreateTestCases(
-            promptGroupId,
-            testCasesData.map((tc) => ({
-                input: tc.input,
-                expectedOutput: tc.expected_output,
-                expectedOutputType: tc.expected_output_type,
-            }))
-        );
-
-        res.json({ success: true, count: created.length });
-    } catch (error) {
-        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
     }
-});
+);
 
 app.post("/api/test/run", validate(testRunSchema), async (req, res) => {
     try {
@@ -406,7 +417,14 @@ app.get("/api/prompts/:id/test-jobs", validateIdParam, (req, res) => {
 
 app.post("/api/improve/start", validate(improveStartSchema), async (req, res) => {
     try {
-        const { promptId, maxIterations, runsPerLlm, improvementModel, benchmarkModels, selectedModels } = req.body;
+        const {
+            promptId,
+            maxIterations,
+            runsPerLlm,
+            improvementModel,
+            benchmarkModels,
+            selectedModels,
+        } = req.body;
 
         const iterations = maxIterations || 5;
         const runs = runsPerLlm || 1;
@@ -465,26 +483,80 @@ app.get("/api/improve/status/:jobId", validate(jobIdParamSchema, "params"), (req
     }
 });
 
+// Clear all database data (only available in test mode)
+app.delete("/api/test/clear", (req, res) => {
+    try {
+        clearAllData();
+        res.json({ message: "All data cleared successfully" });
+    } catch (error) {
+        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
+    }
+});
+
 app.get("/{*path}", (req, res) => {
     res.sendFile(path.join(__dirname, "..", "public", "index.html"));
 });
 
-function start() {
+export interface ServerOptions {
+    port?: number;
+    useMemoryDatabase?: boolean;
+}
+
+export interface ServerInstance {
+    server: ReturnType<typeof app.listen>;
+    port: number;
+    baseUrl: string;
+    close: () => Promise<void>;
+}
+
+export async function startServer(options: ServerOptions = {}): Promise<ServerInstance> {
+    const port = options.port ?? DEFAULT_PORT;
+
     try {
-        console.log("Initializing database...");
         initializeDatabase();
         initializeDefaultConfigs();
         dbInitialized = true;
-        console.log("Database initialized");
 
-        app.listen(PORT, () => {
-            console.log(`Server running at http://localhost:${PORT}`);
-            console.log(`API available at http://localhost:${PORT}/api`);
+        return new Promise((resolve, reject) => {
+            const server = app.listen(port, () => {
+                console.log(`Server running at http://localhost:${port}`);
+                resolve({
+                    server,
+                    port,
+                    baseUrl: `http://localhost:${port}`,
+                    close: () => {
+                        return new Promise<void>((resolveClose) => {
+                            server.close(() => {
+                                resolveClose();
+                            });
+                        });
+                    },
+                });
+            });
+
+            server.on("error", (error) => {
+                reject(error);
+            });
         });
     } catch (error) {
         console.error("Failed to start server:", error);
-        process.exit(1);
+        throw error;
     }
 }
 
-start();
+function start() {
+    startServer()
+        .then(() => {
+            // Server started successfully
+        })
+        .catch((error) => {
+            console.error("Failed to start server:", error);
+            process.exit(1);
+        });
+}
+
+// Only start automatically if this file is run directly (not imported)
+// @ts-expect-error - import.meta.main is a Bun-specific feature
+if (import.meta.main) {
+    start();
+}

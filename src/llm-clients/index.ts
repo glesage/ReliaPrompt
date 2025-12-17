@@ -14,7 +14,14 @@ import { geminiClient } from "./gemini-client";
 import { groqClient } from "./groq-client";
 import { openrouterClient } from "./openrouter-client";
 
-const allClients: LLMClient[] = [openaiClient, bedrockClient, deepseekClient, geminiClient, groqClient, openrouterClient];
+const allClients: LLMClient[] = [
+    openaiClient,
+    bedrockClient,
+    deepseekClient,
+    geminiClient,
+    groqClient,
+    openrouterClient,
+];
 setActiveClients(allClients);
 
 export function refreshClients(): void {

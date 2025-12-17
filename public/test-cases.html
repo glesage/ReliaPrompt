@@ -593,12 +593,6 @@
                 try {
                     const res = await fetch(`/api/prompts/${selectedPromptId}/test-cases`);
                     testCasesData = await res.json();
-                    // Debug: log first test case to see structure
-                    if (testCasesData.length > 0) {
-                        console.log("Test case data structure:", testCasesData[0]);
-                        console.log("expectedOutputType:", testCasesData[0].expectedOutputType);
-                        console.log("expected_output_type:", testCasesData[0].expected_output_type);
-                    }
                     renderTestCases();
                 } catch (error) {
                     document.getElementById("test-cases-list").innerHTML =

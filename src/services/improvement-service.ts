@@ -10,12 +10,7 @@ import {
     TestCase,
 } from "../database";
 import { getConfiguredClients, ModelSelection } from "../llm-clients";
-import {
-    runTests,
-    getTestResultSummary,
-    LLMTestResult,
-    ModelRunner,
-} from "./test-runner";
+import { runTests, getTestResultSummary, LLMTestResult, ModelRunner } from "./test-runner";
 import { ConfigurationError, getErrorMessage, requireEntity } from "../errors";
 
 export interface ChangeHistory {
@@ -55,7 +50,15 @@ async function handleImprovementRun(
     runsPerLlm: number
 ): Promise<void> {
     try {
-        await runImprovement(jobId, prompt, testCases, improvementRunner, benchmarkRunners, maxIterations, runsPerLlm);
+        await runImprovement(
+            jobId,
+            prompt,
+            testCases,
+            improvementRunner,
+            benchmarkRunners,
+            maxIterations,
+            runsPerLlm
+        );
     } catch (error) {
         const progress = activeImprovementJobs.get(jobId);
         if (progress) {
@@ -90,7 +93,7 @@ function getModelRunnerFromSelection(selection: ModelSelection): ModelRunner {
     const clients = getConfiguredClients();
     const clientMap = new Map(clients.map((c) => [c.name, c]));
     const client = clientMap.get(selection.provider);
-    
+
     if (!client) {
         throw new ConfigurationError(
             `Model ${selection.provider}/${selection.modelId} is not available. Please check your configuration.`
@@ -158,7 +161,15 @@ export async function startImprovement(
     };
     activeImprovementJobs.set(jobId, progress);
 
-    handleImprovementRun(jobId, prompt, testCases, improvementRunner, benchmarkRunners, maxIterations, runsPerLlm);
+    handleImprovementRun(
+        jobId,
+        prompt,
+        testCases,
+        improvementRunner,
+        benchmarkRunners,
+        maxIterations,
+        runsPerLlm
+    );
 
     return jobId;
 }
@@ -183,21 +194,18 @@ async function runImprovement(
 
     log(`Starting improvement for prompt: "${prompt.name}" (id: ${prompt.id})`);
     log(`Improvement model: ${improvementRunner.displayName}`);
-    log(`Benchmark models: ${benchmarkRunners.map(r => r.displayName).join(", ")}`);
+    log(`Benchmark models: ${benchmarkRunners.map((r) => r.displayName).join(", ")}`);
 
-    const originalResult = await runTests(
-        prompt.content,
-        testCases,
-        benchmarkRunners,
-        runsPerLlm
-    );
+    const originalResult = await runTests(prompt.content, testCases, benchmarkRunners, runsPerLlm);
     const originalScore = originalResult.score;
 
     progress.originalScore = originalScore;
     progress.bestScore = originalScore;
     progress.bestPromptContent = prompt.content;
 
-    log(`Original prompt score: ${(originalScore * 100).toFixed(1)}% (averaged across ${benchmarkRunners.length} benchmark model(s))`);
+    log(
+        `Original prompt score: ${(originalScore * 100).toFixed(1)}% (averaged across ${benchmarkRunners.length} benchmark model(s))`
+    );
     updateImprovementJob(jobId, {
         bestScore: originalScore,
         bestPromptContent: prompt.content,
@@ -217,45 +225,55 @@ async function runImprovement(
 
     // Helper function to generate a summary of changes between two prompts
     function generateChangeSummary(oldPrompt: string, newPrompt: string): string {
-        const oldLines = oldPrompt.split('\n');
-        const newLines = newPrompt.split('\n');
-        
+        const oldLines = oldPrompt.split("\n");
+        const newLines = newPrompt.split("\n");
+
         const added: string[] = [];
         const removed: string[] = [];
-        
+
         // Simple line-by-line comparison
-        const oldSet = new Set(oldLines.map(l => l.trim()));
-        const newSet = new Set(newLines.map(l => l.trim()));
-        
+        const oldSet = new Set(oldLines.map((l) => l.trim()));
+        const newSet = new Set(newLines.map((l) => l.trim()));
+
         for (const line of newLines) {
             const trimmed = line.trim();
             if (trimmed && !oldSet.has(trimmed)) {
                 added.push(trimmed);
             }
         }
-        
+
         for (const line of oldLines) {
             const trimmed = line.trim();
             if (trimmed && !newSet.has(trimmed)) {
                 removed.push(trimmed);
             }
         }
-        
+
         const changes: string[] = [];
         if (added.length > 0) {
-            const addedPreview = added.slice(0, 3).map(l => l.length > 50 ? l.substring(0, 50) + '...' : l).join('; ');
-            changes.push(`Added: ${addedPreview}${added.length > 3 ? ` (and ${added.length - 3} more)` : ''}`);
+            const addedPreview = added
+                .slice(0, 3)
+                .map((l) => (l.length > 50 ? l.substring(0, 50) + "..." : l))
+                .join("; ");
+            changes.push(
+                `Added: ${addedPreview}${added.length > 3 ? ` (and ${added.length - 3} more)` : ""}`
+            );
         }
         if (removed.length > 0) {
-            const removedPreview = removed.slice(0, 3).map(l => l.length > 50 ? l.substring(0, 50) + '...' : l).join('; ');
-            changes.push(`Removed: ${removedPreview}${removed.length > 3 ? ` (and ${removed.length - 3} more)` : ''}`);
+            const removedPreview = removed
+                .slice(0, 3)
+                .map((l) => (l.length > 50 ? l.substring(0, 50) + "..." : l))
+                .join("; ");
+            changes.push(
+                `Removed: ${removedPreview}${removed.length > 3 ? ` (and ${removed.length - 3} more)` : ""}`
+            );
         }
-        
+
         if (changes.length === 0) {
             return "Minor formatting or whitespace changes";
         }
-        
-        return changes.join(' | ');
+
+        return changes.join(" | ");
     }
 
     for (let iteration = 1; iteration <= maxIterations; iteration++) {
@@ -264,11 +282,11 @@ async function runImprovement(
         log(`\n--- Iteration ${iteration}/${maxIterations} ---`);
 
         const testSummary = getTestResultSummary(currentTestResults);
-        
+
         // Use only the improvement runner to generate improvements
         let improvedPrompt: string | null = null;
         let improvementError: string | null = null;
-        
+
         try {
             log(`Requesting improvement from ${improvementRunner.displayName}...`);
             improvedPrompt = await improvementRunner.client.improvePrompt(
@@ -279,7 +297,9 @@ async function runImprovement(
             );
         } catch (error) {
             improvementError = getErrorMessage(error);
-            log(`${improvementRunner.displayName}: Failed to generate improvement - ${improvementError}`);
+            log(
+                `${improvementRunner.displayName}: Failed to generate improvement - ${improvementError}`
+            );
         }
 
         if (improvementError || !improvedPrompt) {
@@ -301,17 +321,14 @@ async function runImprovement(
         // Test the improved prompt against all benchmark models
         try {
             log(`Testing improved prompt against ${benchmarkRunners.length} benchmark model(s)...`);
-            const result = await runTests(
-                improvedPrompt,
-                testCases,
-                benchmarkRunners,
-                runsPerLlm
+            const result = await runTests(improvedPrompt, testCases, benchmarkRunners, runsPerLlm);
+            log(
+                `Improved prompt score: ${(result.score * 100).toFixed(1)}% (was ${(currentBestScore * 100).toFixed(1)}%)`
             );
-            log(`Improved prompt score: ${(result.score * 100).toFixed(1)}% (was ${(currentBestScore * 100).toFixed(1)}%)`);
 
             const improved = result.score > currentBestScore;
             const changeSummary = generateChangeSummary(currentBestPrompt, improvedPrompt);
-            
+
             // Record this change attempt in history
             changeHistory.push({
                 iteration,
@@ -323,7 +340,9 @@ async function runImprovement(
             });
 
             if (improved) {
-                log(`✓ Improvement found! Score increased by ${((result.score - currentBestScore) * 100).toFixed(1)}%`);
+                log(
+                    `✓ Improvement found! Score increased by ${((result.score - currentBestScore) * 100).toFixed(1)}%`
+                );
                 currentBestPrompt = improvedPrompt;
                 currentBestScore = result.score;
                 currentTestResults = result.results;

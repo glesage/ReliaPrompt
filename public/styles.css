@@ -1175,7 +1175,7 @@ button.small,
 }
 
 .score-badge[data-tooltip]:hover::before {
-    content: '';
+    content: "";
     position: absolute;
     bottom: 100%;
     left: 50%;

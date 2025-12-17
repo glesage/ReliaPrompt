@@ -1,31 +1,16 @@
 import Joi from "joi";
 import { ConfigurationError } from "../errors";
 
-/**
- * Environment variable schema
- */
 const envSchema = Joi.object({
-    DATABASE_PATH: Joi.string().required().messages({
-        "any.required": "DATABASE_PATH environment variable is required",
-    }),
-    MIGRATIONS_PATH: Joi.string().required().messages({
-        "any.required": "MIGRATIONS_PATH environment variable is required",
-    }),
-    PORT: Joi.number().integer().min(1).max(65535).optional().default(3000).messages({
-        "number.base": "PORT must be a valid number",
-        "number.integer": "PORT must be an integer",
-        "number.min": "PORT must be between 1 and 65535",
-        "number.max": "PORT must be between 1 and 65535",
+    NODE_ENV: Joi.string().valid("dev", "prod", "test").required().messages({
+        "any.required": "NODE_ENV environment variable is required",
     }),
 }).unknown(true); // Allow other environment variables
-
-/**
- * Validated environment variables
- */
 export interface ValidatedEnv {
+    PORT: number;
+    SCHEMA_PATH: string;
     DATABASE_PATH: string;
     MIGRATIONS_PATH: string;
-    PORT: number;
 }
 
 let validatedEnv: ValidatedEnv | null = null;
@@ -51,9 +36,10 @@ export function validateEnv(): ValidatedEnv {
     }
 
     validatedEnv = {
-        DATABASE_PATH: value.DATABASE_PATH,
-        MIGRATIONS_PATH: value.MIGRATIONS_PATH,
         PORT: value.PORT ?? 3000,
+        SCHEMA_PATH: `./src/db/schema.ts`,
+        DATABASE_PATH: `./data/${value.NODE_ENV}.db`,
+        MIGRATIONS_PATH: `./drizzle`,
     };
 
     return validatedEnv;
@@ -70,4 +56,3 @@ export function getEnv(): ValidatedEnv {
     }
     return validatedEnv;
 }
-

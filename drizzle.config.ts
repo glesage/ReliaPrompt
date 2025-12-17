@@ -1,17 +1,13 @@
 import { defineConfig } from "drizzle-kit";
+import { validateEnv } from "./src/config/env";
 
-if (!process.env.DATABASE_PATH) {
-    throw new Error("DATABASE_PATH environment variable is required");
-}
-if (!process.env.MIGRATIONS_PATH) {
-    throw new Error("MIGRATIONS_PATH environment variable is required");
-}
+const env = validateEnv();
 
 export default defineConfig({
-    schema: "./src/db/schema.ts",
-    out: process.env.MIGRATIONS_PATH,
     dialect: "sqlite",
+    schema: env.SCHEMA_PATH,
+    out: env.MIGRATIONS_PATH,
     dbCredentials: {
-        url: process.env.DATABASE_PATH,
+        url: env.DATABASE_PATH,
     },
 });

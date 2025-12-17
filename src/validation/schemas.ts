@@ -65,18 +65,23 @@ export const createTestCaseSchema = Joi.object({
         "string.empty": "Input cannot be empty",
         "any.required": "Input is required",
     }),
-    expected_output: Joi.string().trim().min(1).required().custom((value, helpers) => {
-        try {
-            JSON.parse(value);
-            return value;
-        } catch {
-            return helpers.error("any.invalid");
-        }
-    }).messages({
-        "string.empty": "Expected output cannot be empty",
-        "any.required": "Expected output is required",
-        "any.invalid": "Expected output must be valid JSON",
-    }),
+    expected_output: Joi.string()
+        .trim()
+        .min(1)
+        .required()
+        .custom((value, helpers) => {
+            try {
+                JSON.parse(value);
+                return value;
+            } catch {
+                return helpers.error("any.invalid");
+            }
+        })
+        .messages({
+            "string.empty": "Expected output cannot be empty",
+            "any.required": "Expected output is required",
+            "any.invalid": "Expected output must be valid JSON",
+        }),
     expected_output_type: Joi.string()
         .valid(...Object.values(ParseType))
         .default(ParseType.ARRAY)
@@ -90,18 +95,23 @@ export const updateTestCaseSchema = Joi.object({
         "string.empty": "Input cannot be empty",
         "any.required": "Input is required",
     }),
-    expected_output: Joi.string().trim().min(1).required().custom((value, helpers) => {
-        try {
-            JSON.parse(value);
-            return value;
-        } catch {
-            return helpers.error("any.invalid");
-        }
-    }).messages({
-        "string.empty": "Expected output cannot be empty",
-        "any.required": "Expected output is required",
-        "any.invalid": "Expected output must be valid JSON",
-    }),
+    expected_output: Joi.string()
+        .trim()
+        .min(1)
+        .required()
+        .custom((value, helpers) => {
+            try {
+                JSON.parse(value);
+                return value;
+            } catch {
+                return helpers.error("any.invalid");
+            }
+        })
+        .messages({
+            "string.empty": "Expected output cannot be empty",
+            "any.required": "Expected output is required",
+            "any.invalid": "Expected output must be valid JSON",
+        }),
     expected_output_type: Joi.string()
         .valid(...Object.values(ParseType))
         .required()
@@ -111,12 +121,9 @@ export const updateTestCaseSchema = Joi.object({
         }),
 }).unknown(false);
 
-export const importTestCasesSchema = Joi.array()
-    .items(createTestCaseSchema)
-    .min(0)
-    .messages({
-        "array.base": "Test cases must be an array",
-    });
+export const importTestCasesSchema = Joi.array().items(createTestCaseSchema).min(0).messages({
+    "array.base": "Test cases must be an array",
+});
 
 // Test run schema
 export const testRunSchema = Joi.object({
@@ -155,23 +162,25 @@ export const improveStartSchema = Joi.object({
     selectedModels: Joi.array().items(modelSelectionSchema).min(1).optional().messages({
         "array.min": "selectedModels must contain at least one model",
     }),
-}).unknown(false).custom((value, helpers) => {
-    // Custom validation: either (improvementModel + benchmarkModels) or selectedModels must be provided
-    const hasNewApi = value.improvementModel && value.benchmarkModels;
-    const hasOldApi = value.selectedModels;
-    
-    if (!hasNewApi && !hasOldApi) {
-        return helpers.error("any.custom", {
-            message: "Either (improvementModel and benchmarkModels) or selectedModels must be provided",
-        });
-    }
-    
-    if (hasNewApi && (!value.benchmarkModels || value.benchmarkModels.length === 0)) {
-        return helpers.error("any.custom", {
-            message: "At least one benchmark model is required",
-        });
-    }
-    
-    return value;
-});
+})
+    .unknown(false)
+    .custom((value, helpers) => {
+        // Custom validation: either (improvementModel + benchmarkModels) or selectedModels must be provided
+        const hasNewApi = value.improvementModel && value.benchmarkModels;
+        const hasOldApi = value.selectedModels;
 
+        if (!hasNewApi && !hasOldApi) {
+            return helpers.error("any.custom", {
+                message:
+                    "Either (improvementModel and benchmarkModels) or selectedModels must be provided",
+            });
+        }
+
+        if (hasNewApi && (!value.benchmarkModels || value.benchmarkModels.length === 0)) {
+            return helpers.error("any.custom", {
+                message: "At least one benchmark model is required",
+            });
+        }
+
+        return value;
+    });

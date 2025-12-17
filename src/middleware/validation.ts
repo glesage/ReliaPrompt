@@ -52,4 +52,3 @@ export function validateIdParam(req: Request, res: Response, next: NextFunction)
     }
     next();
 }
-

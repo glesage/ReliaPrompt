@@ -7,16 +7,6 @@ import * as schema from "./schema";
 import { DatabaseError } from "../errors";
 import { validateEnv } from "../config/env";
 
-// Validate environment variables
-const env = validateEnv();
-const dbPath = env.DATABASE_PATH;
-const migrationsPath = env.MIGRATIONS_PATH;
-
-const dataDir = path.dirname(dbPath);
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-}
-
 let sqlDb: Database | null = null;
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
@@ -33,11 +23,27 @@ export function withSave<T>(operation: () => T): T {
     }
 }
 
-export function initializeDatabase(): void {
+export function initializeDatabase(databasePath?: string, migrationsPath?: string): void {
+    // If databasePath is provided, use it (for memory database or custom path)
+    // Otherwise, use the environment variable
+    const env = validateEnv();
+    const dbPath = databasePath ?? env.DATABASE_PATH;
+    const migrationsFolder = migrationsPath ?? env.MIGRATIONS_PATH;
+
+    // Only create directory if not using memory database
+    if (dbPath !== ":memory:") {
+        const dataDir = path.dirname(dbPath);
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
+    }
+
     sqlDb = new Database(dbPath);
-    sqlDb.run("PRAGMA journal_mode = WAL");
+    if (dbPath !== ":memory:") {
+        sqlDb.run("PRAGMA journal_mode = WAL");
+    }
     db = drizzle(sqlDb, { schema });
-    migrate(db, { migrationsFolder: migrationsPath });
+    migrate(db, { migrationsFolder });
 }
 
 export function getDb() {

@@ -448,3 +448,20 @@ export function appendImprovementLog(id: string, message: string): void {
     const newLog = currentLog + `[${timestamp}] ${message}\n`;
     updateImprovementJob(id, { log: newLog });
 }
+
+/**
+ * Clear all data from the database (useful for testing)
+ * Deletes all rows from all tables in the correct order to respect foreign key constraints
+ */
+export function clearAllData(): void {
+    withSave(() => {
+        const db = getDb();
+        // Delete in order to respect foreign key constraints
+        db.delete(testResults).run();
+        db.delete(testJobs).run();
+        db.delete(improvementJobs).run();
+        db.delete(testCases).run();
+        db.delete(prompts).run();
+        db.delete(config).run();
+    });
+}

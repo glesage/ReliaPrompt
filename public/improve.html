@@ -110,11 +110,7 @@
                                 stroke-width="2"
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
-                                style="
-                                    width: 16px;
-                                    height: 16px;
-                                    transition: transform 0.2s;
-                                "
+                                style="width: 16px; height: 16px; transition: transform 0.2s"
                             >
                                 <polyline points="9 18 15 12 9 6" />
                             </svg>
@@ -142,9 +138,7 @@
                                     padding-left: 20px;
                                 "
                             >
-                                <li>
-                                    <code>{{CURRENT_PROMPT}}</code> - The prompt being improved
-                                </li>
+                                <li><code>{{CURRENT_PROMPT}}</code> - The prompt being improved</li>
                                 <li><code>{{TEST_SUMMARY}}</code> - Pass/fail/score summary</li>
                                 <li>
                                     <code>{{FAILURE_ANALYSIS}}</code> - Missing/extra items count
@@ -212,10 +206,19 @@
                                         >(none selected)</span
                                     >
                                 </label>
-                                <p style="color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 8px;">
+                                <p
+                                    style="
+                                        color: var(--color-text-muted);
+                                        font-size: 0.85rem;
+                                        margin-bottom: 8px;
+                                    "
+                                >
                                     Select one model to generate prompt improvements
                                 </p>
-                                <div id="improvement-model-selection" class="model-selection-container">
+                                <div
+                                    id="improvement-model-selection"
+                                    class="model-selection-container"
+                                >
                                     <div class="no-models">Loading models...</div>
                                 </div>
                             </div>
@@ -229,10 +232,19 @@
                                         >(0 selected)</span
                                     >
                                 </label>
-                                <p style="color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 8px;">
+                                <p
+                                    style="
+                                        color: var(--color-text-muted);
+                                        font-size: 0.85rem;
+                                        margin-bottom: 8px;
+                                    "
+                                >
                                     Select one or more models to test the improved prompts against
                                 </p>
-                                <div id="benchmark-models-selection" class="model-selection-container">
+                                <div
+                                    id="benchmark-models-selection"
+                                    class="model-selection-container"
+                                >
                                     <div class="no-models">Loading models...</div>
                                 </div>
                             </div>
@@ -241,11 +253,28 @@
                                 id="test-case-count"
                                 style="color: var(--color-text-muted); font-size: 14px"
                             ></div>
-                            <div style="color: var(--color-text-muted); font-size: 0.85rem; margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; flex-shrink: 0;">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <line x1="12" y1="16" x2="12" y2="12"/>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                            <div
+                                style="
+                                    color: var(--color-text-muted);
+                                    font-size: 0.85rem;
+                                    margin-top: 8px;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 6px;
+                                "
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    style="width: 14px; height: 14px; flex-shrink: 0"
+                                >
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="16" x2="12" y2="12" />
+                                    <line x1="12" y1="8" x2="12.01" y2="8" />
                                 </svg>
                                 Test cases are shared across all versions of this prompt
                             </div>
@@ -606,22 +635,22 @@
             async function loadImproveModels() {
                 await AppUtils.loadAvailableModels();
                 await AppUtils.loadSelectedModels();
-                
+
                 // Initialize benchmark models from saved selection if empty
                 if (selectedBenchmarkModels.length === 0) {
                     const globalModels = AppUtils.getSelectedModels();
-                    selectedBenchmarkModels = globalModels.map(m => ({
+                    selectedBenchmarkModels = globalModels.map((m) => ({
                         provider: m.provider,
-                        modelId: m.modelId
+                        modelId: m.modelId,
                     }));
                 }
-                
+
                 // Render improvement model selection (radio buttons)
                 renderImprovementModelRadios();
-                
+
                 // Render benchmark models selection (checkboxes)
                 renderBenchmarkModelCheckboxes();
-                
+
                 updateImprovementModelStatus();
                 updateBenchmarkModelsCount();
                 updateStartButtonState();
@@ -633,7 +662,8 @@
 
                 const availableModels = AppUtils.getAvailableModels();
                 if (availableModels.length === 0) {
-                    container.innerHTML = '<div class="no-models">No models available. Configure API keys first.</div>';
+                    container.innerHTML =
+                        '<div class="no-models">No models available. Configure API keys first.</div>';
                     return;
                 }
 
@@ -651,8 +681,9 @@
                     html += `<div class="model-provider-group"><h4>${escapeHtml(provider)}</h4>`;
                     html += '<div class="model-list">';
                     for (const model of models) {
-                        const isChecked = selectedImprovementModel && 
-                            selectedImprovementModel.provider === model.provider && 
+                        const isChecked =
+                            selectedImprovementModel &&
+                            selectedImprovementModel.provider === model.provider &&
                             selectedImprovementModel.modelId === model.id;
                         html += `
                             <label class="model-checkbox">
@@ -676,7 +707,7 @@
                         if (radio.checked) {
                             selectedImprovementModel = {
                                 provider: radio.dataset.provider,
-                                modelId: radio.dataset.modelId
+                                modelId: radio.dataset.modelId,
                             };
                             updateImprovementModelStatus();
                             updateStartButtonState();
@@ -691,7 +722,8 @@
 
                 const availableModels = AppUtils.getAvailableModels();
                 if (availableModels.length === 0) {
-                    container.innerHTML = '<div class="no-models">No models available. Configure API keys first.</div>';
+                    container.innerHTML =
+                        '<div class="no-models">No models available. Configure API keys first.</div>';
                     return;
                 }
 
@@ -710,7 +742,7 @@
                     html += '<div class="model-list">';
                     for (const model of models) {
                         const isChecked = selectedBenchmarkModels.some(
-                            m => m.provider === model.provider && m.modelId === model.id
+                            (m) => m.provider === model.provider && m.modelId === model.id
                         );
                         html += `
                             <label class="model-checkbox">
@@ -733,14 +765,18 @@
                         const provider = checkbox.dataset.provider;
                         const modelId = checkbox.dataset.modelId;
                         const model = { provider, modelId };
-                        
+
                         if (checkbox.checked) {
-                            if (!selectedBenchmarkModels.some(m => m.provider === provider && m.modelId === modelId)) {
+                            if (
+                                !selectedBenchmarkModels.some(
+                                    (m) => m.provider === provider && m.modelId === modelId
+                                )
+                            ) {
                                 selectedBenchmarkModels.push(model);
                             }
                         } else {
                             selectedBenchmarkModels = selectedBenchmarkModels.filter(
-                                m => !(m.provider === provider && m.modelId === modelId)
+                                (m) => !(m.provider === provider && m.modelId === modelId)
                             );
                         }
                         updateBenchmarkModelsCount();
@@ -754,8 +790,9 @@
                 if (selectedImprovementModel) {
                     const availableModels = AppUtils.getAvailableModels();
                     const model = availableModels.find(
-                        m => m.provider === selectedImprovementModel.provider && 
-                        m.id === selectedImprovementModel.modelId
+                        (m) =>
+                            m.provider === selectedImprovementModel.provider &&
+                            m.id === selectedImprovementModel.modelId
                     );
                     statusEl.textContent = model ? `(${model.name})` : "(selected)";
                 } else {
@@ -834,18 +871,12 @@
                 if (!selectedPromptId) return;
 
                 if (!selectedImprovementModel) {
-                    AppUtils.showAppMessage(
-                        "Please select an improvement model",
-                        "error"
-                    );
+                    AppUtils.showAppMessage("Please select an improvement model", "error");
                     return;
                 }
 
                 if (selectedBenchmarkModels.length === 0) {
-                    AppUtils.showAppMessage(
-                        "Please select at least one benchmark model",
-                        "error"
-                    );
+                    AppUtils.showAppMessage("Please select at least one benchmark model", "error");
                     return;
                 }
 
@@ -1047,7 +1078,9 @@
                 }
             }
 
-            document.getElementById("template-toggle").addEventListener("click", toggleTemplateSection);
+            document
+                .getElementById("template-toggle")
+                .addEventListener("click", toggleTemplateSection);
             document.getElementById("save-template-btn").addEventListener("click", saveTemplate);
             document.getElementById("reset-template-btn").addEventListener("click", resetTemplate);
 

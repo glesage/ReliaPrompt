@@ -173,7 +173,17 @@ describe("compare", () => {
         });
 
         test("should handle nested arrays", () => {
-            const result = compare([[1, 2], [3, 4]], [[1, 2], [3, 4]], ParseType.ARRAY);
+            const result = compare(
+                [
+                    [1, 2],
+                    [3, 4],
+                ],
+                [
+                    [1, 2],
+                    [3, 4],
+                ],
+                ParseType.ARRAY
+            );
             expect(result).toEqual({
                 score: 1,
                 expectedTotal: 2,
@@ -183,11 +193,7 @@ describe("compare", () => {
         });
 
         test("should handle arrays with objects", () => {
-            const result = compare(
-                [{ a: 1 }, { b: 2 }],
-                [{ a: 1 }, { b: 2 }],
-                ParseType.ARRAY
-            );
+            const result = compare([{ a: 1 }, { b: 2 }], [{ a: 1 }, { b: 2 }], ParseType.ARRAY);
             expect(result).toEqual({
                 score: 1,
                 expectedTotal: 2,
@@ -337,11 +343,7 @@ describe("compare", () => {
         });
 
         test("should handle objects with array values", () => {
-            const result = compare(
-                { items: [1, 2, 3] },
-                { items: [1, 2, 3] },
-                ParseType.OBJECT
-            );
+            const result = compare({ items: [1, 2, 3] }, { items: [1, 2, 3] }, ParseType.OBJECT);
             expect(result).toEqual({
                 score: 1,
                 expectedTotal: 1,
@@ -365,11 +367,7 @@ describe("compare", () => {
         });
 
         test("should handle partial match with extra keys", () => {
-            const result = compare(
-                { a: 1, b: 2 },
-                { a: 1, b: 2, c: 3, d: 4 },
-                ParseType.OBJECT
-            );
+            const result = compare({ a: 1, b: 2 }, { a: 1, b: 2, c: 3, d: 4 }, ParseType.OBJECT);
             expect(result).toEqual({
                 score: 0, // (2 - 2) / 2 = 0
                 expectedTotal: 2,
@@ -379,11 +377,7 @@ describe("compare", () => {
         });
 
         test("should handle missing keys and wrong values", () => {
-            const result = compare(
-                { a: 1, b: 2, c: 3 },
-                { a: 1, b: 99, d: 4 },
-                ParseType.OBJECT
-            );
+            const result = compare({ a: 1, b: 2, c: 3 }, { a: 1, b: 99, d: 4 }, ParseType.OBJECT);
             expect(result).toEqual({
                 score: 0, // (1 - 1) / 3 = 0
                 expectedTotal: 3,
@@ -452,4 +446,3 @@ describe("compare", () => {
         });
     });
 });
-

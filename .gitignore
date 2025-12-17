@@ -2,3 +2,5 @@ data
 dist
 node_modules
 .env
+/playwright-report
+/test-results

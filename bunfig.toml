@@ -1,0 +1,5 @@
+[test]
+# Set test root to src directory only
+# This prevents Bun from discovering Playwright tests in e2e/
+root = "./src"
+

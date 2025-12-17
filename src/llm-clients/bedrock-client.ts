@@ -222,7 +222,11 @@ export class BedrockClient implements LLMClient {
         modelId: string,
         previousChanges?: ChangeHistory[]
     ): Promise<string> {
-        const improvementPrompt = buildImprovementPrompt(currentPrompt, testResults, previousChanges);
+        const improvementPrompt = buildImprovementPrompt(
+            currentPrompt,
+            testResults,
+            previousChanges
+        );
         return this.makeRequest(
             [{ role: "user", content: improvementPrompt }],
             modelId,

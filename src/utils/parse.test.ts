@@ -67,7 +67,10 @@ describe("parse", () => {
 
         test("should parse nested arrays", () => {
             const result = parse('[["1", "2"], ["3", "4"]]', ParseType.ARRAY);
-            expect(result).toEqual([["1", "2"], ["3", "4"]]);
+            expect(result).toEqual([
+                ["1", "2"],
+                ["3", "4"],
+            ]);
         });
 
         test("should parse array with mixed types", () => {
@@ -163,7 +166,10 @@ describe("parse", () => {
         });
 
         test("should parse object with mixed value types", () => {
-            const result = parse('{"str": "text", "num": "42", "arr": ["1", "2"], "obj": {"nested": "true"}}', ParseType.OBJECT);
+            const result = parse(
+                '{"str": "text", "num": "42", "arr": ["1", "2"], "obj": {"nested": "true"}}',
+                ParseType.OBJECT
+            );
             expect(result).toEqual({
                 str: "text",
                 num: "42",
@@ -195,4 +201,3 @@ describe("parse", () => {
         });
     });
 });
-
