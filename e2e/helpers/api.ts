@@ -1,5 +1,3 @@
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-
 export interface ModelSelection {
     provider: string;
     modelId: string;
@@ -19,7 +17,7 @@ export async function configureDeepseek(baseUrl: string): Promise<void> {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            deepseek_api_key: DEEPSEEK_API_KEY,
+            deepseek_api_key: process.env.DEEPSEEK_API_KEY,
         }),
     });
 

@@ -1079,6 +1079,12 @@ function getConfigModalHtml() {
                             <div class="form-group">
                                 <input type="text" id="openai_api_key" name="openai_api_key" placeholder="API Key (sk-...)" />
                             </div>
+                            <div class="form-group">
+                                <label>Models</label>
+                                <div id="openai-models" class="model-selection-container">
+                                    <div class="no-models">Configure API key to see models</div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="provider-section">
@@ -1098,6 +1104,12 @@ function getConfigModalHtml() {
                             <div class="form-group">
                                 <input type="text" id="bedrock_region" name="bedrock_region" placeholder="Region (e.g., ap-southeast-2)" value="ap-southeast-2" />
                             </div>
+                            <div class="form-group">
+                                <label>Models</label>
+                                <div id="bedrock-models" class="model-selection-container">
+                                    <div class="no-models">Configure credentials to see models</div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="provider-section">
@@ -1107,6 +1119,12 @@ function getConfigModalHtml() {
                             </h3>
                             <div class="form-group">
                                 <input type="text" id="deepseek_api_key" name="deepseek_api_key" placeholder="API Key (sk-...)" />
+                            </div>
+                            <div class="form-group">
+                                <label>Models</label>
+                                <div id="deepseek-models" class="model-selection-container">
+                                    <div class="no-models">Configure API key to see models</div>
+                                </div>
                             </div>
                         </div>
 
@@ -1118,6 +1136,12 @@ function getConfigModalHtml() {
                             <div class="form-group">
                                 <input type="text" id="gemini_api_key" name="gemini_api_key" placeholder="API Key" />
                             </div>
+                            <div class="form-group">
+                                <label>Models</label>
+                                <div id="gemini-models" class="model-selection-container">
+                                    <div class="no-models">Configure API key to see models</div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="provider-section">
@@ -1128,6 +1152,12 @@ function getConfigModalHtml() {
                             <div class="form-group">
                                 <input type="text" id="groq_api_key" name="groq_api_key" placeholder="API Key (gsk_...)" />
                             </div>
+                            <div class="form-group">
+                                <label>Models</label>
+                                <div id="groq-models" class="model-selection-container">
+                                    <div class="no-models">Configure API key to see models</div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="provider-section">
@@ -1137,6 +1167,12 @@ function getConfigModalHtml() {
                             </h3>
                             <div class="form-group">
                                 <input type="text" id="openrouter_api_key" name="openrouter_api_key" placeholder="API Key (sk-or-v1-...)" />
+                            </div>
+                            <div class="form-group">
+                                <label>Models</label>
+                                <div id="openrouter-models" class="model-selection-container">
+                                    <div class="no-models">Configure API key to see models</div>
+                                </div>
                             </div>
                         </div>
                     </div>
