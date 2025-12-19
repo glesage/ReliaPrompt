@@ -7,8 +7,6 @@ export enum ParseType {
 export type ParsedJSON = string | ParsedJSON[] | { [key: string]: ParsedJSON };
 
 function isValidParsedJSON(value: unknown): value is ParsedJSON {
-    console.log("GEO DEBUG value", value);
-
     if (typeof value === "string") {
         return true;
     } else if (typeof value === "number") {

@@ -71,11 +71,7 @@ export class GeminiClient implements LLMClient {
             const data = (await response.json()) as GeminiModelsResponse;
             return data.models
                 .filter((model) => model.supportedGenerationMethods.includes("generateContent"))
-                .filter(
-                    (model) =>
-                        model.displayName.includes("Gemini 3") ||
-                        model.displayName.includes("Gemini 2.5")
-                )
+                .filter((model) => model.displayName.includes("Gemini 3"))
                 .map((model) => ({
                     id: model.name.replace("models/", ""),
                     name: model.displayName,

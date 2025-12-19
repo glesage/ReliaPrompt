@@ -48,8 +48,9 @@ export class GroqClient implements LLMClient {
             const chatModels = data.data.filter(
                 (model) =>
                     model.id.includes("llama-4-maverick") ||
+                    model.id.includes("llama-4-scout") ||
                     model.id.includes("kimi-k2") ||
-                    model.id.includes("gpt-oss-safeguard-20b")
+                    model.id.includes("gpt-oss")
             );
             return chatModels.map((model) => ({
                 id: model.id,
