@@ -52,14 +52,7 @@ export class OpenRouterClient implements LLMClient {
             const models: ModelInfo[] = [];
 
             for (const model of response.data) {
-                if (
-                    ![
-                        "google/gemini-3-flash-preview",
-                        "openai/gpt-oss-20b",
-                        "moonshotai/kimi-k2-0905",
-                        "meta-llama/llama-4-maverick",
-                    ].includes(model.id)
-                ) {
+                if (!["google/gemini-3-flash-preview", "x-ai/grok-4.1-fast"].includes(model.id)) {
                     continue;
                 }
                 models.push({
