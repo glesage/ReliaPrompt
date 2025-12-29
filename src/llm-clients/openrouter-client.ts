@@ -56,6 +56,10 @@ export class OpenRouterClient implements LLMClient {
                         "google/gemini-2.5-flash",
                         "qwen/qwen3-235b-a22b-2507",
                         "bytedance-seed/seedream-4.5",
+                        "openai/gpt-oss-120b",
+                        "openai/gpt-oss-20b",
+                        "meta-llama/llama-3.3-70b-instruct",
+                        "meta-llama/llama-3.3-8b-instruct",
                     ].includes(model.id)
                 ) {
                     continue;
