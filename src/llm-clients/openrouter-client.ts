@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { OpenRouter } from "@openrouter/sdk";
 import { LLMClient, ModelInfo, TestResultSummary, buildImprovementPrompt } from "./llm-client";
 import { getConfig } from "../database";
 import { ConfigurationError } from "../errors";
@@ -6,10 +6,10 @@ import type { ChangeHistory } from "../services/improvement-service";
 
 export class OpenRouterClient implements LLMClient {
     name = "OpenRouter";
-    private client: OpenAI | null = null;
+    private client: OpenRouter | null = null;
     private cachedApiKey: string | null = null;
 
-    private getClient(): OpenAI | null {
+    private getClient(): OpenRouter | null {
         if (this.cachedApiKey === null) {
             this.cachedApiKey = getConfig("openrouter_api_key");
         }
@@ -19,9 +19,8 @@ export class OpenRouterClient implements LLMClient {
         }
 
         if (!this.client) {
-            this.client = new OpenAI({
+            this.client = new OpenRouter({
                 apiKey: this.cachedApiKey,
-                baseURL: "https://openrouter.ai/api/v1",
             });
         }
 
@@ -52,7 +51,13 @@ export class OpenRouterClient implements LLMClient {
             const models: ModelInfo[] = [];
 
             for (const model of response.data) {
-                if (!["google/gemini-2.5-flash", "qwen/qwen3-235b-a22b-2507"].includes(model.id)) {
+                if (
+                    ![
+                        "google/gemini-2.5-flash",
+                        "qwen/qwen3-235b-a22b-2507",
+                        "bytedance-seed/seedream-4.5",
+                    ].includes(model.id)
+                ) {
                     continue;
                 }
                 models.push({
@@ -80,14 +85,18 @@ export class OpenRouterClient implements LLMClient {
             throw new ConfigurationError("OpenRouter API key not configured");
         }
 
-        const response = await client.chat.completions.create({
+        const response = await client.chat.send({
             model: modelId,
             messages,
             temperature,
-            max_completion_tokens: 4096,
+            maxCompletionTokens: 4096,
         });
 
-        return response.choices[0]?.message?.content ?? defaultValue;
+        const content = response.choices[0]?.message?.content;
+        if (typeof content === "string") {
+            return content;
+        }
+        return defaultValue;
     }
 
     async complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string> {
