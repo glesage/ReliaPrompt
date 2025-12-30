@@ -2157,11 +2157,14 @@ button.small,
 .tc-list-item {
     width: 100%;
     text-align: left;
-    padding: 12px 12px;
+    padding: 14px 16px;
     border-radius: 14px;
     border: 1px solid var(--color-border);
     background: #fff;
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 .tc-list-item:hover {
@@ -2174,23 +2177,26 @@ button.small,
 }
 
 .tc-list-item-top {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 8px;
+    gap: 8px;
+    margin-bottom: 6px;
 }
 
 .tc-list-item-title {
     font-size: 13px;
     font-weight: 700;
     color: var(--color-text);
+    white-space: nowrap;
 }
 
 .tc-list-item-preview {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--color-text-muted);
-    line-height: 1.45;
+    line-height: 1.5;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    text-align: left;
 }
 
 .editor-card {

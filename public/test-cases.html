@@ -73,13 +73,23 @@
                         </p>
                     </div>
                     <div class="content-actions">
-                        <button id="export-test-cases-btn" class="btn btn-secondary btn-sm" disabled>
+                        <button
+                            id="export-test-cases-btn"
+                            class="btn btn-secondary btn-sm"
+                            disabled
+                        >
                             Export
                         </button>
-                        <button id="import-test-cases-btn" class="btn btn-secondary btn-sm" disabled>
+                        <button
+                            id="import-test-cases-btn"
+                            class="btn btn-secondary btn-sm"
+                            disabled
+                        >
                             Import
                         </button>
-                        <button id="add-test-case-btn" class="btn btn-sm" disabled>New test case</button>
+                        <button id="add-test-case-btn" class="btn btn-sm" disabled>
+                            New test case
+                        </button>
                     </div>
                 </header>
 
@@ -91,15 +101,18 @@
                         <div class="empty-state-icon" aria-hidden="true">🗂</div>
                         <h3>Select a prompt</h3>
                         <p>
-                            Pick a prompt on the left to view and edit its test cases. Test cases are
-                            shared across all versions.
+                            Pick a prompt on the left to view and edit its test cases. Test cases
+                            are shared across all versions.
                         </p>
                     </div>
 
                     <!-- Test Case Section (shown when prompt selected) -->
                     <div id="test-case-section" class="hidden">
                         <div class="split-view">
-                            <section class="split-pane split-pane-list" aria-label="Test cases list">
+                            <section
+                                class="split-pane split-pane-list"
+                                aria-label="Test cases list"
+                            >
                                 <div class="split-pane-header">
                                     <div class="split-pane-title">
                                         Test cases
@@ -117,8 +130,14 @@
                                 </div>
                             </section>
 
-                            <section class="split-pane split-pane-detail" aria-label="Test case editor">
-                                <div id="testcase-editor-empty" class="empty-state empty-state-compact">
+                            <section
+                                class="split-pane split-pane-detail"
+                                aria-label="Test case editor"
+                            >
+                                <div
+                                    id="testcase-editor-empty"
+                                    class="empty-state empty-state-compact"
+                                >
                                     <div class="empty-state-icon" aria-hidden="true">✍️</div>
                                     <h3>Pick a test case</h3>
                                     <p>Select one on the left, or create a new one.</p>
@@ -127,7 +146,9 @@
                                 <form id="testcase-editor" class="editor-card hidden">
                                     <div class="editor-header">
                                         <div>
-                                            <div id="editor-title" class="editor-title">Test case</div>
+                                            <div id="editor-title" class="editor-title">
+                                                Test case
+                                            </div>
                                             <div id="editor-subtitle" class="editor-subtitle"></div>
                                         </div>
                                         <div class="editor-header-actions">
@@ -151,18 +172,28 @@
                                             ></textarea>
                                         </div>
                                         <div class="form-group">
-                                            <label for="tc-expected-output">Expected output (JSON)</label>
+                                            <label for="tc-expected-output"
+                                                >Expected output (JSON)</label
+                                            >
                                             <textarea
                                                 id="tc-expected-output"
                                                 name="expected_output"
                                                 class="tall"
                                                 placeholder='[{"type":"company","name":"Microsoft"}]'
                                             ></textarea>
-                                            <small>Must be valid JSON. We compare structure + values.</small>
+                                            <small
+                                                >Must be valid JSON. We compare structure +
+                                                values.</small
+                                            >
                                         </div>
                                         <div class="form-group">
-                                            <label for="tc-expected-output-type">Expected output type</label>
-                                            <select id="tc-expected-output-type" name="expected_output_type">
+                                            <label for="tc-expected-output-type"
+                                                >Expected output type</label
+                                            >
+                                            <select
+                                                id="tc-expected-output-type"
+                                                name="expected_output_type"
+                                            >
                                                 <option value="string">String</option>
                                                 <option value="array" selected>Array</option>
                                                 <option value="object">Object</option>
@@ -172,7 +203,10 @@
 
                                     <div class="editor-footer">
                                         <div class="editor-footer-left">
-                                            <div id="tc-validation" class="inline-message hidden"></div>
+                                            <div
+                                                id="tc-validation"
+                                                class="inline-message hidden"
+                                            ></div>
                                         </div>
                                         <div class="editor-footer-right">
                                             <button
@@ -182,7 +216,11 @@
                                             >
                                                 Cancel
                                             </button>
-                                            <button id="testcase-save-btn" type="submit" class="btn btn-sm">
+                                            <button
+                                                id="testcase-save-btn"
+                                                type="submit"
+                                                class="btn btn-sm"
+                                            >
                                                 Save
                                             </button>
                                         </div>
@@ -612,7 +650,7 @@
                         return `
                             <button class="tc-list-item ${isActive ? "active" : ""}" data-id="${id}" type="button">
                                 <div class="tc-list-item-top">
-                                    <div class="tc-list-item-title">Test case #${idx + 1}</div>
+                                    <div class="tc-list-item-title">#${idx + 1}</div>
                                     <span class="pill pill-muted">${type}</span>
                                 </div>
                                 <div class="tc-list-item-preview">${escapeHtml(inputPreview || "(empty input)")}</div>
@@ -710,7 +748,8 @@
 
                 const input = document.getElementById("tc-input").value.trim();
                 const expected_output = document.getElementById("tc-expected-output").value.trim();
-                const expected_output_type = document.getElementById("tc-expected-output-type").value;
+                const expected_output_type =
+                    document.getElementById("tc-expected-output-type").value;
 
                 if (!input) {
                     showEditorMessage("Input is required.", "error");
@@ -752,7 +791,10 @@
                         activeTestCaseId = createdOrUpdated.id;
                     }
 
-                    AppUtils.showAppMessage(isEdit ? "Test case updated" : "Test case created", "success");
+                    AppUtils.showAppMessage(
+                        isEdit ? "Test case updated" : "Test case created",
+                        "success"
+                    );
                     if (activeTestCaseId) {
                         openExistingTestCase(activeTestCaseId);
                     } else {
@@ -808,7 +850,9 @@
                 }
             });
 
-            document.getElementById("testcase-delete-btn").addEventListener("click", deleteActiveTestCase);
+            document
+                .getElementById("testcase-delete-btn")
+                .addEventListener("click", deleteActiveTestCase);
 
             document.getElementById("testcase-editor").addEventListener("submit", async (e) => {
                 e.preventDefault();

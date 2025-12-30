@@ -68,7 +68,9 @@
                 <header class="content-header">
                     <div class="content-header-main">
                         <h1 class="content-title">Test Runs</h1>
-                        <p class="content-subtitle">Run your prompt against selected models and inspect results.</p>
+                        <p class="content-subtitle">
+                            Run your prompt against selected models and inspect results.
+                        </p>
                     </div>
                 </header>
 
@@ -108,9 +110,14 @@
                                                 max="10"
                                                 value="1"
                                             />
-                                            <span id="runs-per-test-value" class="range-value">1</span>
+                                            <span id="runs-per-test-value" class="range-value"
+                                                >1</span
+                                            >
                                         </div>
-                                        <small>More runs = more reliable results, but takes longer</small>
+                                        <small
+                                            >More runs = more reliable results, but takes
+                                            longer</small
+                                        >
                                     </div>
 
                                     <div class="model-selection-section mb-20">
@@ -120,7 +127,10 @@
                                                 >(0 selected)</span
                                             >
                                         </label>
-                                        <div id="test-models-selection" class="model-selection-container">
+                                        <div
+                                            id="test-models-selection"
+                                            class="model-selection-container"
+                                        >
                                             <div class="no-models">Loading models...</div>
                                         </div>
                                     </div>
@@ -130,11 +140,19 @@
                                     <div id="progress-section" class="progress-section hidden">
                                         <div class="progress-label">Overall Progress</div>
                                         <div class="progress-bar-container">
-                                            <div id="progress-bar" class="progress-bar" style="width: 0%">
+                                            <div
+                                                id="progress-bar"
+                                                class="progress-bar"
+                                                style="width: 0%"
+                                            >
                                                 0%
                                             </div>
                                         </div>
-                                        <div id="progress-details" class="muted" style="font-size: 14px"></div>
+                                        <div
+                                            id="progress-details"
+                                            class="muted"
+                                            style="font-size: 14px"
+                                        ></div>
                                     </div>
                                 </div>
                             </section>
@@ -1100,7 +1118,7 @@
                             return `
                             <div class="test-case-detail">
                                 <div class="header">
-                                    <strong>Test Case #${i + 1}</strong>
+                                    <strong>#${i + 1}</strong>
                                     <span class="score-badge ${scoreClass}">${avgScore}%</span>
                                     ${tcAvgDurationHtml}
                                 </div>
