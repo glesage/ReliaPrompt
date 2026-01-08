@@ -353,6 +353,15 @@ export function getTestJobsForPrompt(promptId: number): TestJob[] {
         .all();
 }
 
+export function getImprovementJobsForPrompt(promptId: number): ImprovementJob[] {
+    return getDb()
+        .select()
+        .from(improvementJobs)
+        .where(eq(improvementJobs.promptId, promptId))
+        .orderBy(desc(improvementJobs.createdAt))
+        .all();
+}
+
 export function updateTestJob(id: string, updates: Partial<typeof testJobs.$inferSelect>): void {
     withSave(() => {
         getDb()

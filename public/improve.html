@@ -241,6 +241,13 @@
                                         <pre id="improved-prompt"></pre>
                                     </div>
                                 </div>
+
+                                <div id="previous-runs-section" class="card">
+                                    <h2>Previous Improvement Runs</h2>
+                                    <div id="previous-runs-list">
+                                        <div class="muted">Loading...</div>
+                                    </div>
+                                </div>
                             </section>
                         </div>
                     </div>
@@ -595,6 +602,7 @@
                 selectedPromptName = e.detail.name;
                 updateUI();
                 loadTestCaseCount();
+                loadPreviousImprovementRuns();
             });
 
             // Listen for model selection changes (for benchmark models)
@@ -613,6 +621,7 @@
                         selectedPromptName = prompt.name;
                         updateUI();
                         loadTestCaseCount();
+                        loadPreviousImprovementRuns();
                     } else {
                         // Stored selection no longer exists, clear it
                         AppUtils.setSelectedPromptId(null);
@@ -936,6 +945,7 @@
                                 document.getElementById("improved-prompt").textContent =
                                     status.bestPromptContent;
                             }
+                            loadPreviousImprovementRuns();
                         } else if (status.status === "failed") {
                             clearInterval(pollInterval);
                             document.getElementById("start-btn").disabled = false;
@@ -943,6 +953,7 @@
                                 "status-badge failed";
                             document.getElementById("status-badge").textContent = "Failed";
                             AppUtils.showAppMessage(status.error || "Improvement failed", "error");
+                            loadPreviousImprovementRuns();
                         }
                     } catch (error) {
                         AppUtils.showAppMessage("Error checking improvement status", "error");
@@ -1092,6 +1103,143 @@
 
             // Load template on page load
             loadImprovementTemplate();
+
+            async function loadPreviousImprovementRuns() {
+                const container = document.getElementById("previous-runs-list");
+                if (!selectedPromptId) {
+                    container.innerHTML =
+                        '<div class="muted">Select a prompt to see previous improvement runs</div>';
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/prompts/${selectedPromptId}/improvement-jobs`);
+                    const jobs = await res.json();
+
+                    if (jobs.length === 0) {
+                        container.innerHTML =
+                            '<div class="muted">No previous improvement runs for this prompt</div>';
+                        return;
+                    }
+
+                    container.innerHTML = jobs
+                        .map((job) => {
+                            const date = new Date(job.createdAt);
+                            const formattedDate =
+                                date.toLocaleDateString() + " " + date.toLocaleTimeString();
+                            const statusClass =
+                                job.status === "completed"
+                                    ? "success"
+                                    : job.status === "failed"
+                                      ? "failure"
+                                      : "pending";
+                            const statusText =
+                                job.status.charAt(0).toUpperCase() + job.status.slice(1);
+
+                            let scoreHtml = "";
+                            if (job.bestScore !== null && job.bestScore !== undefined) {
+                                const scorePercent = AppUtils.scoreToPercent(job.bestScore);
+                                const badgeClass =
+                                    scorePercent >= 90
+                                        ? ""
+                                        : scorePercent >= 80
+                                          ? "medium"
+                                          : "low";
+                                scoreHtml = `<span class="score-badge ${badgeClass}" data-tooltip="Best Score">${scorePercent}%</span>`;
+                            }
+
+                            return `
+                            <div class="previous-run-item" data-job-id="${job.id}" onclick="viewPreviousImprovementRun('${job.id}')">
+                                <div class="previous-run-info">
+                                    <span class="previous-run-date">${escapeHtml(formattedDate)}</span>
+                                    <span class="previous-run-tests">${job.currentIteration}/${job.maxIterations} iterations</span>
+                                </div>
+                                <div class="previous-run-status">
+                                    ${scoreHtml}
+                                    <span class="tag tag-${statusClass}">${statusText}</span>
+                                </div>
+                            </div>
+                        `;
+                        })
+                        .join("");
+                } catch (error) {
+                    container.innerHTML =
+                        '<div class="muted">Failed to load previous runs</div>';
+                }
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement("div");
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            async function viewPreviousImprovementRun(jobId) {
+                try {
+                    const res = await fetch(`/api/improve/status/${jobId}`);
+                    const status = await res.json();
+
+                    // Show the progress section with the previous run's data
+                    document.getElementById("progress-section").classList.remove("hidden");
+                    document
+                        .getElementById("improved-prompt-section")
+                        .classList.add("hidden");
+
+                    // Update status badge
+                    const badge = document.getElementById("status-badge");
+                    badge.className = `status-badge ${status.status}`;
+                    badge.textContent =
+                        status.status.charAt(0).toUpperCase() + status.status.slice(1);
+
+                    // Update scores
+                    if (status.originalScore !== null && status.originalScore !== undefined) {
+                        document.getElementById("original-score").textContent =
+                            AppUtils.scoreToPercent(status.originalScore) + "%";
+                    } else {
+                        document.getElementById("original-score").textContent = "--";
+                    }
+                    if (status.bestScore !== null && status.bestScore !== undefined) {
+                        document.getElementById("best-score").textContent =
+                            AppUtils.scoreToPercent(status.bestScore) + "%";
+                    } else {
+                        document.getElementById("best-score").textContent = "--";
+                    }
+
+                    // Calculate improvement
+                    if (
+                        status.originalScore !== null &&
+                        status.bestScore !== null &&
+                        status.originalScore !== undefined &&
+                        status.bestScore !== undefined
+                    ) {
+                        const improvement = AppUtils.scoreToPercent(status.bestScore - status.originalScore);
+                        const sign = improvement >= 0 ? "+" : "";
+                        document.getElementById("improvement").textContent = sign + improvement + "%";
+                    } else {
+                        document.getElementById("improvement").textContent = "--";
+                    }
+
+                    // Update iteration display
+                    document.getElementById("iteration-display").textContent =
+                        `Iteration ${status.currentIteration}/${status.maxIterations}`;
+
+                    // Update log
+                    const logOutput = document.getElementById("log-output");
+                    logOutput.textContent = (status.log || []).join("\n");
+                    logOutput.scrollTop = logOutput.scrollHeight;
+
+                    // Show improved prompt if available
+                    if (status.bestPromptContent) {
+                        document
+                            .getElementById("improved-prompt-section")
+                            .classList.remove("hidden");
+                        document.getElementById("improved-prompt").textContent =
+                            status.bestPromptContent;
+                    }
+                } catch (error) {
+                    AppUtils.showAppMessage("Error loading improvement run", "error");
+                }
+            }
 
             // Initialize
             updateUI();

@@ -20,6 +20,7 @@ import {
     getTestJobByIdOrFail,
     getTestJobsForPrompt,
     getImprovementJobByIdOrFail,
+    getImprovementJobsForPrompt,
     deleteAllTestCasesForPromptGroup,
     bulkCreateTestCases,
     clearAllData,
@@ -409,6 +410,16 @@ app.get("/api/prompts/:id/test-jobs", validateIdParam, (req, res) => {
     try {
         const promptId = parseInt(req.params.id, 10);
         const jobs = getTestJobsForPrompt(promptId);
+        res.json(jobs);
+    } catch (error) {
+        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
+    }
+});
+
+app.get("/api/prompts/:id/improvement-jobs", validateIdParam, (req, res) => {
+    try {
+        const promptId = parseInt(req.params.id, 10);
+        const jobs = getImprovementJobsForPrompt(promptId);
         res.json(jobs);
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });

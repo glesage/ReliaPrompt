@@ -18,6 +18,7 @@
         "playwright-test-ui": "NODE_ENV=test bunx playwright test --ui",
         "playwright-test-debug": "NODE_ENV=test bunx playwright test --debug",
         "db:generate": "bun run drizzle-kit generate",
+        "db:migrate": "bun run drizzle-kit migrate",
         "db:studio": "bun run drizzle-kit studio"
     },
     "dependencies": {
