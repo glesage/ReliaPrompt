@@ -103,9 +103,31 @@ export const improvementJobs = sqliteTable(
     ]
 );
 
+export const suggestions = sqliteTable(
+    "suggestions",
+    {
+        id: integer("id").primaryKey({ autoIncrement: true }),
+        improvementJobId: text("improvement_job_id")
+            .notNull()
+            .references(() => improvementJobs.id),
+        iteration: integer("iteration").notNull(),
+        content: text("content").notNull(),
+        rationale: text("rationale"),
+        status: text("status").notNull().default("pending"), // pending, applied, undone, rejected
+        appliedAt: text("applied_at"),
+        undoneAt: text("undone_at"),
+        createdAt: text("created_at").notNull(),
+    },
+    (table) => [
+        index("suggestions_improvement_job_id_idx").on(table.improvementJobId),
+        index("suggestions_status_idx").on(table.status),
+    ]
+);
+
 export type Config = typeof config.$inferSelect;
 export type Prompt = typeof prompts.$inferSelect;
 export type TestCase = typeof testCases.$inferSelect;
 export type TestJob = typeof testJobs.$inferSelect;
 export type TestResult = typeof testResults.$inferSelect;
 export type ImprovementJob = typeof improvementJobs.$inferSelect;
+export type Suggestion = typeof suggestions.$inferSelect;
