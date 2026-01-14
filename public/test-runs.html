@@ -45,7 +45,23 @@
             <aside class="app-pane app-pane-prompts" aria-label="Prompts">
                 <div class="pane-header">
                     <div class="pane-title">Prompts</div>
-                    <button class="btn btn-primary btn-sm" id="new-prompt-btn">New</button>
+                    <div class="pane-header-actions">
+                        <button
+                            class="btn btn-secondary btn-sm"
+                            id="export-prompts-btn"
+                            title="Export all prompts"
+                        >
+                            Export
+                        </button>
+                        <button
+                            class="btn btn-secondary btn-sm"
+                            id="import-prompts-btn"
+                            title="Import prompts"
+                        >
+                            Import
+                        </button>
+                        <button class="btn btn-primary btn-sm" id="new-prompt-btn">New</button>
+                    </div>
                 </div>
                 <div class="pane-search">
                     <input
@@ -434,7 +450,10 @@
                                 class="medium"
                                 placeholder='{"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}}}}'
                             ></textarea>
-                            <small>Optional. JSON Schema for structured LLM output (used with response_format).</small>
+                            <small
+                                >Optional. JSON Schema for structured LLM output (used with
+                                response_format).</small
+                            >
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -530,7 +549,7 @@
                         <label>Prompt Content</label>
                         <pre class="view-prompt-content" id="view-prompt-content"></pre>
                     </div>
-                    <div class="form-group" id="view-prompt-schema-group" style="display: none;">
+                    <div class="form-group" id="view-prompt-schema-group" style="display: none">
                         <label>Expected Output Schema</label>
                         <pre class="view-prompt-content" id="view-prompt-schema"></pre>
                     </div>

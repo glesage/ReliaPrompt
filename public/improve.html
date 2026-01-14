@@ -45,7 +45,23 @@
             <aside class="app-pane app-pane-prompts" aria-label="Prompts">
                 <div class="pane-header">
                     <div class="pane-title">Prompts</div>
-                    <button class="btn btn-primary btn-sm" id="new-prompt-btn">New</button>
+                    <div class="pane-header-actions">
+                        <button
+                            class="btn btn-secondary btn-sm"
+                            id="export-prompts-btn"
+                            title="Export all prompts"
+                        >
+                            Export
+                        </button>
+                        <button
+                            class="btn btn-secondary btn-sm"
+                            id="import-prompts-btn"
+                            title="Import prompts"
+                        >
+                            Import
+                        </button>
+                        <button class="btn btn-primary btn-sm" id="new-prompt-btn">New</button>
+                    </div>
                 </div>
                 <div class="pane-search">
                     <input
@@ -119,7 +135,10 @@
                                         <button id="start-btn" disabled>Start Improvement</button>
                                     </div>
 
-                                    <div class="model-selection-section" style="margin-bottom: 16px">
+                                    <div
+                                        class="model-selection-section"
+                                        style="margin-bottom: 16px"
+                                    >
                                         <label
                                             style="
                                                 display: block;
@@ -154,7 +173,10 @@
                                         </div>
                                     </div>
 
-                                    <div class="model-selection-section" style="margin-bottom: 16px">
+                                    <div
+                                        class="model-selection-section"
+                                        style="margin-bottom: 16px"
+                                    >
                                         <label
                                             style="
                                                 display: block;
@@ -203,9 +225,7 @@
                                 <div id="progress-section" class="card hidden">
                                     <div class="progress-header">
                                         <h2>Improvement Progress</h2>
-                                        <span
-                                            id="status-badge"
-                                            class="status-badge running"
+                                        <span id="status-badge" class="status-badge running"
                                             >Running</span
                                         >
                                     </div>
@@ -455,7 +475,10 @@
                                 class="medium"
                                 placeholder='{"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}}}}'
                             ></textarea>
-                            <small>Optional. JSON Schema for structured LLM output (used with response_format).</small>
+                            <small
+                                >Optional. JSON Schema for structured LLM output (used with
+                                response_format).</small
+                            >
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -551,7 +574,7 @@
                         <label>Prompt Content</label>
                         <pre class="view-prompt-content" id="view-prompt-content"></pre>
                     </div>
-                    <div class="form-group" id="view-prompt-schema-group" style="display: none;">
+                    <div class="form-group" id="view-prompt-schema-group" style="display: none">
                         <label>Expected Output Schema</label>
                         <pre class="view-prompt-content" id="view-prompt-schema"></pre>
                     </div>
@@ -570,7 +593,9 @@
                 <div class="modal-header">
                     <div class="modal-title-group">
                         <h2>Improvement Prompt Template</h2>
-                        <span id="template-status" class="badge badge-version">(using default)</span>
+                        <span id="template-status" class="badge badge-version"
+                            >(using default)</span
+                        >
                     </div>
                     <button class="modal-close" id="template-close-btn" aria-label="Close">
                         <svg
@@ -601,7 +626,11 @@
                     <div class="form-group" style="margin-top: 12px">
                         <textarea
                             id="improvement-template"
-                            style="min-height: 340px; font-family: var(--font-mono); font-size: 13px"
+                            style="
+                                min-height: 340px;
+                                font-family: var(--font-mono);
+                                font-size: 13px;
+                            "
                         ></textarea>
                     </div>
                 </div>
@@ -1112,9 +1141,15 @@
                 }
             }
 
-            document.getElementById("template-open-btn").addEventListener("click", openTemplateModal);
-            document.getElementById("template-close-btn").addEventListener("click", closeTemplateModal);
-            document.getElementById("template-cancel-btn").addEventListener("click", closeTemplateModal);
+            document
+                .getElementById("template-open-btn")
+                .addEventListener("click", openTemplateModal);
+            document
+                .getElementById("template-close-btn")
+                .addEventListener("click", closeTemplateModal);
+            document
+                .getElementById("template-cancel-btn")
+                .addEventListener("click", closeTemplateModal);
             document.getElementById("save-template-btn").addEventListener("click", saveTemplate);
             document.getElementById("reset-template-btn").addEventListener("click", resetTemplate);
 
@@ -1167,11 +1202,7 @@
                             if (job.bestScore !== null && job.bestScore !== undefined) {
                                 const scorePercent = AppUtils.scoreToPercent(job.bestScore);
                                 const badgeClass =
-                                    scorePercent >= 90
-                                        ? ""
-                                        : scorePercent >= 80
-                                          ? "medium"
-                                          : "low";
+                                    scorePercent >= 90 ? "" : scorePercent >= 80 ? "medium" : "low";
                                 scoreHtml = `<span class="score-badge ${badgeClass}" data-tooltip="Best Score">${scorePercent}%</span>`;
                             }
 
@@ -1190,8 +1221,7 @@
                         })
                         .join("");
                 } catch (error) {
-                    container.innerHTML =
-                        '<div class="muted">Failed to load previous runs</div>';
+                    container.innerHTML = '<div class="muted">Failed to load previous runs</div>';
                 }
             }
 
@@ -1208,9 +1238,7 @@
 
                     // Show the progress section with the previous run's data
                     document.getElementById("progress-section").classList.remove("hidden");
-                    document
-                        .getElementById("improved-prompt-section")
-                        .classList.add("hidden");
+                    document.getElementById("improved-prompt-section").classList.add("hidden");
 
                     // Update status badge
                     const badge = document.getElementById("status-badge");
@@ -1239,9 +1267,12 @@
                         status.originalScore !== undefined &&
                         status.bestScore !== undefined
                     ) {
-                        const improvement = AppUtils.scoreToPercent(status.bestScore - status.originalScore);
+                        const improvement = AppUtils.scoreToPercent(
+                            status.bestScore - status.originalScore
+                        );
                         const sign = improvement >= 0 ? "+" : "";
-                        document.getElementById("improvement").textContent = sign + improvement + "%";
+                        document.getElementById("improvement").textContent =
+                            sign + improvement + "%";
                     } else {
                         document.getElementById("improvement").textContent = "--";
                     }

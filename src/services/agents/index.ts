@@ -9,7 +9,6 @@ import {
     IMPLEMENT_AGENT_PROMPT,
 } from "../../constants";
 import { LLMTestResult, getTestResultSummary } from "../test-runner";
-import type { TestResultSummary } from "../../llm-clients/llm-client";
 
 // ============================================================================
 // Types
@@ -169,10 +168,10 @@ export async function analyzeFailures(
 ): Promise<FailureSummary> {
     const testResultsFormatted = formatTestResultsForAgent(testResults);
     const timingStats = formatTimingStatsForAgent(testResults);
-    const prompt = FAILURE_ANALYZER_AGENT_PROMPT.replace("{{TEST_RESULTS}}", testResultsFormatted).replace(
-        "{{TIMING_STATS}}",
-        timingStats
-    );
+    const prompt = FAILURE_ANALYZER_AGENT_PROMPT.replace(
+        "{{TEST_RESULTS}}",
+        testResultsFormatted
+    ).replace("{{TIMING_STATS}}", timingStats);
 
     return await runAgent<FailureSummary>(runner, prompt);
 }
@@ -345,4 +344,3 @@ export async function implementSuggestions(
 // ============================================================================
 
 export type { AgentRunner };
-

@@ -219,7 +219,9 @@ async function runImprovement(
     log(
         `Original prompt score: ${(originalScore * 100).toFixed(1)}% (averaged across ${benchmarkRunners.length} benchmark model(s))`
     );
-    log(`Original prompt length: ${prompt.content.length} chars, avg duration: ${originalDurationMs}ms`);
+    log(
+        `Original prompt length: ${prompt.content.length} chars, avg duration: ${originalDurationMs}ms`
+    );
     updateImprovementJob(jobId, {
         bestScore: originalScore,
         bestPromptContent: prompt.content,
@@ -263,7 +265,9 @@ async function runImprovement(
                 currentScore = testResult.score;
                 currentDurationMs = getAverageDuration(testResult.results);
                 currentTestResults = testResult.results;
-                log(`Current score: ${(currentScore * 100).toFixed(1)}%, duration: ${currentDurationMs}ms`);
+                log(
+                    `Current score: ${(currentScore * 100).toFixed(1)}%, duration: ${currentDurationMs}ms`
+                );
 
                 if (currentScore === 1) {
                     log("Perfect score achieved!");
@@ -401,8 +405,8 @@ async function runImprovement(
 
                 if (proposedSuggestions.length === 0) {
                     log("No suggestions proposed, skipping this iteration");
-            continue;
-        }
+                    continue;
+                }
 
                 log(`Proposed ${proposedSuggestions.length} suggestion(s):`);
                 for (const s of proposedSuggestions) {
@@ -436,8 +440,8 @@ async function runImprovement(
 
                 if (newPrompt.trim() === currentPrompt.trim()) {
                     log("No changes made to prompt, skipping this iteration");
-            continue;
-        }
+                    continue;
+                }
 
                 // Mark suggestions as applied
                 const suggestionIds = storedSuggestions.map((s) => s.id);
@@ -490,7 +494,7 @@ async function runImprovement(
                     progress.bestScore = newScore;
                     progress.bestPromptContent = currentPrompt;
                     bestDurationMs = newDurationMs;
-                updateImprovementJob(jobId, {
+                    updateImprovementJob(jobId, {
                         bestScore: newScore,
                         bestPromptContent: currentPrompt,
                     });
