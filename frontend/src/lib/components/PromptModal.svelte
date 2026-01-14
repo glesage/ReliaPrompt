@@ -117,7 +117,7 @@
     );
 </script>
 
-<Modal {open} {title} wide={mode === "view"} onclose={onclose}>
+<Modal id="new-prompt-modal" {open} {title} wide={mode === "view"} onclose={onclose}>
     {#snippet titleBadge()}
         {#if mode !== "new" && (promptVersion || loadedPrompt?.version)}
             <span class="badge badge-version">v{promptVersion || loadedPrompt?.version}</span>
@@ -138,13 +138,13 @@
             </div>
         {/if}
     {:else}
-        <form id="prompt-form" onsubmit={handleSubmit}>
+        <form id="new-prompt-form" onsubmit={handleSubmit}>
             {#if mode === "new"}
                 <div class="form-group">
-                    <label for="prompt-name">Prompt Name</label>
+                    <label for="new-prompt-name">Prompt Name</label>
                     <input
                         type="text"
-                        id="prompt-name"
+                        id="new-prompt-name"
                         bind:value={name}
                         placeholder="e.g., extract-entities"
                         required
@@ -152,9 +152,9 @@
                 </div>
             {/if}
             <div class="form-group">
-                <label for="prompt-content">Prompt Content</label>
+                <label for="new-prompt-content">Prompt Content</label>
                 <textarea
-                    id="prompt-content"
+                    id="new-prompt-content"
                     class="tall"
                     bind:value={content}
                     placeholder="Enter your system prompt here..."
@@ -182,7 +182,7 @@
             <button type="button" class="secondary" onclick={onclose}>Close</button>
         {:else}
             <button type="button" class="secondary" onclick={onclose}>Cancel</button>
-            <button type="submit" form="prompt-form" disabled={loading}>
+            <button type="submit" form="new-prompt-form" disabled={loading}>
                 {#if loading}
                     Saving...
                 {:else if mode === "new"}

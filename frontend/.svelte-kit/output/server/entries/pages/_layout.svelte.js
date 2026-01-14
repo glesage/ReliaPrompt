@@ -53,7 +53,7 @@ function Rail($$renderer, $$props) {
       let item = each_array[$$index];
       $$renderer2.push(`<a${attr_class("rail-link", void 0, { "active": isActive(item.href) })}${attr("href", item.href)}${attr("aria-current", isActive(item.href) ? "page" : void 0)}><span class="rail-link-label">${escape_html(item.label)}</span></a>`);
     }
-    $$renderer2.push(`<!--]--></nav> <div class="app-rail-footer"><button class="rail-btn" title="LLMs">LLMs</button></div></aside>`);
+    $$renderer2.push(`<!--]--></nav> <div class="app-rail-footer"><button id="setup-btn" class="rail-btn" title="LLMs">LLMs</button></div></aside>`);
     if ($$store_subs) unsubscribe_stores($$store_subs);
   });
 }
@@ -108,7 +108,7 @@ function PromptGroup($$renderer, $$props) {
 function PromptsPane($$renderer, $$props) {
   $$renderer.component(($$renderer2) => {
     var $$store_subs;
-    $$renderer2.push(`<aside class="app-pane app-pane-prompts" aria-label="Prompts"><div class="pane-header"><div class="pane-title">Prompts</div> <div class="pane-header-actions"><button class="btn btn-secondary btn-sm" title="Export all prompts">Export</button> <button class="btn btn-secondary btn-sm" title="Import prompts">Import</button> <button class="btn btn-primary btn-sm">New</button></div></div> <div class="pane-search"><input id="prompt-filter" type="search" placeholder="Search prompts…" autocomplete="off"${attr("value", store_get($$store_subs ??= {}, "$promptFilter", promptFilter))}/> <div class="pane-search-hint">⌘K</div></div> <div class="pane-body"><div class="sidebar-list" id="sidebar-prompts">`);
+    $$renderer2.push(`<aside class="app-pane app-pane-prompts" aria-label="Prompts"><div class="pane-header"><div class="pane-title">Prompts</div> <div class="pane-header-actions"><button class="btn btn-secondary btn-sm" title="Export all prompts">Export</button> <button class="btn btn-secondary btn-sm" title="Import prompts">Import</button> <button id="new-prompt-btn" class="btn btn-primary btn-sm">New</button></div></div> <div class="pane-search"><input id="prompt-filter" type="search" placeholder="Search prompts…" autocomplete="off"${attr("value", store_get($$store_subs ??= {}, "$promptFilter", promptFilter))}/> <div class="pane-search-hint">⌘K</div></div> <div class="pane-body"><div class="sidebar-list" id="sidebar-prompts">`);
     if (store_get($$store_subs ??= {}, "$promptsLoading", promptsLoading)) {
       $$renderer2.push("<!--[-->");
       $$renderer2.push(`<div class="sidebar-empty">Loading...</div>`);
@@ -185,9 +185,10 @@ function ConfigModal($$renderer, $$props) {
     }
     {
       let footer = function($$renderer3) {
-        $$renderer3.push(`<button type="button" class="secondary">Cancel</button> <button type="submit" form="config-form"${attr("disabled", store_get($$store_subs ??= {}, "$configLoading", configLoading), true)}>${escape_html(store_get($$store_subs ??= {}, "$configLoading", configLoading) ? "Saving..." : "Save Configuration")}</button>`);
+        $$renderer3.push(`<button id="config-close-btn" type="button" class="secondary">Cancel</button> <button type="submit" form="config-form"${attr("disabled", store_get($$store_subs ??= {}, "$configLoading", configLoading), true)}>${escape_html(store_get($$store_subs ??= {}, "$configLoading", configLoading) ? "Saving..." : "Save Configuration")}</button>`);
       };
       Modal($$renderer2, {
+        id: "config-modal",
         open: store_get($$store_subs ??= {}, "$configModalOpen", configModalOpen),
         title: "LLM Configuration",
         onclose: closeConfigModal,
@@ -225,10 +226,10 @@ function ConfigModal($$renderer, $$props) {
           } else {
             $$renderer3.push("<!--[!-->");
           }
-          $$renderer3.push(`<!--]--></div> <div class="provider-section"><h3>Deepseek <span${attr_class("status-badge", void 0, {
+          $$renderer3.push(`<!--]--></div> <div class="provider-section"><h3>Deepseek <span id="deepseek-status"${attr_class("status-badge", void 0, {
             "configured": isConfigured("deepseek"),
             "not-configured": !isConfigured("deepseek")
-          })}>${escape_html(isConfigured("deepseek") ? "Configured" : "Not configured")}</span></h3> <div class="form-group"><input type="text"${attr("value", formData.deepseek_api_key)} placeholder="API Key (sk-...)"/></div> `);
+          })}>${escape_html(isConfigured("deepseek") ? "Configured" : "Not configured")}</span></h3> <div class="form-group"><input id="deepseek_api_key" type="text"${attr("value", formData.deepseek_api_key)} placeholder="API Key (sk-...)"/></div> `);
           if (getModelsForProvider("Deepseek").length > 0) {
             $$renderer3.push("<!--[-->");
             $$renderer3.push(`<div class="form-group"><label>Models</label> `);
@@ -313,7 +314,7 @@ function PromptModal($$renderer, $$props) {
       }, footer = function($$renderer3) {
         {
           $$renderer3.push("<!--[!-->");
-          $$renderer3.push(`<button type="button" class="secondary">Cancel</button> <button type="submit" form="prompt-form"${attr("disabled", loading, true)}>`);
+          $$renderer3.push(`<button type="button" class="secondary">Cancel</button> <button type="submit" form="new-prompt-form"${attr("disabled", loading, true)}>`);
           {
             $$renderer3.push("<!--[!-->");
             {
@@ -327,6 +328,7 @@ function PromptModal($$renderer, $$props) {
         $$renderer3.push(`<!--]-->`);
       };
       Modal($$renderer2, {
+        id: "new-prompt-modal",
         open,
         title,
         wide: mode === "view",
@@ -336,12 +338,12 @@ function PromptModal($$renderer, $$props) {
         children: ($$renderer3) => {
           {
             $$renderer3.push("<!--[!-->");
-            $$renderer3.push(`<form id="prompt-form">`);
+            $$renderer3.push(`<form id="new-prompt-form">`);
             {
               $$renderer3.push("<!--[-->");
-              $$renderer3.push(`<div class="form-group"><label for="prompt-name">Prompt Name</label> <input type="text" id="prompt-name"${attr("value", name)} placeholder="e.g., extract-entities" required/></div>`);
+              $$renderer3.push(`<div class="form-group"><label for="new-prompt-name">Prompt Name</label> <input type="text" id="new-prompt-name"${attr("value", name)} placeholder="e.g., extract-entities" required/></div>`);
             }
-            $$renderer3.push(`<!--]--> <div class="form-group"><label for="prompt-content">Prompt Content</label> <textarea id="prompt-content" class="tall" placeholder="Enter your system prompt here..." required>`);
+            $$renderer3.push(`<!--]--> <div class="form-group"><label for="new-prompt-content">Prompt Content</label> <textarea id="new-prompt-content" class="tall" placeholder="Enter your system prompt here..." required>`);
             const $$body = escape_html(content);
             if ($$body) {
               $$renderer3.push(`${$$body}`);

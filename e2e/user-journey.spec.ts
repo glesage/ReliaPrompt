@@ -50,7 +50,7 @@ Example: [{"type": "company", "name": "Apple"}]`;
         // ============================================
         // Step 1: Open the website
         // ============================================
-        await page.goto(`${server.baseUrl}/test-cases.html`);
+        await page.goto(`${server.baseUrl}/test-cases`);
         await page.waitForSelector(".app-layout", { state: "visible" });
 
         // ============================================
@@ -139,7 +139,7 @@ Example: [{"type": "company", "name": "Apple"}]`;
         // ============================================
         // Step 5: Navigate to Test Runs and Execute
         // ============================================
-        await page.goto(`${server.baseUrl}/test-runs.html`);
+        await page.goto(`${server.baseUrl}/test-runs`);
 
         // Wait for sidebar to load
         await page.waitForSelector("#sidebar-prompts", { state: "visible" });
@@ -215,7 +215,7 @@ Example: [{"type": "company", "name": "Apple"}]`;
         // ============================================
         // Step 6: Navigate to Auto-Improve and Execute
         // ============================================
-        await page.goto(`${server.baseUrl}/improve.html`);
+        await page.goto(`${server.baseUrl}/improve`);
 
         // Wait for sidebar to load
         await page.waitForSelector("#sidebar-prompts", { state: "visible" });

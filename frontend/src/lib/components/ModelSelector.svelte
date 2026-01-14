@@ -71,6 +71,8 @@
                                 type={mode}
                                 name={mode === "radio" ? "model-selection" : undefined}
                                 checked={isSelected(model.provider, model.id)}
+                                data-provider={model.provider}
+                                data-model-id={model.id}
                                 onchange={(e) =>
                                     handleChange(model.provider, model.id, (e.target as HTMLInputElement).checked)}
                             />

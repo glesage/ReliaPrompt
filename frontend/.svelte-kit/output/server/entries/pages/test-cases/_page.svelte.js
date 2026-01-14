@@ -13,7 +13,7 @@ function _page($$renderer, $$props) {
       if (!q) return testCases;
       return testCases.filter((tc) => tc.input.toLowerCase().includes(q) || tc.expectedOutput.toLowerCase().includes(q));
     };
-    $$renderer2.push(`<header class="content-header"><div class="content-header-main"><h1 class="content-title">Test Cases</h1> <p class="content-subtitle">Define inputs and expected JSON outputs. Edit fast with the split view.</p></div> <div class="content-actions"><button class="btn btn-secondary btn-sm"${attr("disabled", !store_get($$store_subs ??= {}, "$selectedPrompt", selectedPrompt), true)}>Export</button> <button class="btn btn-secondary btn-sm"${attr("disabled", !store_get($$store_subs ??= {}, "$selectedPrompt", selectedPrompt), true)}>Import</button> <button class="btn btn-sm"${attr("disabled", !store_get($$store_subs ??= {}, "$selectedPrompt", selectedPrompt), true)}>New test case</button></div></header> <div class="content-body">`);
+    $$renderer2.push(`<header class="content-header"><div class="content-header-main"><h1 class="content-title">Test Cases</h1> <p class="content-subtitle">Define inputs and expected JSON outputs. Edit fast with the split view.</p></div> <div class="content-actions"><button class="btn btn-secondary btn-sm"${attr("disabled", !store_get($$store_subs ??= {}, "$selectedPrompt", selectedPrompt), true)}>Export</button> <button class="btn btn-secondary btn-sm"${attr("disabled", !store_get($$store_subs ??= {}, "$selectedPrompt", selectedPrompt), true)}>Import</button> <button id="add-test-case-btn" class="btn btn-sm"${attr("disabled", !store_get($$store_subs ??= {}, "$selectedPrompt", selectedPrompt), true)}>New test case</button></div></header> <div class="content-body">`);
     if (!store_get($$store_subs ??= {}, "$selectedPrompt", selectedPrompt)) {
       $$renderer2.push("<!--[-->");
       EmptyState($$renderer2, {
@@ -23,7 +23,7 @@ function _page($$renderer, $$props) {
       });
     } else {
       $$renderer2.push("<!--[!-->");
-      $$renderer2.push(`<div class="split-view"><section class="split-pane split-pane-list" aria-label="Test cases list"><div class="split-pane-header"><div class="split-pane-title">Test cases <span class="pill">${escape_html(filteredTestCases().length)}</span></div> <input type="search" placeholder="Filter test cases…" autocomplete="off"${attr("value", testCaseFilter)}/></div> <div class="tc-list">`);
+      $$renderer2.push(`<div id="test-case-section" class="split-view"><section class="split-pane split-pane-list" aria-label="Test cases list"><div class="split-pane-header"><div class="split-pane-title">Test cases <span class="pill">${escape_html(filteredTestCases().length)}</span></div> <input type="search" placeholder="Filter test cases…" autocomplete="off"${attr("value", testCaseFilter)}/></div> <div id="test-cases-list" class="tc-list">`);
       {
         $$renderer2.push("<!--[!-->");
         if (testCases.length === 0) {

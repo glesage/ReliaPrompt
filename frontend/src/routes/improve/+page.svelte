@@ -253,7 +253,7 @@
             description="Pick a prompt to auto-improve using LLM-based iterative refinement."
         />
     {:else}
-        <div class="content-grid">
+        <div id="improve-section" class="content-grid">
             <section class="content-col">
                 <div class="card">
                     <h2>Improvement Settings</h2>
@@ -284,7 +284,7 @@
                         <small>More runs = more reliable scores, but takes longer</small>
                     </div>
 
-                    <div class="model-selection-section form-group">
+                    <div id="improvement-model-selection" class="model-selection-section form-group">
                         <!-- svelte-ignore a11y_label_has_associated_control -->
                         <label>
                             Improvement Model
@@ -299,7 +299,7 @@
                         />
                     </div>
 
-                    <div class="model-selection-section form-group">
+                    <div id="benchmark-models-selection" class="model-selection-section form-group">
                         <!-- svelte-ignore a11y_label_has_associated_control -->
                         <label>
                             Benchmark Models
@@ -311,7 +311,7 @@
                         />
                     </div>
 
-                    <button onclick={startImprovement} disabled={!canStart}>
+                    <button id="start-btn" onclick={startImprovement} disabled={!canStart}>
                         {running ? "Improving..." : "Start Improvement"}
                     </button>
                 </div>
@@ -362,6 +362,9 @@
                             {#if currentIteration > 0}
                                 <span class="iteration-display">Iteration {currentIteration} of {maxIterations}</span>
                             {/if}
+                            <span id="status-badge" class="status-indicator" class:success={!running && bestScore !== null}>
+                                {running ? "Running" : "Completed"}
+                            </span>
                         </div>
 
                         {#if originalScore !== null || bestScore !== null}
@@ -369,13 +372,13 @@
                                 {#if originalScore !== null}
                                     <div class="score-item">
                                         <div class="label">Original</div>
-                                        <div class="value">{scoreToPercent(originalScore)}%</div>
+                                        <div id="original-score" class="value">{scoreToPercent(originalScore)}%</div>
                                     </div>
                                 {/if}
                                 {#if bestScore !== null}
                                     <div class="score-item">
                                         <div class="label">Best</div>
-                                        <div class="value improved">{scoreToPercent(bestScore)}%</div>
+                                        <div id="best-score" class="value improved">{scoreToPercent(bestScore)}%</div>
                                     </div>
                                 {/if}
                                 {#if scoreDelta() !== null && scoreDelta()! > 0}
@@ -387,7 +390,7 @@
                             </div>
                         {/if}
 
-                        <div class="progress-section">
+                        <div id="progress-section" class="progress-section">
                             <div class="progress-label">Overall Progress</div>
                             <div class="progress-bar-container">
                                 <div class="progress-bar" style="width: {Math.round(progress)}%">
@@ -396,7 +399,7 @@
                             </div>
                         </div>
 
-                        <div class="log-container" style="margin-top: 16px;">
+                        <div id="log-output" class="log-container" style="margin-top: 16px;">
                             {#each log as line}
                                 <div
                                     class="log-line"

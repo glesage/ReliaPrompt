@@ -13,6 +13,7 @@ function _page($$renderer, $$props) {
     let benchmarkModels = [];
     let progress = 0;
     let log = [];
+    let bestScore = null;
     let previousJobs = [];
     let templateModalOpen = false;
     let templateText = "";
@@ -32,12 +33,12 @@ function _page($$renderer, $$props) {
       });
     } else {
       $$renderer2.push("<!--[!-->");
-      $$renderer2.push(`<div class="content-grid"><section class="content-col"><div class="card"><h2>Improvement Settings</h2> <div class="muted mb-20">`);
+      $$renderer2.push(`<div id="improve-section" class="content-grid"><section class="content-col"><div class="card"><h2>Improvement Settings</h2> <div class="muted mb-20">`);
       {
         $$renderer2.push("<!--[!-->");
         $$renderer2.push(`No test cases found. Add test cases first.`);
       }
-      $$renderer2.push(`<!--]--></div> <div class="form-group"><label for="max-iterations">Max iterations</label> <div class="range-row"><input type="range" id="max-iterations" min="1" max="10"${attr("value", maxIterations)}/> <span class="range-value">${escape_html(maxIterations)}</span></div> <small>Each iteration tests, analyzes, and improves the prompt</small></div> <div class="form-group"><label for="runs-per-llm">Runs per LLM per test</label> <div class="range-row"><input type="range" id="runs-per-llm" min="1" max="5"${attr("value", runsPerLlm)}/> <span class="range-value">${escape_html(runsPerLlm)}</span></div> <small>More runs = more reliable scores, but takes longer</small></div> <div class="model-selection-section form-group"><label>Improvement Model <span class="muted">(picks one to rewrite the prompt)</span></label> `);
+      $$renderer2.push(`<!--]--></div> <div class="form-group"><label for="max-iterations">Max iterations</label> <div class="range-row"><input type="range" id="max-iterations" min="1" max="10"${attr("value", maxIterations)}/> <span class="range-value">${escape_html(maxIterations)}</span></div> <small>Each iteration tests, analyzes, and improves the prompt</small></div> <div class="form-group"><label for="runs-per-llm">Runs per LLM per test</label> <div class="range-row"><input type="range" id="runs-per-llm" min="1" max="5"${attr("value", runsPerLlm)}/> <span class="range-value">${escape_html(runsPerLlm)}</span></div> <small>More runs = more reliable scores, but takes longer</small></div> <div id="improvement-model-selection" class="model-selection-section form-group"><label>Improvement Model <span class="muted">(picks one to rewrite the prompt)</span></label> `);
       ModelSelector($$renderer2, {
         selectedModels: improvementModel,
         onchange: (models) => {
@@ -45,12 +46,12 @@ function _page($$renderer, $$props) {
         },
         mode: "radio"
       });
-      $$renderer2.push(`<!----></div> <div class="model-selection-section form-group"><label>Benchmark Models <span class="muted">(${escape_html(benchmarkModels.length)} selected)</span></label> `);
+      $$renderer2.push(`<!----></div> <div id="benchmark-models-selection" class="model-selection-section form-group"><label>Benchmark Models <span class="muted">(${escape_html(benchmarkModels.length)} selected)</span></label> `);
       ModelSelector($$renderer2, {
         selectedModels: benchmarkModels,
         onchange: (models) => benchmarkModels = models
       });
-      $$renderer2.push(`<!----></div> <button${attr("disabled", true, true)}>${escape_html("Start Improvement")}</button></div> <div class="card"><h2>Previous Jobs</h2> `);
+      $$renderer2.push(`<!----></div> <button id="start-btn"${attr("disabled", true, true)}>${escape_html("Start Improvement")}</button></div> <div class="card"><h2>Previous Jobs</h2> `);
       if (previousJobs.length === 0) {
         $$renderer2.push("<!--[-->");
         $$renderer2.push(`<div class="muted">No improvement jobs for this prompt yet</div>`);
@@ -82,11 +83,11 @@ function _page($$renderer, $$props) {
         {
           $$renderer2.push("<!--[!-->");
         }
-        $$renderer2.push(`<!--]--></div> `);
+        $$renderer2.push(`<!--]--> <span id="status-badge"${attr_class("status-indicator", void 0, { "success": bestScore !== null })}>${escape_html("Completed")}</span></div> `);
         {
           $$renderer2.push("<!--[!-->");
         }
-        $$renderer2.push(`<!--]--> <div class="progress-section"><div class="progress-label">Overall Progress</div> <div class="progress-bar-container"><div class="progress-bar"${attr_style(`width: ${stringify(Math.round(progress))}%`)}>${escape_html(Math.round(progress))}%</div></div></div> <div class="log-container" style="margin-top: 16px;"><!--[-->`);
+        $$renderer2.push(`<!--]--> <div id="progress-section" class="progress-section"><div class="progress-label">Overall Progress</div> <div class="progress-bar-container"><div class="progress-bar"${attr_style(`width: ${stringify(Math.round(progress))}%`)}>${escape_html(Math.round(progress))}%</div></div></div> <div id="log-output" class="log-container" style="margin-top: 16px;"><!--[-->`);
         const each_array_1 = ensure_array_like(log);
         for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
           let line = each_array_1[$$index_1];

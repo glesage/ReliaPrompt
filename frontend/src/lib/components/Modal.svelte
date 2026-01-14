@@ -5,13 +5,14 @@
         open: boolean;
         title: string;
         wide?: boolean;
+        id?: string;
         onclose: () => void;
         children: import("svelte").Snippet;
         footer?: import("svelte").Snippet;
         titleBadge?: import("svelte").Snippet;
     }
 
-    let { open, title, wide = false, onclose, children, footer, titleBadge }: Props = $props();
+    let { open, title, wide = false, id, onclose, children, footer, titleBadge }: Props = $props();
 
     function handleKeydown(e: KeyboardEvent) {
         if (e.key === "Escape" && open) {
@@ -33,7 +34,7 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="modal-overlay" class:active={open} onclick={handleOverlayClick}>
+<div {id} class="modal-overlay" class:active={open} onclick={handleOverlayClick}>
     <div class="modal" class:modal-wide={wide}>
         <div class="modal-header">
             <div class="modal-title-group">
@@ -42,7 +43,7 @@
                     {@render titleBadge()}
                 {/if}
             </div>
-            <button class="modal-close" onclick={onclose} aria-label="Close">
+            <button class="modal-close" onclick={onclose} aria-label="Close" data-testid="modal-close">
                 <svg
                     viewBox="0 0 24 24"
                     fill="none"

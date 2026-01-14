@@ -125,7 +125,7 @@
             <button class="btn btn-secondary btn-sm" onclick={handleImport} title="Import prompts">
                 Import
             </button>
-            <button class="btn btn-primary btn-sm" onclick={onNewPrompt}>New</button>
+            <button id="new-prompt-btn" class="btn btn-primary btn-sm" onclick={onNewPrompt}>New</button>
         </div>
     </div>
     <div class="pane-search">

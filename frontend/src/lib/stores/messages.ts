@@ -19,11 +19,10 @@ function createMessagesStore() {
             const id = ++messageId;
             update((messages) => [...messages, { id, text, type }]);
 
-            if (type !== "info") {
-                setTimeout(() => {
-                    update((messages) => messages.filter((m) => m.id !== id));
-                }, duration);
-            }
+            // Auto-dismiss all messages after duration
+            setTimeout(() => {
+                update((messages) => messages.filter((m) => m.id !== id));
+            }, duration);
 
             return id;
         },

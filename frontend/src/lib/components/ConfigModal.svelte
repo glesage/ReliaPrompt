@@ -74,7 +74,7 @@
     }
 </script>
 
-<Modal open={$configModalOpen} title="LLM Configuration" onclose={closeConfigModal}>
+<Modal id="config-modal" open={$configModalOpen} title="LLM Configuration" onclose={closeConfigModal}>
     <form id="config-form" onsubmit={handleSubmit}>
         <div class="provider-section">
             <h3>
@@ -154,12 +154,13 @@
         <div class="provider-section">
             <h3>
                 Deepseek
-                <span class="status-badge" class:configured={isConfigured("deepseek")} class:not-configured={!isConfigured("deepseek")}>
+                <span id="deepseek-status" class="status-badge" class:configured={isConfigured("deepseek")} class:not-configured={!isConfigured("deepseek")}>
                     {isConfigured("deepseek") ? "Configured" : "Not configured"}
                 </span>
             </h3>
             <div class="form-group">
                 <input
+                    id="deepseek_api_key"
                     type="text"
                     bind:value={formData.deepseek_api_key}
                     placeholder="API Key (sk-...)"
@@ -261,7 +262,7 @@
     </form>
 
     {#snippet footer()}
-        <button type="button" class="secondary" onclick={closeConfigModal}>Cancel</button>
+        <button id="config-close-btn" type="button" class="secondary" onclick={closeConfigModal}>Cancel</button>
         <button type="submit" form="config-form" disabled={$configLoading}>
             {$configLoading ? "Saving..." : "Save Configuration"}
         </button>

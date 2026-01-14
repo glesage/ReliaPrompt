@@ -7,11 +7,9 @@ function createMessagesStore() {
     show(text, type = "info", duration = 5e3) {
       const id = ++messageId;
       update((messages2) => [...messages2, { id, text, type }]);
-      if (type !== "info") {
-        setTimeout(() => {
-          update((messages2) => messages2.filter((m) => m.id !== id));
-        }, duration);
-      }
+      setTimeout(() => {
+        update((messages2) => messages2.filter((m) => m.id !== id));
+      }, duration);
       return id;
     },
     dismiss(id) {

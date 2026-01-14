@@ -203,7 +203,7 @@
             description="Pick a prompt on the left to run tests and compare LLM outputs."
         />
     {:else}
-        <div class="content-grid">
+        <div id="test-section" class="content-grid">
             <section class="content-col">
                 <div class="card">
                     <div class="card-header">
@@ -228,7 +228,7 @@
                         <small>More runs = more reliable results, but takes longer</small>
                     </div>
 
-                    <div class="model-selection-section mb-20">
+                    <div id="test-models-selection" class="model-selection-section mb-20">
                         <!-- svelte-ignore a11y_label_has_associated_control -->
                         <label>
                             Models to test
@@ -240,12 +240,12 @@
                         />
                     </div>
 
-                    <button onclick={runTests} disabled={!canRun}>
+                    <button id="run-btn" onclick={runTests} disabled={!canRun}>
                         {running ? "Running..." : "Run Tests"}
                     </button>
 
                     {#if running}
-                        <div class="progress-section">
+                        <div id="progress-section" class="progress-section">
                             <div class="progress-label">Overall Progress</div>
                             <div class="progress-bar-container">
                                 <div class="progress-bar" style="width: {progress}%">{progress}%</div>
@@ -258,15 +258,15 @@
 
             <section class="content-col">
                 {#if results}
-                    <div class="card">
+                    <div id="results-section" class="card">
                         <h2>
                             Results
-                            <ScoreBadge score={results.overallScore} tooltip="Overall" />
+                            <span id="overall-score-badge"><ScoreBadge score={results.overallScore} tooltip="Overall" /></span>
                             {#if getBestScore(results.llmResults) !== null}
                                 <ScoreBadge score={getBestScore(results.llmResults)! / 100} tooltip="Best LLM" variant="best" />
                             {/if}
                         </h2>
-                        <div class="llm-results">
+                        <div id="llm-results" class="llm-results">
                             {#each results.llmResults as llm}
                                 <div class="llm-result-row">
                                     <span class="llm-result-name">{llm.llmName}</span>
@@ -338,7 +338,7 @@
 </div>
 
 <!-- Test Details Modal -->
-<Modal open={detailsModalOpen} title={detailsLlm?.llmName || "Test Details"} wide onclose={closeTestDetailsModal}>
+<Modal id="test-details-modal" open={detailsModalOpen} title={detailsLlm?.llmName || "Test Details"} wide onclose={closeTestDetailsModal}>
     {#snippet titleBadge()}
         {#if detailsLlm}
             <ScoreBadge score={detailsLlm.score} />
@@ -346,6 +346,7 @@
     {/snippet}
 
     {#if detailsLlm}
+        <div id="test-details-content">
         {#if detailsLlm.durationStats}
             <div style="background: var(--color-bg-elevated); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
                 <strong style="display: block; margin-bottom: 8px;">⏱ Response Time Statistics</strong>
@@ -426,9 +427,10 @@
                 {/if}
             </div>
         {/each}
+        </div>
     {/if}
 
     {#snippet footer()}
-        <button type="button" class="secondary" onclick={closeTestDetailsModal}>Close</button>
+        <button id="test-details-close-btn" type="button" class="secondary" onclick={closeTestDetailsModal}>Close</button>
     {/snippet}
 </Modal>

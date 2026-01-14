@@ -49,17 +49,17 @@ function _page($$renderer, $$props) {
       });
     } else {
       $$renderer2.push("<!--[!-->");
-      $$renderer2.push(`<div class="content-grid"><section class="content-col"><div class="card"><div class="card-header"><h2>Run tests for "${escape_html(store_get($$store_subs ??= {}, "$selectedPrompt", selectedPrompt).name)}"</h2></div> <div class="muted mb-20">`);
+      $$renderer2.push(`<div id="test-section" class="content-grid"><section class="content-col"><div class="card"><div class="card-header"><h2>Run tests for "${escape_html(store_get($$store_subs ??= {}, "$selectedPrompt", selectedPrompt).name)}"</h2></div> <div class="muted mb-20">`);
       {
         $$renderer2.push("<!--[!-->");
         $$renderer2.push(`No test cases found. Add test cases first.`);
       }
-      $$renderer2.push(`<!--]--></div> <div class="helper-note mb-20">Test cases are shared across all versions of this prompt.</div> <div class="mb-20"><label for="runs-per-test">Runs per test case</label> <div class="range-row"><input type="range" id="runs-per-test" min="1" max="10"${attr("value", runsPerTest)}/> <span class="range-value">${escape_html(runsPerTest)}</span></div> <small>More runs = more reliable results, but takes longer</small></div> <div class="model-selection-section mb-20"><label>Models to test <span class="muted">(${escape_html(store_get($$store_subs ??= {}, "$selectedModels", selectedModels).length)} selected)</span></label> `);
+      $$renderer2.push(`<!--]--></div> <div class="helper-note mb-20">Test cases are shared across all versions of this prompt.</div> <div class="mb-20"><label for="runs-per-test">Runs per test case</label> <div class="range-row"><input type="range" id="runs-per-test" min="1" max="10"${attr("value", runsPerTest)}/> <span class="range-value">${escape_html(runsPerTest)}</span></div> <small>More runs = more reliable results, but takes longer</small></div> <div id="test-models-selection" class="model-selection-section mb-20"><label>Models to test <span class="muted">(${escape_html(store_get($$store_subs ??= {}, "$selectedModels", selectedModels).length)} selected)</span></label> `);
       ModelSelector($$renderer2, {
         selectedModels: store_get($$store_subs ??= {}, "$selectedModels", selectedModels),
         onchange: (models) => selectedModels.set(models)
       });
-      $$renderer2.push(`<!----></div> <button${attr("disabled", true, true)}>${escape_html("Run Tests")}</button> `);
+      $$renderer2.push(`<!----></div> <button id="run-btn"${attr("disabled", true, true)}>${escape_html("Run Tests")}</button> `);
       {
         $$renderer2.push("<!--[!-->");
       }
@@ -118,9 +118,10 @@ function _page($$renderer, $$props) {
         }
         $$renderer3.push(`<!--]-->`);
       }, footer = function($$renderer3) {
-        $$renderer3.push(`<button type="button" class="secondary">Close</button>`);
+        $$renderer3.push(`<button id="test-details-close-btn" type="button" class="secondary">Close</button>`);
       };
       Modal($$renderer2, {
+        id: "test-details-modal",
         open: detailsModalOpen,
         title: detailsLlm?.llmName || "Test Details",
         wide: true,
@@ -130,6 +131,7 @@ function _page($$renderer, $$props) {
         children: ($$renderer3) => {
           if (detailsLlm) {
             $$renderer3.push("<!--[-->");
+            $$renderer3.push(`<div id="test-details-content">`);
             if (detailsLlm.durationStats) {
               $$renderer3.push("<!--[-->");
               $$renderer3.push(`<div style="background: var(--color-bg-elevated); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;"><strong style="display: block; margin-bottom: 8px;">⏱ Response Time Statistics</strong> <div style="display: flex; gap: 24px; flex-wrap: wrap;"><div><span style="color: var(--color-text-muted);">Min:</span> <strong>${escape_html(formatDuration(detailsLlm.durationStats.minMs))}</strong></div> <div><span style="color: var(--color-text-muted);">Max:</span> <strong>${escape_html(formatDuration(detailsLlm.durationStats.maxMs))}</strong></div> <div><span style="color: var(--color-text-muted);">Average:</span> <strong>${escape_html(formatDuration(detailsLlm.durationStats.avgMs))}</strong></div></div></div>`);
@@ -165,7 +167,7 @@ function _page($$renderer, $$props) {
               }
               $$renderer3.push(`<!--]--></div>`);
             }
-            $$renderer3.push(`<!--]-->`);
+            $$renderer3.push(`<!--]--></div>`);
           } else {
             $$renderer3.push("<!--[!-->");
           }

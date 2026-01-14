@@ -10,3 +10,7 @@ export { default as ModelSelector } from "./ModelSelector.svelte";
 export { default as EmptyState } from "./EmptyState.svelte";
 export { default as ScoreBadge } from "./ScoreBadge.svelte";
 export { default as MessageToast } from "./MessageToast.svelte";
+export { default as ProgressSection } from "./ProgressSection.svelte";
+export { default as JobHistoryItem } from "./JobHistoryItem.svelte";
+export { default as LLMResultCard } from "./LLMResultCard.svelte";
+export { default as ScoreDisplay } from "./ScoreDisplay.svelte";

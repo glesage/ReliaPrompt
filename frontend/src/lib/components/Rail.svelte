@@ -42,6 +42,6 @@
         {/each}
     </nav>
     <div class="app-rail-footer">
-        <button class="rail-btn" onclick={openConfigModal} title="LLMs">LLMs</button>
+        <button id="setup-btn" class="rail-btn" onclick={openConfigModal} title="LLMs">LLMs</button>
     </div>
 </aside>

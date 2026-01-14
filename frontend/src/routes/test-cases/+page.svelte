@@ -242,7 +242,7 @@
         <button class="btn btn-secondary btn-sm" disabled={!$selectedPrompt} onclick={handleImport}>
             Import
         </button>
-        <button class="btn btn-sm" disabled={!$selectedPrompt} onclick={openNewTestCase}>
+        <button id="add-test-case-btn" class="btn btn-sm" disabled={!$selectedPrompt} onclick={openNewTestCase}>
             New test case
         </button>
     </div>
@@ -256,7 +256,7 @@
             description="Pick a prompt on the left to view and edit its test cases. Test cases are shared across all versions."
         />
     {:else}
-        <div class="split-view">
+        <div id="test-case-section" class="split-view">
             <section class="split-pane split-pane-list" aria-label="Test cases list">
                 <div class="split-pane-header">
                     <div class="split-pane-title">
@@ -270,7 +270,7 @@
                         bind:value={testCaseFilter}
                     />
                 </div>
-                <div class="tc-list">
+                <div id="test-cases-list" class="tc-list">
                     {#if loading}
                         <div class="muted">Loading…</div>
                     {:else if testCases.length === 0}
@@ -312,7 +312,7 @@
                         compact
                     />
                 {:else}
-                    <form class="editor-card" onsubmit={(e) => { e.preventDefault(); saveEditor(); }}>
+                    <form id="testcase-editor" class="editor-card" onsubmit={(e) => { e.preventDefault(); saveEditor(); }}>
                         <div class="editor-header">
                             <div>
                                 <div class="editor-title">
@@ -383,7 +383,7 @@
                                 >
                                     Cancel
                                 </button>
-                                <button type="submit" class="btn btn-sm" disabled={saving}>
+                                <button id="testcase-save-btn" type="submit" class="btn btn-sm" disabled={saving}>
                                     {saving ? "Saving..." : "Save"}
                                 </button>
                             </div>
