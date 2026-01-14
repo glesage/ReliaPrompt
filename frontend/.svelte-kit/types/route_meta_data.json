@@ -1,0 +1,15 @@
+{
+	"/": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/improve": [
+		"src/routes/+layout.ts"
+	],
+	"/test-cases": [
+		"src/routes/+layout.ts"
+	],
+	"/test-runs": [
+		"src/routes/+layout.ts"
+	]
+}

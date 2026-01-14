@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 
 import {
     initializeDatabase,
@@ -52,7 +53,13 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "..", "public")));
+
+// Determine static file directory: prefer Svelte build, fall back to legacy public
+const svelteBuildPath = path.join(__dirname, "..", "frontend", "dist");
+const legacyPublicPath = path.join(__dirname, "..", "public");
+const staticPath = fs.existsSync(svelteBuildPath) ? svelteBuildPath : legacyPublicPath;
+
+app.use(express.static(staticPath));
 
 let dbInitialized = false;
 
@@ -536,8 +543,9 @@ app.delete("/api/test/clear", (req, res) => {
     }
 });
 
+// SPA fallback: serve index.html for all non-API routes
 app.get("/{*path}", (req, res) => {
-    res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+    res.sendFile(path.join(staticPath, "index.html"));
 });
 
 export interface ServerOptions {
