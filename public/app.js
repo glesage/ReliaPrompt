@@ -259,13 +259,13 @@ function renderPromptSidebar(prompts, selectedId) {
         : prompts;
 
     if (prompts.length === 0) {
-            sidebarList.innerHTML = `
+        sidebarList.innerHTML = `
                 <div class="sidebar-empty">
                     No prompts yet.<br>Create your first one!
                 </div>
             `;
-            return;
-        }
+        return;
+    }
 
     if (filteredPrompts.length === 0) {
         sidebarList.innerHTML = `
@@ -320,14 +320,16 @@ function renderPromptSidebar(prompts, selectedId) {
         });
     });
 
-    sidebarList.querySelectorAll(".sidebar-group-actions .sidebar-action-btn.view").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const id = parseInt(btn.dataset.id, 10);
-            const name = btn.dataset.name;
-            openViewPromptModal(id, name);
+    sidebarList
+        .querySelectorAll(".sidebar-group-actions .sidebar-action-btn.view")
+        .forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const id = parseInt(btn.dataset.id, 10);
+                const name = btn.dataset.name;
+                openViewPromptModal(id, name);
+            });
         });
-    });
 
     sidebarList.querySelectorAll(".sidebar-action-btn.delete").forEach((btn) => {
         btn.addEventListener("click", (e) => {
@@ -978,6 +980,115 @@ function scoreToPercent(score) {
     return Math.round(score * 100);
 }
 
+async function exportAllPrompts() {
+    try {
+        const res = await fetch("/api/prompts/export");
+        if (!res.ok) {
+            const error = await res.json();
+            showAppMessage(error.error || "Failed to export prompts", "error");
+            return;
+        }
+
+        const data = await res.json();
+        const jsonStr = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `prompts-export-${new Date().toISOString().split("T")[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showAppMessage(`Exported ${data.length} prompt${data.length !== 1 ? "s" : ""}`, "success");
+    } catch (error) {
+        showAppMessage("Error exporting prompts", "error");
+    }
+}
+
+async function importPrompts() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+    input.onchange = async (e) => {
+        const fileInput = e.target;
+        const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            let promptsData;
+
+            try {
+                promptsData = JSON.parse(text);
+            } catch {
+                showAppMessage("Invalid JSON file", "error");
+                return;
+            }
+
+            if (!Array.isArray(promptsData)) {
+                showAppMessage("JSON must be an array of prompts", "error");
+                return;
+            }
+
+            // Validate structure
+            for (let i = 0; i < promptsData.length; i++) {
+                const p = promptsData[i];
+                if (!p.name || !p.content) {
+                    showAppMessage(
+                        `Prompt ${i + 1} is missing required fields (name, content)`,
+                        "error"
+                    );
+                    return;
+                }
+                if (p.expected_schema) {
+                    try {
+                        JSON.parse(p.expected_schema);
+                    } catch {
+                        showAppMessage(
+                            `Prompt "${p.name}" has invalid JSON in expected_schema`,
+                            "error"
+                        );
+                        return;
+                    }
+                }
+            }
+
+            const count = promptsData.length;
+            if (
+                !confirm(
+                    `Import ${count} prompt${count !== 1 ? "s" : ""}? Prompts with existing names will be skipped.`
+                )
+            ) {
+                return;
+            }
+
+            const res = await fetch("/api/prompts/import", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(promptsData),
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                let message = `Imported ${result.created} prompt${result.created !== 1 ? "s" : ""}`;
+                if (result.skipped > 0) {
+                    message += `, skipped ${result.skipped} (already exist)`;
+                }
+                showAppMessage(message, "success");
+                await loadPromptSidebar();
+            } else {
+                const error = await res.json();
+                showAppMessage(error.error || "Failed to import prompts", "error");
+            }
+        } catch (error) {
+            showAppMessage("Error reading file", "error");
+        }
+    };
+    input.click();
+}
+
 function initAppLayout() {
     // Prompt search in the prompts pane
     const promptFilter = document.getElementById("prompt-filter");
@@ -986,6 +1097,17 @@ function initAppLayout() {
             promptFilterQuery = promptFilter.value || "";
             renderPromptSidebar(lastLoadedPrompts, getSelectedPromptId());
         });
+    }
+
+    // Export/Import prompts buttons
+    const exportPromptsBtn = document.getElementById("export-prompts-btn");
+    if (exportPromptsBtn) {
+        exportPromptsBtn.addEventListener("click", exportAllPrompts);
+    }
+
+    const importPromptsBtn = document.getElementById("import-prompts-btn");
+    if (importPromptsBtn) {
+        importPromptsBtn.addEventListener("click", importPrompts);
     }
 
     const setupBtn = document.getElementById("setup-btn");
@@ -1369,4 +1491,7 @@ window.AppUtils = {
     getSelectedModelsCount,
     getSelectedModels: () => selectedModels,
     getAvailableModels: () => availableModels,
+    // Prompt export/import functions
+    exportAllPrompts,
+    importPrompts,
 };

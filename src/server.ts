@@ -37,6 +37,7 @@ import {
     createTestCaseSchema,
     updateTestCaseSchema,
     importTestCasesSchema,
+    importPromptsSchema,
     testRunSchema,
     improveStartSchema,
     jobIdParamSchema,
@@ -137,6 +138,65 @@ app.get("/api/prompts", (req, res) => {
     try {
         const prompts = getLatestPrompts();
         res.json(prompts);
+    } catch (error) {
+        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
+    }
+});
+
+app.get("/api/prompts/export", (req, res) => {
+    try {
+        const prompts = getLatestPrompts();
+
+        // Export format: only include name, content, and expected_schema
+        const exportData = prompts.map((p) => ({
+            name: p.name,
+            content: p.content,
+            expected_schema: p.expectedSchema || null,
+        }));
+
+        res.json(exportData);
+    } catch (error) {
+        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
+    }
+});
+
+app.post("/api/prompts/import", validate(importPromptsSchema), (req, res) => {
+    try {
+        const promptsData = req.body as Array<{
+            name: string;
+            content: string;
+            expected_schema?: string | null;
+        }>;
+
+        const existingPrompts = getLatestPrompts();
+        const existingNames = new Set(existingPrompts.map((p) => p.name.toLowerCase()));
+
+        const created: Array<{ name: string; id: number }> = [];
+        const skipped: string[] = [];
+
+        for (const promptData of promptsData) {
+            // Skip if a prompt with this name already exists
+            if (existingNames.has(promptData.name.toLowerCase())) {
+                skipped.push(promptData.name);
+                continue;
+            }
+
+            const prompt = createPrompt(
+                promptData.name,
+                promptData.content,
+                undefined,
+                promptData.expected_schema || undefined
+            );
+            created.push({ name: prompt.name, id: prompt.id });
+            existingNames.add(promptData.name.toLowerCase());
+        }
+
+        res.json({
+            success: true,
+            created: created.length,
+            skipped: skipped.length,
+            skippedNames: skipped,
+        });
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
     }

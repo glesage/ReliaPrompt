@@ -9,6 +9,7 @@ Always use `bun` to run commands or install dependencies.
 - KISS: Keep It Simple Stupid. Complexity is the enemy of maintainability.
 - Use explicit variable names (even if lengthy).
 - Use prettifer to auto-format code.
+- Avoid typecasting unless absolutely impossible to avoid.
 
 ## Development
 

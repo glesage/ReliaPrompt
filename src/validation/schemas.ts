@@ -136,6 +136,41 @@ export const importTestCasesSchema = Joi.array().items(createTestCaseSchema).min
     "array.base": "Test cases must be an array",
 });
 
+// Import prompts schema
+const importPromptItemSchema = Joi.object({
+    name: Joi.string().trim().min(1).required().messages({
+        "string.empty": "Name cannot be empty",
+        "any.required": "Name is required",
+    }),
+    content: Joi.string().trim().min(1).required().messages({
+        "string.empty": "Content cannot be empty",
+        "any.required": "Content is required",
+    }),
+    expected_schema: Joi.string()
+        .trim()
+        .allow("", null)
+        .optional()
+        .custom((value, helpers) => {
+            if (!value || value.trim() === "") {
+                return undefined;
+            }
+            try {
+                JSON.parse(value);
+                return value;
+            } catch {
+                return helpers.error("any.invalid");
+            }
+        })
+        .messages({
+            "any.invalid": "expected_schema must be valid JSON",
+        }),
+}).unknown(false);
+
+export const importPromptsSchema = Joi.array().items(importPromptItemSchema).min(1).messages({
+    "array.base": "Prompts must be an array",
+    "array.min": "At least one prompt is required",
+});
+
 // Test run schema
 export const testRunSchema = Joi.object({
     promptId: Joi.number().integer().positive().required().messages({
