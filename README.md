@@ -1,6 +1,6 @@
 # Relia Prompt
 
-Test, benchmark and improve LLM prompts across multiple providers and models.  
+Test and benchmark LLM prompts across multiple providers and models.  
 This tool is aimed at agentic use-cases for large production applications that require fast and reliable llm calls. For example, extracting sentiment from social media posts, converting a sentence into structured JSON, etc.
 
 <img width="1612" height="931" alt="Screenshot" src="https://github.com/user-attachments/assets/acf9619a-1ebf-4c66-a597-10864a1c472f" />
@@ -10,7 +10,6 @@ This tool is aimed at agentic use-cases for large production applications that r
 - **Multi-Provider Testing** – OpenAI, Bedrock, DeepSeek, Gemini, Groq, OpenRouter
 - **Parallel Execution** – Run tests concurrently across all configured LLMs
 - **Repeatability** – Each test runs N times per model to measure consistency
-- **Auto-Improvement** – LLMs analyze failures and suggest prompt improvements
 - **Version Control** – Full prompt history with easy rollback
 
 ## Quick Start
@@ -32,7 +31,6 @@ Configure API keys in the app's Configuration page. At least one provider is req
 1. **Prompts** – Create and version your system prompts
 2. **Test Cases** – Add input/expected output pairs (JSON) for each prompt
 3. **Test Runs** – Execute tests and view per-model scores
-4. **Auto-Improve** – Let LLMs iteratively refine prompts based on failures
 
 ## Development
 
@@ -54,7 +52,7 @@ bun run db:studio    # Drizzle Studio
 │   ├── server.ts           # API routes
 │   ├── db/                  # Drizzle schema & init
 │   ├── llm-clients/        # Provider clients
-│   └── services/           # Test runner & improvement
+│   └── services/           # Test runner
 ├── frontend/               # SvelteKit app
 │   └── src/
 │       ├── lib/            # Components & stores
