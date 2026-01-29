@@ -5,7 +5,6 @@
     const navItems = [
         { href: "/test-cases", label: "Test Cases" },
         { href: "/test-runs", label: "Test Runs" },
-        { href: "/improve", label: "Auto-Improve" },
     ];
 
     function isActive(href: string): boolean {

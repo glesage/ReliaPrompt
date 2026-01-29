@@ -6,19 +6,15 @@ import {
     testCases,
     testJobs,
     testResults,
-    improvementJobs,
-    suggestions,
     type Prompt,
     type TestCase,
     type TestJob,
     type TestResult,
-    type ImprovementJob,
-    type Suggestion,
 } from "./db/schema";
 import { NotFoundError, ensureExists } from "./errors";
 
 export { initializeDatabase } from "./db";
-export type { Prompt, TestCase, TestJob, TestResult, ImprovementJob, Suggestion };
+export type { Prompt, TestCase, TestJob, TestResult };
 
 export function getConfig(key: string): string | null {
     const result = getDb().select().from(config).where(eq(config.key, key)).get();
@@ -364,15 +360,6 @@ export function getTestJobsForPrompt(promptId: number): TestJob[] {
         .all();
 }
 
-export function getImprovementJobsForPrompt(promptId: number): ImprovementJob[] {
-    return getDb()
-        .select()
-        .from(improvementJobs)
-        .where(eq(improvementJobs.promptId, promptId))
-        .orderBy(desc(improvementJobs.createdAt))
-        .all();
-}
-
 export function updateTestJob(id: string, updates: Partial<typeof testJobs.$inferSelect>): void {
     withSave(() => {
         getDb()
@@ -419,184 +406,6 @@ export function createTestResult(
     });
 }
 
-export function createImprovementJob(id: string, promptId: number, maxIterations: number) {
-    return withSave(() => {
-        const now = new Date().toISOString();
-        return getDb()
-            .insert(improvementJobs)
-            .values({
-                id,
-                promptId,
-                status: "pending",
-                currentIteration: 0,
-                maxIterations,
-                createdAt: now,
-                updatedAt: now,
-            })
-            .returning()
-            .get();
-    });
-}
-
-export function getImprovementJobById(id: string): ImprovementJob | null {
-    return getDb().select().from(improvementJobs).where(eq(improvementJobs.id, id)).get() ?? null;
-}
-
-/**
- * Gets an improvement job by ID or throws NotFoundError if not found.
- * Use this when you expect the improvement job to exist.
- */
-export function getImprovementJobByIdOrFail(id: string): ImprovementJob {
-    return ensureExists(getImprovementJobById(id), "Improvement job", id);
-}
-
-export function updateImprovementJob(
-    id: string,
-    updates: Partial<typeof improvementJobs.$inferSelect>
-): void {
-    withSave(() => {
-        getDb()
-            .update(improvementJobs)
-            .set({ ...updates, updatedAt: new Date().toISOString() })
-            .where(eq(improvementJobs.id, id))
-            .run();
-    });
-}
-
-export function appendImprovementLog(id: string, message: string): void {
-    const job = getImprovementJobById(id);
-    const currentLog = job?.log ?? "";
-    const timestamp = new Date().toISOString();
-    const newLog = currentLog + `[${timestamp}] ${message}\n`;
-    updateImprovementJob(id, { log: newLog });
-}
-
-// ============================================================================
-// Suggestions CRUD
-// ============================================================================
-
-export function createSuggestion(
-    improvementJobId: string,
-    iteration: number,
-    content: string,
-    rationale?: string
-): Suggestion {
-    return withSave(() => {
-        const createdAt = new Date().toISOString();
-        return getDb()
-            .insert(suggestions)
-            .values({
-                improvementJobId,
-                iteration,
-                content,
-                rationale: rationale ?? null,
-                status: "pending",
-                createdAt,
-            })
-            .returning()
-            .get();
-    });
-}
-
-export function createSuggestions(
-    improvementJobId: string,
-    iteration: number,
-    suggestionData: Array<{ content: string; rationale?: string }>
-): Suggestion[] {
-    return withSave(() => {
-        const db = getDb();
-        const createdAt = new Date().toISOString();
-        const created: Suggestion[] = [];
-
-        for (const s of suggestionData) {
-            const result = db
-                .insert(suggestions)
-                .values({
-                    improvementJobId,
-                    iteration,
-                    content: s.content,
-                    rationale: s.rationale ?? null,
-                    status: "pending",
-                    createdAt,
-                })
-                .returning()
-                .get();
-            created.push(result);
-        }
-
-        return created;
-    });
-}
-
-export function getSuggestionById(id: number): Suggestion | null {
-    return getDb().select().from(suggestions).where(eq(suggestions.id, id)).get() ?? null;
-}
-
-export function getSuggestionsForJob(improvementJobId: string): Suggestion[] {
-    return getDb()
-        .select()
-        .from(suggestions)
-        .where(eq(suggestions.improvementJobId, improvementJobId))
-        .orderBy(suggestions.iteration, suggestions.id)
-        .all();
-}
-
-export function getSuggestionsForJobByStatus(
-    improvementJobId: string,
-    status: "pending" | "applied" | "undone" | "rejected"
-): Suggestion[] {
-    return getDb()
-        .select()
-        .from(suggestions)
-        .where(
-            and(eq(suggestions.improvementJobId, improvementJobId), eq(suggestions.status, status))
-        )
-        .orderBy(suggestions.iteration, suggestions.id)
-        .all();
-}
-
-export function updateSuggestionStatus(
-    id: number,
-    status: "pending" | "applied" | "undone" | "rejected"
-): void {
-    withSave(() => {
-        const now = new Date().toISOString();
-        const updates: Partial<Suggestion> = { status };
-
-        if (status === "applied") {
-            updates.appliedAt = now;
-        } else if (status === "undone") {
-            updates.undoneAt = now;
-        }
-
-        getDb().update(suggestions).set(updates).where(eq(suggestions.id, id)).run();
-    });
-}
-
-export function markSuggestionsAsApplied(suggestionIds: number[]): void {
-    if (suggestionIds.length === 0) return;
-    withSave(() => {
-        const now = new Date().toISOString();
-        getDb()
-            .update(suggestions)
-            .set({ status: "applied", appliedAt: now })
-            .where(inArray(suggestions.id, suggestionIds))
-            .run();
-    });
-}
-
-export function markSuggestionsAsUndone(suggestionIds: number[]): void {
-    if (suggestionIds.length === 0) return;
-    withSave(() => {
-        const now = new Date().toISOString();
-        getDb()
-            .update(suggestions)
-            .set({ status: "undone", undoneAt: now })
-            .where(inArray(suggestions.id, suggestionIds))
-            .run();
-    });
-}
-
 /**
  * Clear all data from the database (useful for testing)
  * Deletes all rows from all tables in the correct order to respect foreign key constraints
@@ -607,8 +416,6 @@ export function clearAllData(): void {
         // Delete in order to respect foreign key constraints
         db.delete(testResults).run();
         db.delete(testJobs).run();
-        db.delete(suggestions).run();
-        db.delete(improvementJobs).run();
         db.delete(testCases).run();
         db.delete(prompts).run();
         db.delete(config).run();

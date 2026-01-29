@@ -13,4 +13,3 @@ export { default as MessageToast } from "./MessageToast.svelte";
 export { default as ProgressSection } from "./ProgressSection.svelte";
 export { default as JobHistoryItem } from "./JobHistoryItem.svelte";
 export { default as LLMResultCard } from "./LLMResultCard.svelte";
-export { default as ScoreDisplay } from "./ScoreDisplay.svelte";

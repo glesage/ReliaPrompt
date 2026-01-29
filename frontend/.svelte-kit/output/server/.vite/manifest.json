@@ -27,14 +27,6 @@
       "_prompts.js"
     ]
   },
-  "_ScoreBadge.js": {
-    "file": "chunks/ScoreBadge.js",
-    "name": "ScoreBadge",
-    "imports": [
-      "_index2.js",
-      "_context.js"
-    ]
-  },
   "_context.js": {
     "file": "chunks/context.js",
     "name": "context",
@@ -164,7 +156,7 @@
       "_index.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.BwnGmsWE.css"
+      "_app/immutable/assets/_layout.DSEdq6Xw.css"
     ]
   },
   "src/routes/+layout.ts": {
@@ -182,20 +174,6 @@
       "_exports.js",
       "_utils.js",
       "_state.svelte.js"
-    ]
-  },
-  "src/routes/improve/+page.svelte": {
-    "file": "entries/pages/improve/_page.svelte.js",
-    "name": "entries/pages/improve/_page.svelte",
-    "src": "src/routes/improve/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_prompts.js",
-      "_ModelSelector.js",
-      "_EmptyState.js",
-      "_ScoreBadge.js",
-      "_context.js"
     ]
   },
   "src/routes/test-cases/+page.svelte": {
@@ -220,7 +198,6 @@
       "_prompts.js",
       "_ModelSelector.js",
       "_EmptyState.js",
-      "_ScoreBadge.js",
       "_context.js"
     ]
   }

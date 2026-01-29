@@ -42,7 +42,7 @@ Example: [{"type": "company", "name": "Apple"}]`;
         }
     });
 
-    test("complete user journey: configure LLMs, create prompt, test case, run tests, and auto-improve", async ({
+    test("complete user journey: configure LLMs, create prompt, test case, and run tests", async ({
         page,
     }) => {
         if (!server) throw new Error("Server not started");
@@ -211,93 +211,6 @@ Example: [{"type": "company", "name": "Apple"}]`;
         // Close the modal
         await page.click("#test-details-close-btn");
         await page.waitForSelector("#test-details-modal.active", { state: "hidden" });
-
-        // ============================================
-        // Step 6: Navigate to Auto-Improve and Execute
-        // ============================================
-        await page.goto(`${server.baseUrl}/improve`);
-
-        // Wait for sidebar to load
-        await page.waitForSelector("#sidebar-prompts", { state: "visible" });
-        await page.waitForFunction(() => {
-            const sidebar = document.querySelector("#sidebar-prompts");
-            return sidebar && !sidebar.textContent?.includes("Loading");
-        });
-
-        // Select the prompt from sidebar
-        const promptSelectorImprove = page
-            .locator("#sidebar-prompts .sidebar-group-header")
-            .filter({ hasText: PROMPT_NAME })
-            .first();
-        await promptSelectorImprove.waitFor({ state: "visible" });
-        await promptSelectorImprove.click();
-
-        // Wait for improve section to be visible
-        await page.waitForSelector("#improve-section", { state: "visible" });
-
-        // Wait for model selections to load
-        await page.waitForSelector("#improvement-model-selection", { state: "visible" });
-        await page.waitForFunction(
-            () => {
-                const container = document.querySelector("#improvement-model-selection");
-                return container && !container.textContent?.includes("Loading");
-            },
-            { timeout: 10000 }
-        );
-
-        // Select Deepseek as improvement model (radio button)
-        const improvementRadio = page
-            .locator('#improvement-model-selection input[type="radio"][data-provider="Deepseek"]')
-            .first();
-        await improvementRadio.waitFor({ state: "visible" });
-        await improvementRadio.check();
-
-        // Wait for benchmark models section
-        await page.waitForSelector("#benchmark-models-selection", { state: "visible" });
-
-        // Select Deepseek as benchmark model (checkbox)
-        const benchmarkCheckbox = page
-            .locator('#benchmark-models-selection input[type="checkbox"][data-provider="Deepseek"]')
-            .first();
-        await benchmarkCheckbox.waitFor({ state: "visible" });
-        await benchmarkCheckbox.check();
-
-        // Set max iterations to 1
-        const maxIterationsInput = page.locator("#max-iterations");
-        await maxIterationsInput.fill("1");
-
-        // Verify start button is enabled and click it
-        const startBtn = page.locator("#start-btn");
-        await expect(startBtn).toBeEnabled();
-        await startBtn.click();
-
-        // Wait for progress section
-        await page.waitForSelector("#progress-section", { state: "visible" });
-
-        // Wait for completion (with extended timeout for LLM API calls)
-        await page.waitForSelector('#status-badge:has-text("Completed")', {
-            state: "visible",
-            timeout: 180000,
-        });
-
-        // Verify log output is visible and has content
-        const logOutput = page.locator("#log-output");
-        await expect(logOutput).toBeVisible();
-        const logText = await logOutput.textContent();
-        expect(logText).toBeTruthy();
-        expect(logText!.length).toBeGreaterThan(0);
-
-        // Verify score displays are visible
-        const originalScore = page.locator("#original-score");
-        const bestScore = page.locator("#best-score");
-        await expect(originalScore).toBeVisible();
-        await expect(bestScore).toBeVisible();
-
-        // Verify scores have valid content
-        const originalScoreText = await originalScore.textContent();
-        const bestScoreText = await bestScore.textContent();
-        expect(originalScoreText).toMatch(/\d+%|--/);
-        expect(bestScoreText).toMatch(/\d+%|--/);
 
         // Verify all major buttons are still visible and actionable
         await expect(page.locator("#setup-btn")).toBeVisible();

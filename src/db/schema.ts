@@ -81,54 +81,8 @@ export const testResults = sqliteTable(
     ]
 );
 
-export const improvementJobs = sqliteTable(
-    "improvement_jobs",
-    {
-        id: text("id").primaryKey(),
-        promptId: integer("prompt_id")
-            .notNull()
-            .references(() => prompts.id),
-        status: text("status").notNull().default("pending"),
-        currentIteration: integer("current_iteration").notNull().default(0),
-        maxIterations: integer("max_iterations").notNull(),
-        bestScore: real("best_score"),
-        bestPromptContent: text("best_prompt_content"),
-        bestPromptVersionId: integer("best_prompt_version_id").references(() => prompts.id),
-        log: text("log"),
-        createdAt: text("created_at").notNull(),
-        updatedAt: text("updated_at").notNull(),
-    },
-    (table) => [
-        index("improvement_jobs_prompt_id_idx").on(table.promptId),
-        index("improvement_jobs_status_idx").on(table.status),
-    ]
-);
-
-export const suggestions = sqliteTable(
-    "suggestions",
-    {
-        id: integer("id").primaryKey({ autoIncrement: true }),
-        improvementJobId: text("improvement_job_id")
-            .notNull()
-            .references(() => improvementJobs.id),
-        iteration: integer("iteration").notNull(),
-        content: text("content").notNull(),
-        rationale: text("rationale"),
-        status: text("status").notNull().default("pending"), // pending, applied, undone, rejected
-        appliedAt: text("applied_at"),
-        undoneAt: text("undone_at"),
-        createdAt: text("created_at").notNull(),
-    },
-    (table) => [
-        index("suggestions_improvement_job_id_idx").on(table.improvementJobId),
-        index("suggestions_status_idx").on(table.status),
-    ]
-);
-
 export type Config = typeof config.$inferSelect;
 export type Prompt = typeof prompts.$inferSelect;
 export type TestCase = typeof testCases.$inferSelect;
 export type TestJob = typeof testJobs.$inferSelect;
 export type TestResult = typeof testResults.$inferSelect;
-export type ImprovementJob = typeof improvementJobs.$inferSelect;
-export type Suggestion = typeof suggestions.$inferSelect;

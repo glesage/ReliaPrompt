@@ -20,15 +20,12 @@ import {
     updateTestCase,
     getTestJobByIdOrFail,
     getTestJobsForPrompt,
-    getImprovementJobByIdOrFail,
-    getImprovementJobsForPrompt,
     deleteAllTestCasesForPromptGroup,
     bulkCreateTestCases,
     clearAllData,
 } from "./database";
-import { refreshClients, getAllAvailableModels, ModelSelection } from "./llm-clients";
+import { refreshClients, getAllAvailableModels } from "./llm-clients";
 import { startTestRun, getTestProgress, TestResults } from "./services/test-runner";
-import { startImprovement, getImprovementProgress } from "./services/improvement-service";
 import { getErrorMessage, getErrorStatusCode, NotFoundError } from "./errors";
 import { parse, ParseType } from "./utils/parse";
 import { validate, validateIdParam } from "./middleware/validation";
@@ -40,7 +37,6 @@ import {
     importTestCasesSchema,
     importPromptsSchema,
     testRunSchema,
-    improveStartSchema,
     jobIdParamSchema,
 } from "./validation/schemas";
 import { validateEnv } from "./config/env";
@@ -138,8 +134,6 @@ app.get("/api/models", async (req, res) => {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
     }
 });
-
-// Legacy improvement-prompt endpoints removed - multi-agent system uses its own prompts
 
 app.get("/api/prompts", (req, res) => {
     try {
@@ -450,84 +444,6 @@ app.get("/api/prompts/:id/test-jobs", validateIdParam, (req, res) => {
         const promptId = parseInt(req.params.id, 10);
         const jobs = getTestJobsForPrompt(promptId);
         res.json(jobs);
-    } catch (error) {
-        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
-    }
-});
-
-app.get("/api/prompts/:id/improvement-jobs", validateIdParam, (req, res) => {
-    try {
-        const promptId = parseInt(req.params.id, 10);
-        const jobs = getImprovementJobsForPrompt(promptId);
-        res.json(jobs);
-    } catch (error) {
-        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
-    }
-});
-
-app.post("/api/improve/start", validate(improveStartSchema), async (req, res) => {
-    try {
-        const {
-            promptId,
-            maxIterations,
-            runsPerLlm,
-            improvementModel,
-            benchmarkModels,
-            selectedModels,
-        } = req.body;
-
-        const iterations = maxIterations || 5;
-        const runs = runsPerLlm || 1;
-
-        // Support new API with separate improvement and benchmark models
-        let improvement: ModelSelection | undefined;
-        let benchmarks: ModelSelection[] | undefined;
-
-        if (improvementModel && benchmarkModels) {
-            // New API: separate improvement and benchmark models
-            improvement = improvementModel as ModelSelection;
-            benchmarks = benchmarkModels as ModelSelection[];
-        } else if (selectedModels && Array.isArray(selectedModels) && selectedModels.length > 0) {
-            // Backward compatibility: use first model as improvement, all as benchmarks
-            const models = selectedModels as ModelSelection[];
-            improvement = models[0];
-            benchmarks = models;
-        }
-
-        // This should not happen due to validation, but TypeScript needs this check
-        if (!improvement || !benchmarks || benchmarks.length === 0) {
-            return res.status(400).json({
-                error: "Either (improvementModel and benchmarkModels) or selectedModels must be provided",
-            });
-        }
-
-        const jobId = await startImprovement(promptId, iterations, runs, improvement, benchmarks);
-        res.json({ jobId });
-    } catch (error) {
-        res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
-    }
-});
-
-app.get("/api/improve/status/:jobId", validate(jobIdParamSchema, "params"), (req, res) => {
-    try {
-        const { jobId } = req.params;
-
-        const progress = getImprovementProgress(jobId);
-        if (progress) {
-            return res.json(progress);
-        }
-
-        const job = getImprovementJobByIdOrFail(jobId);
-        res.json({
-            jobId: job.id,
-            status: job.status,
-            currentIteration: job.currentIteration,
-            maxIterations: job.maxIterations,
-            bestScore: job.bestScore,
-            bestPromptContent: job.bestPromptContent,
-            originalScore: null,
-            log: job.log ? job.log.split("\n").filter((l) => l) : [],
-        });
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
     }

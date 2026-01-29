@@ -174,7 +174,7 @@ export class BedrockClient implements LLMClient {
                 if (stopReason && stopReason !== "end_turn") {
                     throw new Error(`Model stopped unexpectedly: ${stopReason}`);
                 }
-                // Return defaultValue for improvement prompts, throw for completions
+                // Return defaultValue if provided, otherwise throw
                 if (defaultValue) {
                     return defaultValue;
                 }

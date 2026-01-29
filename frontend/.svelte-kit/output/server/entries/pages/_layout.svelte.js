@@ -41,8 +41,7 @@ function Rail($$renderer, $$props) {
     var $$store_subs;
     const navItems = [
       { href: "/test-cases", label: "Test Cases" },
-      { href: "/test-runs", label: "Test Runs" },
-      { href: "/improve", label: "Auto-Improve" }
+      { href: "/test-runs", label: "Test Runs" }
     ];
     function isActive(href) {
       return store_get($$store_subs ??= {}, "$page", page).url.pathname === href || store_get($$store_subs ??= {}, "$page", page).url.pathname.startsWith(href + "/");

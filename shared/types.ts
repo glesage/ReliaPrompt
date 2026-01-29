@@ -66,7 +66,6 @@ export interface LLMConfig {
     groq_api_key?: string;
     openrouter_api_key?: string;
     selected_models?: string;
-    improvement_prompt?: string;
 }
 
 // ============================================
@@ -158,41 +157,6 @@ export interface StartTestRunRequest {
 
 export interface StartTestRunResponse {
     jobId: string;
-}
-
-// ============================================
-// Improvement Types
-// ============================================
-
-export interface ImprovementJob {
-    id: string;
-    promptId: number;
-    status: JobStatus;
-    currentIteration: number;
-    maxIterations: number;
-    originalScore?: number;
-    bestScore?: number;
-    bestPromptContent?: string;
-    log: string[];
-    error?: string;
-    createdAt: string;
-}
-
-export interface StartImprovementRequest {
-    promptId: number;
-    maxIterations: number;
-    runsPerLlm: number;
-    improvementModel: SelectedModel;
-    benchmarkModels: SelectedModel[];
-}
-
-export interface StartImprovementResponse {
-    jobId: string;
-}
-
-export interface ImprovementTemplate {
-    template: string;
-    defaultTemplate: string;
 }
 
 // ============================================

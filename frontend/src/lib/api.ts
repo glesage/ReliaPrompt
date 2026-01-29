@@ -7,8 +7,6 @@ import type {
     TestCase,
     TestJob,
     TestResults,
-    ImprovementJob,
-    ImprovementTemplate,
 } from "./types";
 
 const BASE_URL = "";
@@ -97,17 +95,6 @@ export async function saveSelectedModels(models: SelectedModel[]): Promise<void>
     await saveConfig({ selected_models: JSON.stringify(models) });
 }
 
-export async function getImprovementTemplate(): Promise<ImprovementTemplate> {
-    return fetchJSON<ImprovementTemplate>("/api/config/improvement-prompt");
-}
-
-export async function saveImprovementTemplate(template: string): Promise<void> {
-    await fetchJSON<void>("/api/config/improvement-prompt", {
-        method: "PUT",
-        body: JSON.stringify({ template }),
-    });
-}
-
 // Test Cases API
 export async function getTestCases(promptId: number): Promise<TestCase[]> {
     return fetchJSON<TestCase[]>(`/api/prompts/${promptId}/test-cases`);
@@ -183,24 +170,3 @@ export async function getTestStatus(jobId: string): Promise<TestJob & { results?
     return fetchJSON<TestJob & { results?: TestResults }>(`/api/test/status/${jobId}`);
 }
 
-// Improvement API
-export async function getImprovementJobs(promptId: number): Promise<ImprovementJob[]> {
-    return fetchJSON<ImprovementJob[]>(`/api/prompts/${promptId}/improvement-jobs`);
-}
-
-export async function startImprovement(data: {
-    promptId: number;
-    maxIterations: number;
-    runsPerLlm: number;
-    improvementModel: SelectedModel;
-    benchmarkModels: SelectedModel[];
-}): Promise<{ jobId: string }> {
-    return fetchJSON<{ jobId: string }>("/api/improve/start", {
-        method: "POST",
-        body: JSON.stringify(data),
-    });
-}
-
-export async function getImprovementStatus(jobId: string): Promise<ImprovementJob> {
-    return fetchJSON<ImprovementJob>(`/api/improve/status/${jobId}`);
-}

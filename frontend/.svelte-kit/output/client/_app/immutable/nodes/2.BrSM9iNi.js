@@ -1,1 +1,0 @@
-import{f as p,a as r}from"../chunks/DpXxpRXC.js";import{i as s}from"../chunks/Db5RXSDK.js";import{o as m}from"../chunks/brwGxWwK.js";import{p as e,a as i}from"../chunks/OLrnjfeW.js";import{g as f}from"../chunks/B84XH8ny.js";var n=p("<p>Redirecting to Test Cases...</p>");function l(o,t){e(t,!1),m(()=>{f("/test-cases")}),s();var a=n();r(o,a),i()}export{l as component};

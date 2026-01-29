@@ -1422,66 +1422,6 @@ button.small,
     min-height: 80px;
 }
 
-.improved-prompt-section {
-    margin-top: 24px;
-    padding: 20px;
-    background: #d1fae5;
-    border-radius: var(--radius-md);
-    border: 1px solid #a7f3d0;
-}
-
-.improved-prompt-section h3 {
-    color: #065f46;
-    margin-bottom: 16px;
-}
-
-.improved-prompt-section pre {
-    background: #fff;
-    padding: 16px;
-    border-radius: var(--radius-sm);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    white-space: pre-wrap;
-    max-height: 300px;
-    overflow-y: auto;
-    border: 1px solid #a7f3d0;
-}
-
-.score-display {
-    display: flex;
-    gap: 40px;
-    margin-bottom: 24px;
-}
-
-.score-item {
-    text-align: center;
-}
-
-.score-item .label {
-    font-size: 12px;
-    color: var(--color-text-muted);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 500;
-}
-
-.score-item .value {
-    font-size: 36px;
-    font-weight: 700;
-    color: var(--color-text);
-}
-
-.score-item .value.improved {
-    color: var(--color-accent);
-}
-
-.iteration-display {
-    font-size: 14px;
-    color: var(--color-text-muted);
-    margin-bottom: 16px;
-}
-
 .progress-header {
     display: flex;
     justify-content: space-between;

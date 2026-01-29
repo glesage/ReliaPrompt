@@ -1,9 +1,18 @@
-import { s as store_get, b as attr, e as ensure_array_like, a as attr_class, u as unsubscribe_stores, d as attr_style, c as stringify } from "../../../chunks/index2.js";
+import { a as attr_class, b as attr, c as stringify, s as store_get, e as ensure_array_like, u as unsubscribe_stores, d as attr_style } from "../../../chunks/index2.js";
 import { s as selectedPrompt } from "../../../chunks/prompts.js";
 import { a as ModelSelector, M as Modal, s as selectedModels } from "../../../chunks/ModelSelector.js";
 import { E as EmptyState } from "../../../chunks/EmptyState.js";
-import { S as ScoreBadge } from "../../../chunks/ScoreBadge.js";
 import { Z as escape_html } from "../../../chunks/context.js";
+function ScoreBadge($$renderer, $$props) {
+  let { score, tooltip, variant = "default" } = $$props;
+  function scoreToPercent(score2) {
+    if (score2 > 1) return score2;
+    return Math.round(score2 * 100);
+  }
+  const percent = scoreToPercent(score);
+  const badgeClass = percent >= 90 ? "" : percent >= 80 ? "medium" : "low";
+  $$renderer.push(`<span${attr_class(`score-badge ${stringify(badgeClass)}`, void 0, { "best": variant === "best" })}${attr("data-tooltip", tooltip)}>${escape_html(percent)}%</span>`);
+}
 function _page($$renderer, $$props) {
   $$renderer.component(($$renderer2) => {
     var $$store_subs;
