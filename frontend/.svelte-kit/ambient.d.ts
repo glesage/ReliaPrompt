@@ -62,6 +62,7 @@ declare module '$env/static/private' {
 	export const NVM_BIN: string;
 	export const npm_node_execpath: string;
 	export const OLDPWD: string;
+	export const NODE_ENV: string;
 }
 
 /**
@@ -127,6 +128,7 @@ declare module '$env/dynamic/private' {
 		NVM_BIN: string;
 		npm_node_execpath: string;
 		OLDPWD: string;
+		NODE_ENV: string;
 		[key: `PUBLIC_${string}`]: undefined;
 		[key: `${string}`]: string | undefined;
 	}
