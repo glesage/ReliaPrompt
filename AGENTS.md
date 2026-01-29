@@ -14,3 +14,7 @@ Always use `bun` to run commands or install dependencies.
 ## Development
 
 Make sure you run `bun run build`, `bun run lint` and `bun run test` anytime you make major changes and fix issues that arise.
+
+## Creating PRs
+
+Always test the feature with browser or playwright and post screenshots of the results in the PR description.
