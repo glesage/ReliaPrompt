@@ -13,7 +13,8 @@ Always use `bun` to run commands or install dependencies.
 
 ## Development
 
-Make sure you run `bun run build`, `bun run lint` and `bun run test` anytime you make major changes and fix issues that arise.
+Run `rm -rf dist` before building big changes or before testing and committing the final changes.
+Run `bun run build`, `bun run lint` and `bun run test` anytime you make major changes and fix issues that arise.
 
 ## Creating PRs
 
