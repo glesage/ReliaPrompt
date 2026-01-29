@@ -87,6 +87,7 @@ app.post("/api/config", validate(configBodySchema), (req, res) => {
             bedrock_secret_access_key,
             bedrock_session_token,
             bedrock_region,
+            cerebras_api_key,
             deepseek_api_key,
             gemini_api_key,
             groq_api_key,
@@ -107,6 +108,7 @@ app.post("/api/config", validate(configBodySchema), (req, res) => {
         if (bedrock_region !== undefined) {
             setConfig("bedrock_region", bedrock_region || "ap-southeast-2");
         }
+        if (cerebras_api_key !== undefined) setConfig("cerebras_api_key", cerebras_api_key);
         if (deepseek_api_key !== undefined) setConfig("deepseek_api_key", deepseek_api_key);
         if (gemini_api_key !== undefined) setConfig("gemini_api_key", gemini_api_key);
         if (groq_api_key !== undefined) setConfig("groq_api_key", groq_api_key);

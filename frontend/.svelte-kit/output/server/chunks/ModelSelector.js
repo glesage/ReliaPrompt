@@ -1,7 +1,31 @@
 import { b as attr, a as attr_class, s as store_get, e as ensure_array_like, u as unsubscribe_stores } from "./index2.js";
 import { Z as escape_html } from "./context.js";
-import { d as derived, w as writable } from "./index.js";
-import "./prompts.js";
+import { d as derived, w as writable, g as get } from "./index.js";
+import { c as showError } from "./prompts.js";
+const BASE_URL = "";
+async function fetchJSON(url, options) {
+  const response = await fetch(`${BASE_URL}${url}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers
+    }
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || `Request failed: ${response.status}`);
+  }
+  return response.json();
+}
+async function saveConfig(config) {
+  await fetchJSON("/api/config", {
+    method: "POST",
+    body: JSON.stringify(config)
+  });
+}
+async function saveSelectedModels$1(models) {
+  await saveConfig({ selected_models: JSON.stringify(models) });
+}
 const availableModels = writable([]);
 const selectedModels = writable([]);
 derived(availableModels, ($models) => {
@@ -14,6 +38,14 @@ derived(availableModels, ($models) => {
   }
   return grouped;
 });
+async function saveSelectedModels() {
+  try {
+    const models = get(selectedModels);
+    await saveSelectedModels$1(models);
+  } catch (error) {
+    showError("Error saving model selection");
+  }
+}
 function Modal($$renderer, $$props) {
   $$renderer.component(($$renderer2) => {
     let {
@@ -101,5 +133,6 @@ export {
   Modal as M,
   ModelSelector as a,
   availableModels as b,
+  saveSelectedModels as c,
   selectedModels as s
 };

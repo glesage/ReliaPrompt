@@ -2,27 +2,23 @@ import { LLMClient, ModelInfo } from "./llm-client";
 import { getConfig } from "../database";
 import { ConfigurationError, LLMError } from "../errors";
 
-interface DeepseekModel {
+interface CerebrasModel {
     id: string;
     object: string;
     owned_by: string;
 }
 
-interface DeepseekModelsResponse {
+interface CerebrasModelsResponse {
     object: string;
-    data: DeepseekModel[];
+    data: CerebrasModel[];
 }
 
-export class DeepseekClient implements LLMClient {
-    name = "Deepseek";
-    private baseUrl = "https://api.deepseek.com";
-
-    private isTestMode(): boolean {
-        return process.env.NODE_ENV === "test";
-    }
+export class CerebrasClient implements LLMClient {
+    name = "Cerebras";
+    private baseUrl = "https://api.cerebras.ai/v1";
 
     private getApiKey(): string | null {
-        return getConfig("deepseek_api_key");
+        return getConfig("cerebras_api_key");
     }
 
     isConfigured(): boolean {
@@ -31,17 +27,8 @@ export class DeepseekClient implements LLMClient {
 
     async listModels(): Promise<ModelInfo[]> {
         const apiKey = this.getApiKey();
-        if (!apiKey) return [];
-
-        // In test mode we avoid network calls and provide a deterministic model list.
-        if (this.isTestMode()) {
-            return [
-                {
-                    id: "deepseek-chat",
-                    name: "Deepseek Chat",
-                    provider: "Deepseek",
-                },
-            ];
+        if (!apiKey) {
+            return [];
         }
 
         try {
@@ -52,20 +39,15 @@ export class DeepseekClient implements LLMClient {
                 },
             });
 
-            if (!response.ok) {
-                const error = await response.text();
-                console.error(`Deepseek list models failed: ${response.status} - ${error}`);
-                return [];
-            }
+            if (!response.ok) return [];
 
-            const data = (await response.json()) as DeepseekModelsResponse;
+            const data = (await response.json()) as CerebrasModelsResponse;
             return data.data.map((model) => ({
                 id: model.id,
                 name: this.formatModelName(model.id),
-                provider: "Deepseek",
+                provider: "Cerebras",
             }));
-        } catch (error) {
-            console.error("Failed to fetch Deepseek models:", error);
+        } catch {
             return [];
         }
     }
@@ -85,10 +67,9 @@ export class DeepseekClient implements LLMClient {
     ): Promise<string> {
         const apiKey = this.getApiKey();
         if (!apiKey) {
-            throw new ConfigurationError("Deepseek API key not configured");
+            throw new ConfigurationError("Cerebras API key not configured");
         }
 
-        // Build request body
         const requestBody: Record<string, unknown> = {
             model: modelId,
             messages,
@@ -97,7 +78,7 @@ export class DeepseekClient implements LLMClient {
             response_format: { type: "json_object" },
         };
 
-        const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+        const response = await fetch(`${this.baseUrl}/chat/completions`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -108,7 +89,7 @@ export class DeepseekClient implements LLMClient {
 
         if (!response.ok) {
             const error = await response.text();
-            throw new LLMError("Deepseek", `API error: ${response.status} - ${error}`);
+            throw new LLMError("Cerebras", `API error: ${response.status} - ${error}`);
         }
 
         const data = (await response.json()) as {
@@ -117,22 +98,7 @@ export class DeepseekClient implements LLMClient {
         return data.choices?.[0]?.message?.content ?? defaultValue;
     }
 
-    private mockComplete(userMessage: string): string {
-        const msg = (userMessage || "").toLowerCase();
-
-        // E2E deterministic response: entity extraction example
-        if (msg.includes("microsoft") && msg.includes("bill gates")) {
-            return '[{"type":"company","name":"Microsoft"},{"type":"person","name":"Bill Gates"}]';
-        }
-
-        // Default to a safe empty JSON array (most tests use array output type)
-        return "[]";
-    }
-
     async complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string> {
-        if (this.isTestMode()) {
-            return this.mockComplete(userMessage);
-        }
         return this.makeRequest(
             [
                 { role: "system", content: systemPrompt },
@@ -145,4 +111,4 @@ export class DeepseekClient implements LLMClient {
     }
 }
 
-export const deepseekClient = new DeepseekClient();
+export const cerebrasClient = new CerebrasClient();

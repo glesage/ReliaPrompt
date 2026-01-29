@@ -7,7 +7,7 @@ import "../../chunks/utils.js";
 import "@sveltejs/kit/internal/server";
 import "../../chunks/state.svelte.js";
 import { f as formatVersionDate, e as expandedGroups, v as versionsCache, s as selectedPrompt, a as filteredPromptGroups, p as promptFilter, b as promptsLoading, m as messages } from "../../chunks/prompts.js";
-import { M as Modal, a as ModelSelector, b as availableModels, s as selectedModels } from "../../chunks/ModelSelector.js";
+import { M as Modal, a as ModelSelector, b as availableModels, s as selectedModels, c as saveSelectedModels } from "../../chunks/ModelSelector.js";
 import { w as writable } from "../../chunks/index.js";
 const getStores = () => {
   const stores$1 = getContext("__svelte__");
@@ -148,6 +148,7 @@ function ConfigModal($$renderer, $$props) {
       bedrock_secret_access_key: "",
       bedrock_session_token: "",
       bedrock_region: "ap-southeast-2",
+      cerebras_api_key: "",
       deepseek_api_key: "",
       gemini_api_key: "",
       groq_api_key: "",
@@ -159,6 +160,8 @@ function ConfigModal($$renderer, $$props) {
           return !!store_get($$store_subs ??= {}, "$config", config).openai_api_key;
         case "bedrock":
           return !!store_get($$store_subs ??= {}, "$config", config).bedrock_access_key_id && !!store_get($$store_subs ??= {}, "$config", config).bedrock_secret_access_key;
+        case "cerebras":
+          return !!store_get($$store_subs ??= {}, "$config", config).cerebras_api_key;
         case "deepseek":
           return !!store_get($$store_subs ??= {}, "$config", config).deepseek_api_key;
         case "gemini":
@@ -181,6 +184,7 @@ function ConfigModal($$renderer, $$props) {
         ...models.filter((m) => m.provider === provider)
       ];
       selectedModels.set(newSelection);
+      saveSelectedModels();
     }
     {
       let footer = function($$renderer3) {
@@ -220,6 +224,22 @@ function ConfigModal($$renderer, $$props) {
               selectedModels: store_get($$store_subs ??= {}, "$selectedModels", selectedModels),
               onchange: (models) => handleModelChange("Bedrock", models),
               filterProvider: "Bedrock"
+            });
+            $$renderer3.push(`<!----></div>`);
+          } else {
+            $$renderer3.push("<!--[!-->");
+          }
+          $$renderer3.push(`<!--]--></div> <div class="provider-section"><h3>Cerebras <span${attr_class("status-badge", void 0, {
+            "configured": isConfigured("cerebras"),
+            "not-configured": !isConfigured("cerebras")
+          })}>${escape_html(isConfigured("cerebras") ? "Configured" : "Not configured")}</span></h3> <div class="form-group"><input type="text"${attr("value", formData.cerebras_api_key)} placeholder="API Key (csk-...)"/></div> `);
+          if (getModelsForProvider("Cerebras").length > 0) {
+            $$renderer3.push("<!--[-->");
+            $$renderer3.push(`<div class="form-group"><label>Models</label> `);
+            ModelSelector($$renderer3, {
+              selectedModels: store_get($$store_subs ??= {}, "$selectedModels", selectedModels),
+              onchange: (models) => handleModelChange("Cerebras", models),
+              filterProvider: "Cerebras"
             });
             $$renderer3.push(`<!----></div>`);
           } else {

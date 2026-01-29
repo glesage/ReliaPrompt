@@ -21,6 +21,9 @@ function createMessagesStore() {
   };
 }
 const messages = createMessagesStore();
+function showError(text) {
+  return messages.show(text, "error");
+}
 const promptGroups = writable([]);
 const selectedPrompt = writable(null);
 const expandedGroups = writable(/* @__PURE__ */ new Set());
@@ -48,6 +51,7 @@ function formatVersionDate(dateStr) {
 export {
   filteredPromptGroups as a,
   promptsLoading as b,
+  showError as c,
   expandedGroups as e,
   formatVersionDate as f,
   messages as m,

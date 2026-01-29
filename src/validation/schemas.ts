@@ -27,6 +27,7 @@ export const configBodySchema = Joi.object({
     bedrock_secret_access_key: Joi.string().allow("").optional(),
     bedrock_session_token: Joi.string().allow("").optional(),
     bedrock_region: Joi.string().allow("").optional(),
+    cerebras_api_key: Joi.string().allow("").optional(),
     deepseek_api_key: Joi.string().allow("").optional(),
     gemini_api_key: Joi.string().allow("").optional(),
     groq_api_key: Joi.string().allow("").optional(),

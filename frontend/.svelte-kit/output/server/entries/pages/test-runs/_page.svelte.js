@@ -1,6 +1,6 @@
 import { a as attr_class, b as attr, c as stringify, s as store_get, e as ensure_array_like, u as unsubscribe_stores, d as attr_style } from "../../../chunks/index2.js";
 import { s as selectedPrompt } from "../../../chunks/prompts.js";
-import { a as ModelSelector, M as Modal, s as selectedModels } from "../../../chunks/ModelSelector.js";
+import { a as ModelSelector, M as Modal, s as selectedModels, c as saveSelectedModels } from "../../../chunks/ModelSelector.js";
 import { E as EmptyState } from "../../../chunks/EmptyState.js";
 import { Z as escape_html } from "../../../chunks/context.js";
 function ScoreBadge($$renderer, $$props) {
@@ -66,7 +66,10 @@ function _page($$renderer, $$props) {
       $$renderer2.push(`<!--]--></div> <div class="helper-note mb-20">Test cases are shared across all versions of this prompt.</div> <div class="mb-20"><label for="runs-per-test">Runs per test case</label> <div class="range-row"><input type="range" id="runs-per-test" min="1" max="10"${attr("value", runsPerTest)}/> <span class="range-value">${escape_html(runsPerTest)}</span></div> <small>More runs = more reliable results, but takes longer</small></div> <div id="test-models-selection" class="model-selection-section mb-20"><label>Models to test <span class="muted">(${escape_html(store_get($$store_subs ??= {}, "$selectedModels", selectedModels).length)} selected)</span></label> `);
       ModelSelector($$renderer2, {
         selectedModels: store_get($$store_subs ??= {}, "$selectedModels", selectedModels),
-        onchange: (models) => selectedModels.set(models)
+        onchange: (models) => {
+          selectedModels.set(models);
+          saveSelectedModels();
+        }
       });
       $$renderer2.push(`<!----></div> <button id="run-btn"${attr("disabled", true, true)}>${escape_html("Run Tests")}</button> `);
       {

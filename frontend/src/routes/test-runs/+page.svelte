@@ -1,6 +1,6 @@
 <script lang="ts">
     import { selectedPrompt } from "$lib/stores/prompts";
-    import { selectedModels, initModels } from "$lib/stores/models";
+    import { selectedModels, initModels, saveSelectedModels } from "$lib/stores/models";
     import { showSuccess, showError, showInfo } from "$lib/stores/messages";
     import EmptyState from "$lib/components/EmptyState.svelte";
     import ModelSelector from "$lib/components/ModelSelector.svelte";
@@ -236,7 +236,10 @@
                         </label>
                         <ModelSelector
                             selectedModels={$selectedModels}
-                            onchange={(models) => selectedModels.set(models)}
+                            onchange={(models) => {
+                                selectedModels.set(models);
+                                saveSelectedModels();
+                            }}
                         />
                     </div>
 

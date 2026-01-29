@@ -2,7 +2,7 @@
     import Modal from "./Modal.svelte";
     import ModelSelector from "./ModelSelector.svelte";
     import { config, configLoading, saveConfig, closeConfigModal, configModalOpen } from "$lib/stores/config";
-    import { availableModels, selectedModels, loadAvailableModels, toggleModelSelection } from "$lib/stores/models";
+    import { availableModels, selectedModels, loadAvailableModels, saveSelectedModels } from "$lib/stores/models";
     import type { SelectedModel } from "$lib/types";
     import { onMount } from "svelte";
 
@@ -12,6 +12,7 @@
         bedrock_secret_access_key: "",
         bedrock_session_token: "",
         bedrock_region: "ap-southeast-2",
+        cerebras_api_key: "",
         deepseek_api_key: "",
         gemini_api_key: "",
         groq_api_key: "",
@@ -27,6 +28,7 @@
                 bedrock_secret_access_key: $config.bedrock_secret_access_key || "",
                 bedrock_session_token: $config.bedrock_session_token || "",
                 bedrock_region: $config.bedrock_region || "ap-southeast-2",
+                cerebras_api_key: $config.cerebras_api_key || "",
                 deepseek_api_key: $config.deepseek_api_key || "",
                 gemini_api_key: $config.gemini_api_key || "",
                 groq_api_key: $config.groq_api_key || "",
@@ -41,6 +43,8 @@
                 return !!$config.openai_api_key;
             case "bedrock":
                 return !!$config.bedrock_access_key_id && !!$config.bedrock_secret_access_key;
+            case "cerebras":
+                return !!$config.cerebras_api_key;
             case "deepseek":
                 return !!$config.deepseek_api_key;
             case "gemini":
@@ -71,6 +75,8 @@
         const otherModels = $selectedModels.filter((m) => m.provider !== provider);
         const newSelection = [...otherModels, ...models.filter((m) => m.provider === provider)];
         selectedModels.set(newSelection);
+        // Persist the selection to the database
+        saveSelectedModels();
     }
 </script>
 
@@ -146,6 +152,33 @@
                         selectedModels={$selectedModels}
                         onchange={(models) => handleModelChange("Bedrock", models)}
                         filterProvider="Bedrock"
+                    />
+                </div>
+            {/if}
+        </div>
+
+        <div class="provider-section">
+            <h3>
+                Cerebras
+                <span class="status-badge" class:configured={isConfigured("cerebras")} class:not-configured={!isConfigured("cerebras")}>
+                    {isConfigured("cerebras") ? "Configured" : "Not configured"}
+                </span>
+            </h3>
+            <div class="form-group">
+                <input
+                    type="text"
+                    bind:value={formData.cerebras_api_key}
+                    placeholder="API Key (csk-...)"
+                />
+            </div>
+            {#if getModelsForProvider("Cerebras").length > 0}
+                <div class="form-group">
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
+                    <label>Models</label>
+                    <ModelSelector
+                        selectedModels={$selectedModels}
+                        onchange={(models) => handleModelChange("Cerebras", models)}
+                        filterProvider="Cerebras"
                     />
                 </div>
             {/if}

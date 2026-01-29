@@ -101,8 +101,14 @@ function derived(stores, fn, initial_value) {
     };
   });
 }
+function get(store) {
+  let value;
+  subscribe_to_store(store, (_) => value = _)();
+  return value;
+}
 export {
   derived as d,
+  get as g,
   readable as r,
   writable as w
 };

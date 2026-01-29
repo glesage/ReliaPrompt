@@ -89,7 +89,32 @@ export function getSelectedModelsCount(): number {
     return get(selectedModels).length;
 }
 
+// Filter selected models to only include those that are currently available
+function filterOrphanedModels(): boolean {
+    const available = get(availableModels);
+    const selected = get(selectedModels);
+
+    // Create a set of available model keys for fast lookup
+    const availableKeys = new Set(available.map((m) => `${m.provider}:${m.id}`));
+
+    // Filter out any selected models that are no longer available
+    const filtered = selected.filter((m) => availableKeys.has(`${m.provider}:${m.modelId}`));
+
+    // If any were filtered out, update the store
+    if (filtered.length !== selected.length) {
+        selectedModels.set(filtered);
+        return true;
+    }
+    return false;
+}
+
 // Initialize models (load both available and selected)
 export async function initModels(): Promise<void> {
     await Promise.all([loadAvailableModels(), loadSelectedModels()]);
+
+    // Clean up any orphaned model selections and save if needed
+    const hadOrphans = filterOrphanedModels();
+    if (hadOrphans) {
+        await saveSelectedModels();
+    }
 }
