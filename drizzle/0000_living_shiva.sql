@@ -1,7 +1,9 @@
-DROP TABLE `improvement_jobs`;--> statement-breakpoint
-DROP TABLE `suggestions`;--> statement-breakpoint
-PRAGMA foreign_keys=OFF;--> statement-breakpoint
-CREATE TABLE `__new_prompts` (
+CREATE TABLE `config` (
+	`key` text PRIMARY KEY NOT NULL,
+	`value` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `prompts` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`name` text NOT NULL,
 	`content` text NOT NULL,
@@ -13,13 +15,18 @@ CREATE TABLE `__new_prompts` (
 	FOREIGN KEY (`parent_version_id`) REFERENCES `prompts`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-INSERT INTO `__new_prompts`("id", "name", "content", "expected_schema", "version", "parent_version_id", "prompt_group_id", "created_at") SELECT "id", "name", "content", "expected_schema", "version", "parent_version_id", "prompt_group_id", "created_at" FROM `prompts`;--> statement-breakpoint
-DROP TABLE `prompts`;--> statement-breakpoint
-ALTER TABLE `__new_prompts` RENAME TO `prompts`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;--> statement-breakpoint
 CREATE INDEX `prompts_prompt_group_id_idx` ON `prompts` (`prompt_group_id`);--> statement-breakpoint
+CREATE TABLE `test_cases` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`prompt_group_id` integer NOT NULL,
+	`input` text NOT NULL,
+	`expected_output` text NOT NULL,
+	`expected_output_type` text DEFAULT 'array' NOT NULL,
+	`created_at` text NOT NULL
+);
+--> statement-breakpoint
 CREATE INDEX `test_cases_prompt_group_id_idx` ON `test_cases` (`prompt_group_id`);--> statement-breakpoint
-CREATE TABLE `__new_test_jobs` (
+CREATE TABLE `test_jobs` (
 	`id` text PRIMARY KEY NOT NULL,
 	`prompt_id` integer NOT NULL,
 	`status` text DEFAULT 'pending' NOT NULL,
@@ -31,12 +38,9 @@ CREATE TABLE `__new_test_jobs` (
 	FOREIGN KEY (`prompt_id`) REFERENCES `prompts`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-INSERT INTO `__new_test_jobs`("id", "prompt_id", "status", "total_tests", "completed_tests", "results", "created_at", "updated_at") SELECT "id", "prompt_id", "status", "total_tests", "completed_tests", "results", "created_at", "updated_at" FROM `test_jobs`;--> statement-breakpoint
-DROP TABLE `test_jobs`;--> statement-breakpoint
-ALTER TABLE `__new_test_jobs` RENAME TO `test_jobs`;--> statement-breakpoint
 CREATE INDEX `test_jobs_prompt_id_idx` ON `test_jobs` (`prompt_id`);--> statement-breakpoint
 CREATE INDEX `test_jobs_status_idx` ON `test_jobs` (`status`);--> statement-breakpoint
-CREATE TABLE `__new_test_results` (
+CREATE TABLE `test_results` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`job_id` text NOT NULL,
 	`test_case_id` integer NOT NULL,
@@ -55,8 +59,5 @@ CREATE TABLE `__new_test_results` (
 	FOREIGN KEY (`test_case_id`) REFERENCES `test_cases`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-INSERT INTO `__new_test_results`("id", "job_id", "test_case_id", "llm_provider", "run_number", "actual_output", "is_correct", "score", "expected_found", "expected_total", "unexpected_count", "error", "duration_ms", "created_at") SELECT "id", "job_id", "test_case_id", "llm_provider", "run_number", "actual_output", "is_correct", "score", "expected_found", "expected_total", "unexpected_count", "error", "duration_ms", "created_at" FROM `test_results`;--> statement-breakpoint
-DROP TABLE `test_results`;--> statement-breakpoint
-ALTER TABLE `__new_test_results` RENAME TO `test_results`;--> statement-breakpoint
 CREATE INDEX `test_results_job_id_idx` ON `test_results` (`job_id`);--> statement-breakpoint
 CREATE INDEX `test_results_test_case_id_idx` ON `test_results` (`test_case_id`);

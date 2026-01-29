@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1764148357751,
-      "tag": "0000_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1736380800000,
-      "tag": "0001_suggestions",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1736467200000,
-      "tag": "0002_expected_schema",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1769685058400,
-      "tag": "0003_remove_improvement",
+      "when": 1769685752051,
+      "tag": "0000_living_shiva",
       "breakpoints": true
     }
   ]
