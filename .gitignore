@@ -4,4 +4,6 @@ node_modules
 .env
 /playwright-report
 /test-results
-frontend/.svelte-kit
+
+# SvelteKit build artifacts
+.svelte-kit
