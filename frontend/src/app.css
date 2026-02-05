@@ -302,7 +302,6 @@ body {
 /* Versions List */
 .sidebar-versions {
     display: none;
-    overflow: hidden;
 }
 
 .sidebar-group.expanded .sidebar-versions {
@@ -1890,9 +1889,8 @@ button.small,
 
 .pane-body {
     flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .app-pane-content {
