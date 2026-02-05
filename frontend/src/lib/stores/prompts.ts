@@ -136,8 +136,14 @@ export async function createPrompt(data: {
 }): Promise<Prompt | null> {
     try {
         const prompt = await api.createPrompt(data);
+
+        // Reload prompts list
         await loadPrompts();
+
+        // Load versions for the new prompt's group and select it
+        await loadVersions(prompt.promptGroupId, prompt.id);
         await selectPrompt(prompt.id);
+
         showSuccess("Prompt created successfully!");
         return prompt;
     } catch (error) {
@@ -161,15 +167,13 @@ export async function createPromptVersion(
             parentVersionId: parentId,
         });
 
-        // Clear versions cache for this group
-        versionsCache.update((cache) => {
-            const newCache = { ...cache };
-            delete newCache[prompt.promptGroupId];
-            return newCache;
-        });
-
+        // Reload prompts list
         await loadPrompts();
+
+        // Reload versions for this group and select the new version
+        await loadVersions(prompt.promptGroupId, prompt.id);
         await selectPrompt(prompt.id);
+
         showSuccess("New version saved!");
         return prompt;
     } catch (error) {
@@ -184,20 +188,43 @@ export async function deletePromptVersion(id: number, groupId: number): Promise<
         await api.deletePrompt(id);
         showSuccess("Version deleted");
 
-        // Clear selection if it was the deleted prompt
-        const current = get(selectedPrompt);
-        if (current?.id === id) {
-            deselectPrompt();
+        // Reload prompts list
+        await loadPrompts();
+
+        // Check if the group still exists
+        const groups = get(promptGroups);
+        const group = groups.find((g) => g.promptGroupId === groupId);
+
+        if (group) {
+            // Group still exists, reload its versions
+            const versions = await loadVersions(groupId, group.id);
+
+            // If the deleted prompt was selected, select the latest version
+            const current = get(selectedPrompt);
+            if (current?.id === id && versions.length > 0) {
+                await selectPrompt(versions[0].id);
+            } else if (current?.id === id) {
+                deselectPrompt();
+            }
+        } else {
+            // Group was deleted (no more versions), clear selection
+            const current = get(selectedPrompt);
+            if (current?.promptGroupId === groupId) {
+                deselectPrompt();
+            }
+
+            // Clean up cache and expanded state
+            versionsCache.update((cache) => {
+                const newCache = { ...cache };
+                delete newCache[groupId];
+                return newCache;
+            });
+            expandedGroups.update((set) => {
+                set.delete(groupId);
+                return new Set(set);
+            });
         }
 
-        // Clear versions cache
-        versionsCache.update((cache) => {
-            const newCache = { ...cache };
-            delete newCache[groupId];
-            return newCache;
-        });
-
-        await loadPrompts();
         return true;
     } catch (error) {
         showError((error as Error).message || "Failed to delete version");
