@@ -218,6 +218,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 12px;
+    min-height: 0;
 }
 
 /* Sidebar Group Styles */
@@ -1890,6 +1891,8 @@ button.small,
 .pane-body {
     flex: 1;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .app-pane-content {
