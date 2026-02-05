@@ -1967,6 +1967,13 @@ button.small,
     border-radius: 14px;
 }
 
+/* Remove border from empty states inside split panes */
+.split-pane .empty-state,
+.tc-list .empty-state {
+    border: none;
+    background: transparent;
+}
+
 .empty-state-icon {
     font-size: 30px;
     margin-bottom: 12px;
