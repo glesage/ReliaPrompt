@@ -192,6 +192,26 @@ describe("compare", () => {
             });
         });
 
+        test("should return perfect score for array of arrays with different order", () => {
+            const result = compare(
+                [
+                    [1, 2],
+                    [3, 4],
+                ],
+                [
+                    [3, 4],
+                    [2, 1],
+                ],
+                ParseType.ARRAY
+            );
+            expect(result).toEqual({
+                score: 1,
+                expectedTotal: 2,
+                expectedFound: 2,
+                unexpectedFound: 0,
+            });
+        });
+
         test("should handle arrays with objects", () => {
             const result = compare([{ a: 1 }, { b: 2 }], [{ a: 1 }, { b: 2 }], ParseType.ARRAY);
             expect(result).toEqual({
@@ -344,6 +364,30 @@ describe("compare", () => {
 
         test("should handle objects with array values", () => {
             const result = compare({ items: [1, 2, 3] }, { items: [1, 2, 3] }, ParseType.OBJECT);
+            expect(result).toEqual({
+                score: 1,
+                expectedTotal: 1,
+                expectedFound: 1,
+                unexpectedFound: 0,
+            });
+        });
+
+        test("should return perfect score for object with array property in different order", () => {
+            const result = compare({ items: [1, 2, 3] }, { items: [3, 1, 2] }, ParseType.OBJECT);
+            expect(result).toEqual({
+                score: 1,
+                expectedTotal: 1,
+                expectedFound: 1,
+                unexpectedFound: 0,
+            });
+        });
+
+        test("should return perfect score for nested object with arrays in different order", () => {
+            const result = compare(
+                { data: { ids: [1, 2, 3] } },
+                { data: { ids: [3, 2, 1] } },
+                ParseType.OBJECT
+            );
             expect(result).toEqual({
                 score: 1,
                 expectedTotal: 1,

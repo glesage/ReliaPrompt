@@ -1,18 +1,54 @@
 import equal from "fast-deep-equal";
 import { type ParsedJSON, ParseType } from "./parse";
 
-function getUniqueValues(arr: unknown[]): unknown[] {
+type EqualityFn = (a: unknown, b: unknown) => boolean;
+
+function getUniqueValues(arr: unknown[], eq: EqualityFn): unknown[] {
     const unique: unknown[] = [];
     for (const item of arr) {
-        if (!unique.some((u) => equal(u, item))) {
+        if (!unique.some((u) => eq(u, item))) {
             unique.push(item);
         }
     }
     return unique;
 }
 
-function existsInArray(value: unknown, arr: unknown[]): boolean {
-    return arr.some((item) => equal(item, value));
+function existsInArray(value: unknown, arr: unknown[], eq: EqualityFn): boolean {
+    return arr.some((item) => eq(item, value));
+}
+
+function deepEqualIgnoreArrayOrder(a: unknown, b: unknown): boolean {
+    if (Array.isArray(a) && Array.isArray(b)) {
+        const uniqueA = getUniqueValues(a, deepEqualIgnoreArrayOrder);
+        const uniqueB = getUniqueValues(b, deepEqualIgnoreArrayOrder);
+        if (uniqueA.length !== uniqueB.length) return false;
+        return uniqueA.every((item) => existsInArray(item, uniqueB, deepEqualIgnoreArrayOrder));
+    }
+    if (
+        typeof a === "object" &&
+        a !== null &&
+        !Array.isArray(a) &&
+        typeof b === "object" &&
+        b !== null &&
+        !Array.isArray(b)
+    ) {
+        const keysA = Object.keys(a as Record<string, unknown>);
+        const keysB = Object.keys(b as Record<string, unknown>);
+        if (keysA.length !== keysB.length) return false;
+        for (const key of keysA) {
+            if (!(key in (b as Record<string, unknown>))) return false;
+            if (
+                !deepEqualIgnoreArrayOrder(
+                    (a as Record<string, unknown>)[key],
+                    (b as Record<string, unknown>)[key]
+                )
+            ) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return equal(a, b);
 }
 
 function compareArraysAsSet(
@@ -23,19 +59,19 @@ function compareArraysAsSet(
     expectedTotal: number;
     unexpectedFound: number;
 } {
-    const uniqueExpected = getUniqueValues(expected);
-    const uniqueOutput = getUniqueValues(output);
+    const uniqueExpected = getUniqueValues(expected, deepEqualIgnoreArrayOrder);
+    const uniqueOutput = getUniqueValues(output, deepEqualIgnoreArrayOrder);
 
     let expectedFound = 0;
     for (const expectedItem of uniqueExpected) {
-        if (existsInArray(expectedItem, uniqueOutput)) {
+        if (existsInArray(expectedItem, uniqueOutput, deepEqualIgnoreArrayOrder)) {
             expectedFound++;
         }
     }
 
     let unexpectedFound = 0;
     for (const outputItem of uniqueOutput) {
-        if (!existsInArray(outputItem, uniqueExpected)) {
+        if (!existsInArray(outputItem, uniqueExpected, deepEqualIgnoreArrayOrder)) {
             unexpectedFound++;
         }
     }
@@ -60,7 +96,7 @@ function compareObjects(
 
     let expectedFound = 0;
     for (const key of expectedKeys) {
-        if (key in output && equal(expected[key], output[key])) {
+        if (key in output && deepEqualIgnoreArrayOrder(expected[key], output[key])) {
             expectedFound++;
         }
     }
