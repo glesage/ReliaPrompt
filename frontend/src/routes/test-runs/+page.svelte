@@ -1,6 +1,6 @@
 <script lang="ts">
     import { selectedPrompt } from "$lib/stores/prompts";
-    import { selectedModels, initModels, saveSelectedModels } from "$lib/stores/models";
+    import { selectedModels, availableModels, initModels, saveSelectedModels } from "$lib/stores/models";
     import { showSuccess, showError, showInfo } from "$lib/stores/messages";
     import EmptyState from "$lib/components/EmptyState.svelte";
     import ModelSelector from "$lib/components/ModelSelector.svelte";
@@ -20,6 +20,12 @@
     let previousRuns = $state<TestJob[]>([]);
     let storedLlmResults = $state<Record<string, LLMResult>>({});
     let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let selectedEvaluationModels = $state<SelectedModel[]>([]);
+
+    const shouldShowEvaluationModelSelector = $derived(
+        $selectedPrompt?.evaluationMode === "llm" &&
+            Boolean($selectedPrompt?.evaluationCriteria?.trim())
+    );
 
     // Test details modal
     let detailsModalOpen = $state(false);
@@ -36,6 +42,32 @@
             previousRuns = [];
             results = null;
         }
+    });
+
+    $effect(() => {
+        if (!shouldShowEvaluationModelSelector) {
+            selectedEvaluationModels = [];
+            return;
+        }
+
+        const availableModelKeys = new Set($availableModels.map((model) => `${model.provider}:${model.id}`));
+        const hasValidSelection =
+            selectedEvaluationModels.length > 0 &&
+            availableModelKeys.has(
+                `${selectedEvaluationModels[0].provider}:${selectedEvaluationModels[0].modelId}`
+            );
+
+        if (hasValidSelection) {
+            return;
+        }
+
+        const preferredModel =
+            $availableModels.find((model) => model.provider === "OpenAI" && model.id === "gpt-5.2") ||
+            $availableModels[0];
+
+        selectedEvaluationModels = preferredModel
+            ? [{ provider: preferredModel.provider, modelId: preferredModel.id }]
+            : [];
     });
 
     async function loadTestCaseCount(promptId: number) {
@@ -57,6 +89,10 @@
 
     async function runTests() {
         if (!$selectedPrompt || $selectedModels.length === 0) return;
+        if (shouldShowEvaluationModelSelector && selectedEvaluationModels.length === 0) {
+            showError("Select an evaluation model before running LLM evaluation");
+            return;
+        }
 
         running = true;
         progress = 0;
@@ -69,6 +105,10 @@
                 promptId: $selectedPrompt.id,
                 runsPerTest,
                 selectedModels: $selectedModels,
+                evaluationModel:
+                    shouldShowEvaluationModelSelector
+                        ? selectedEvaluationModels[0]
+                        : undefined,
             });
             pollProgress(jobId);
         } catch (error) {
@@ -178,7 +218,29 @@
         }
     }
 
-    const canRun = $derived(testCaseCount > 0 && $selectedModels.length > 0 && !running);
+    function getEvaluationModelValue(model: SelectedModel | undefined): string {
+        if (!model) return "";
+        return `${model.provider}:${model.modelId}`;
+    }
+
+    function parseEvaluationModelValue(value: string): SelectedModel | null {
+        const splitIndex = value.indexOf(":");
+        if (splitIndex <= 0 || splitIndex >= value.length - 1) {
+            return null;
+        }
+
+        return {
+            provider: value.slice(0, splitIndex),
+            modelId: value.slice(splitIndex + 1),
+        };
+    }
+
+    const canRun = $derived(
+        testCaseCount > 0 &&
+            $selectedModels.length > 0 &&
+            !running &&
+            (!shouldShowEvaluationModelSelector || selectedEvaluationModels.length > 0)
+    );
 
     onMount(() => {
         initModels();
@@ -242,6 +304,26 @@
                             }}
                         />
                     </div>
+
+                    {#if shouldShowEvaluationModelSelector}
+                        <div class="form-group mb-20">
+                            <label for="evaluation-model">Evaluation model</label>
+                            <select
+                                id="evaluation-model"
+                                value={getEvaluationModelValue(selectedEvaluationModels[0])}
+                                onchange={(event) => {
+                                    const selectedValue = (event.currentTarget as HTMLSelectElement).value;
+                                    const parsedSelection = parseEvaluationModelValue(selectedValue);
+                                    selectedEvaluationModels = parsedSelection ? [parsedSelection] : [];
+                                }}
+                            >
+                                {#each $availableModels as model}
+                                    <option value={`${model.provider}:${model.id}`}>{model.provider} - {model.name}</option>
+                                {/each}
+                            </select>
+                            <small>Used as the judge model to score outputs in LLM evaluation mode.</small>
+                        </div>
+                    {/if}
 
                     <button id="run-btn" onclick={runTests} disabled={!canRun}>
                         {running ? "Running..." : "Run Tests"}

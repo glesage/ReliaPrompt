@@ -167,6 +167,7 @@ export async function startTestRun(data: {
     promptId: number;
     runsPerTest: number;
     selectedModels: SelectedModel[];
+    evaluationModel?: SelectedModel;
 }): Promise<{ jobId: string }> {
     return fetchJSON<{ jobId: string }>("/api/test/run", {
         method: "POST",

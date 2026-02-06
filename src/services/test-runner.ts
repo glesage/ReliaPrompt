@@ -10,7 +10,6 @@ import {
     TestResult as DbTestResult,
 } from "../database";
 import { getConfiguredClients, ModelSelection, LLMClient } from "../llm-clients";
-import { openaiClient } from "../llm-clients/openai-client";
 import { compare } from "../utils/compare";
 import { parse, ParseType } from "../utils/parse";
 import { ConfigurationError, getErrorMessage, requireEntity } from "../errors";
@@ -23,6 +22,10 @@ export interface ModelRunner {
 }
 
 const DEFAULT_RUNS_PER_TEST = 1;
+const DEFAULT_EVALUATION_MODEL: ModelSelection = {
+    provider: "OpenAI",
+    modelId: "gpt-5.2",
+};
 
 export interface TestProgress {
     jobId: string;
@@ -91,21 +94,16 @@ export function getTestProgress(jobId: string): TestProgress | null {
 }
 
 /**
- * Calls OpenAI GPT-5.2 judge to evaluate an AI output based on evaluation criteria.
+ * Calls the selected judge model to evaluate an AI output based on evaluation criteria.
  * Returns a score (0-1) and a reason string.
  */
 async function evaluateWithLLMJudge(
     promptContent: string,
     testCaseInput: string,
     actualOutput: string,
-    evaluationCriteria: string
+    evaluationCriteria: string,
+    evaluationModelRunner: ModelRunner
 ): Promise<{ score: number; reason: string }> {
-    if (!openaiClient.isConfigured()) {
-        throw new ConfigurationError(
-            "OpenAI API key is required for LLM evaluation mode. Please configure it in settings."
-        );
-    }
-
     const judgePrompt = `You are an expert evaluator. Your task is to evaluate the quality of an AI-generated output based on specific criteria.
 
 ## Original Prompt:
@@ -125,7 +123,11 @@ Return ONLY valid JSON, no other text. Example format:
 {"score": 0.85, "reason": "The output is mostly correct but lacks some detail in..."}`;
 
     try {
-        const judgeResponse = await openaiClient.complete(judgePrompt, actualOutput, "gpt-5.2");
+        const judgeResponse = await evaluationModelRunner.client.complete(
+            judgePrompt,
+            actualOutput,
+            evaluationModelRunner.modelId
+        );
         const parsed = JSON.parse(judgeResponse.trim());
 
         // Validate and clamp score
@@ -152,10 +154,19 @@ async function handleTestRun(
     prompt: Prompt,
     testCases: TestCase[],
     modelRunners: ModelRunner[],
-    runsPerTest: number
+    runsPerTest: number,
+    evaluationModelRunner?: ModelRunner
 ): Promise<void> {
     try {
-        await runTests(prompt, testCases, modelRunners, runsPerTest, jobId);
+        await runTests(
+            prompt,
+            testCases,
+            modelRunners,
+            runsPerTest,
+            jobId,
+            undefined,
+            evaluationModelRunner
+        );
     } catch (error) {
         const progress = activeJobs.get(jobId);
         if (progress) {
@@ -185,6 +196,34 @@ function getModelRunnersFromSelections(selectedModels: ModelSelection[]): ModelR
     return runners;
 }
 
+function getModelRunnerFromSelection(selection: ModelSelection): ModelRunner | null {
+    const client = getConfiguredClients().find(
+        (candidate) => candidate.name === selection.provider
+    );
+    if (!client) {
+        return null;
+    }
+
+    return {
+        client,
+        modelId: selection.modelId,
+        displayName: `${selection.provider} (${selection.modelId})`,
+    };
+}
+
+function getEvaluationModelRunner(evaluationModel?: ModelSelection): ModelRunner {
+    const selectedEvaluationModel = evaluationModel ?? DEFAULT_EVALUATION_MODEL;
+    const evaluationRunner = getModelRunnerFromSelection(selectedEvaluationModel);
+
+    if (!evaluationRunner) {
+        throw new ConfigurationError(
+            `Evaluation model ${selectedEvaluationModel.provider} (${selectedEvaluationModel.modelId}) is not available. Please configure the provider API key or pick another evaluation model.`
+        );
+    }
+
+    return evaluationRunner;
+}
+
 function getSavedModelRunners(): ModelRunner[] {
     // Check for saved selected_models in config
     const savedModelsJson = getConfig("selected_models");
@@ -207,7 +246,8 @@ function getSavedModelRunners(): ModelRunner[] {
 export async function startTestRun(
     promptId: number,
     runsPerTest: number = DEFAULT_RUNS_PER_TEST,
-    selectedModels?: ModelSelection[]
+    selectedModels?: ModelSelection[],
+    evaluationModel?: ModelSelection
 ): Promise<string> {
     // Use OrFail variant - throws NotFoundError if prompt doesn't exist
     const prompt = getPromptByIdOrFail(promptId);
@@ -228,6 +268,10 @@ export async function startTestRun(
         );
     }
 
+    const evaluationMode = prompt.evaluationMode || "schema";
+    const evaluationModelRunner =
+        evaluationMode === "llm" ? getEvaluationModelRunner(evaluationModel) : undefined;
+
     const jobId = crypto.randomUUID();
     const totalTests = testCases.length * modelRunners.length * runsPerTest;
 
@@ -242,7 +286,7 @@ export async function startTestRun(
     };
     activeJobs.set(jobId, progress);
 
-    handleTestRun(jobId, prompt, testCases, modelRunners, runsPerTest);
+    handleTestRun(jobId, prompt, testCases, modelRunners, runsPerTest, evaluationModelRunner);
 
     return jobId;
 }
@@ -253,7 +297,8 @@ export async function runTests(
     modelRunners: ModelRunner[],
     runsPerTest: number = DEFAULT_RUNS_PER_TEST,
     jobId?: string,
-    expectedSchema?: string
+    expectedSchema?: string,
+    evaluationModelRunner?: ModelRunner
 ): Promise<{ score: number; results: LLMTestResult[] }> {
     // Extract prompt content and ID
     const promptContent = typeof prompt === "string" ? prompt : prompt.content;
@@ -332,11 +377,18 @@ export async function runTests(
 
                     if (evaluationMode === "llm" && evaluationCriteria) {
                         // LLM evaluation mode: use judge model
+                        if (!evaluationModelRunner) {
+                            throw new ConfigurationError(
+                                "Evaluation model is required when running LLM evaluation mode."
+                            );
+                        }
+
                         const evaluation = await evaluateWithLLMJudge(
                             promptContent,
                             testCase.input,
                             actualOutput,
-                            evaluationCriteria
+                            evaluationCriteria,
+                            evaluationModelRunner
                         );
                         score = evaluation.score;
                         reason = evaluation.reason;

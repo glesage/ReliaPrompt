@@ -165,6 +165,7 @@ export interface StartTestRunRequest {
     promptId: number;
     runsPerTest: number;
     selectedModels: SelectedModel[];
+    evaluationModel?: SelectedModel;
 }
 
 export interface StartTestRunResponse {

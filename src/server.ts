@@ -331,9 +331,7 @@ app.post(
             const evaluationMode = (prompt.evaluationMode || "schema") as "schema" | "llm";
 
             const resolvedExpectedOutput =
-                evaluationMode === "llm"
-                    ? "[]"
-                    : (expected_output as string | undefined)?.trim();
+                evaluationMode === "llm" ? "[]" : (expected_output as string | undefined)?.trim();
             const resolvedExpectedOutputType =
                 evaluationMode === "llm"
                     ? ParseType.ARRAY
@@ -384,11 +382,14 @@ app.put("/api/test-cases/:id", validateIdParam, validate(updateTestCaseSchema), 
         }
 
         const latestPrompt = getLatestPromptForGroupId(existing.promptGroupId);
-        const evaluationMode = ((latestPrompt?.evaluationMode || "schema") as "schema" | "llm") ?? "schema";
+        const evaluationMode =
+            ((latestPrompt?.evaluationMode || "schema") as "schema" | "llm") ?? "schema";
 
         const resolvedExpectedOutput =
             evaluationMode === "llm"
-                ? (existing.expectedOutput?.trim() ? existing.expectedOutput : "[]")
+                ? existing.expectedOutput?.trim()
+                    ? existing.expectedOutput
+                    : "[]"
                 : (expected_output as string | undefined)?.trim();
         const resolvedExpectedOutputType =
             evaluationMode === "llm"
@@ -491,7 +492,8 @@ app.post(
                     expectedOutputType:
                         evaluationMode === "llm"
                             ? ParseType.ARRAY
-                            : ((tc.expected_output_type as ParseType | undefined) ?? ParseType.ARRAY),
+                            : ((tc.expected_output_type as ParseType | undefined) ??
+                              ParseType.ARRAY),
                 }))
             );
 
@@ -504,9 +506,9 @@ app.post(
 
 app.post("/api/test/run", validate(testRunSchema), async (req, res) => {
     try {
-        const { promptId, runsPerTest, selectedModels } = req.body;
+        const { promptId, runsPerTest, selectedModels, evaluationModel } = req.body;
 
-        const jobId = await startTestRun(promptId, runsPerTest, selectedModels);
+        const jobId = await startTestRun(promptId, runsPerTest, selectedModels, evaluationModel);
         res.json({ jobId });
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });

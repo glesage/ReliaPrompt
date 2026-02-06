@@ -213,4 +213,5 @@ export const testRunSchema = Joi.object({
     selectedModels: Joi.array().items(modelSelectionSchema).min(1).optional().messages({
         "array.min": "selectedModels must contain at least one model",
     }),
+    evaluationModel: modelSelectionSchema.optional(),
 }).unknown(false);
