@@ -605,14 +605,14 @@ body {
 }
 
 .form-group textarea {
-    min-height: 120px;
+    min-height: 156px;
     resize: vertical;
     font-family: var(--font-mono);
     font-size: 13px;
 }
 
 .form-group textarea.tall {
-    min-height: 200px;
+    min-height: 260px;
 }
 
 .form-group input:focus,
