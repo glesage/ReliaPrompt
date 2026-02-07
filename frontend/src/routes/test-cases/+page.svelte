@@ -19,12 +19,16 @@
     let formError = $state("");
     let saving = $state(false);
 
+    const isLlmEvaluationPrompt = $derived(() => $selectedPrompt?.evaluationMode === "llm");
+
     // Filtered test cases
     const filteredTestCases = $derived(() => {
         const q = testCaseFilter.trim().toLowerCase();
         if (!q) return testCases;
         return testCases.filter(
-            (tc) => tc.input.toLowerCase().includes(q) || tc.expectedOutput.toLowerCase().includes(q)
+            (tc) =>
+                tc.input.toLowerCase().includes(q) ||
+                (!isLlmEvaluationPrompt() && tc.expectedOutput.toLowerCase().includes(q))
         );
     });
 
@@ -92,26 +96,30 @@
             formError = "Input is required.";
             return;
         }
-        if (!expectedOutput) {
-            formError = "Expected output is required.";
-            return;
-        }
-        try {
-            JSON.parse(expectedOutput);
-        } catch {
-            formError = "Expected output must be valid JSON.";
-            return;
+        if (!isLlmEvaluationPrompt()) {
+            if (!expectedOutput) {
+                formError = "Expected output is required.";
+                return;
+            }
+            try {
+                JSON.parse(expectedOutput);
+            } catch {
+                formError = "Expected output must be valid JSON.";
+                return;
+            }
         }
 
         saving = true;
         formError = "";
 
         try {
-            const data = {
-                input,
-                expected_output: expectedOutput,
-                expected_output_type: formExpectedOutputType,
-            };
+            const data = isLlmEvaluationPrompt()
+                ? { input }
+                : {
+                      input,
+                      expected_output: expectedOutput,
+                      expected_output_type: formExpectedOutputType,
+                  };
 
             if (editorMode === "edit" && activeTestCaseId) {
                 const updated = await api.updateTestCase(activeTestCaseId, data);
@@ -193,15 +201,22 @@
 
                 for (let i = 0; i < data.length; i++) {
                     const tc = data[i];
-                    if (!tc.input || !tc.expected_output || !tc.expected_output_type) {
-                        showError(`Test case ${i + 1} is missing required fields`);
+                    if (!tc.input) {
+                        showError(`Test case ${i + 1} is missing required field: input`);
                         return;
                     }
-                    try {
-                        JSON.parse(tc.expected_output);
-                    } catch {
-                        showError(`Test case ${i + 1} has invalid JSON in expected_output`);
-                        return;
+
+                    if (!isLlmEvaluationPrompt()) {
+                        if (!tc.expected_output || !tc.expected_output_type) {
+                            showError(`Test case ${i + 1} is missing required fields`);
+                            return;
+                        }
+                        try {
+                            JSON.parse(tc.expected_output);
+                        } catch {
+                            showError(`Test case ${i + 1} has invalid JSON in expected_output`);
+                            return;
+                        }
                     }
                 }
 
@@ -233,7 +248,13 @@
 <header class="content-header">
     <div class="content-header-main">
         <h1 class="content-title">Test Cases</h1>
-        <p class="content-subtitle">Define inputs and expected JSON outputs. Edit fast with the split view.</p>
+        <p class="content-subtitle">
+            {#if isLlmEvaluationPrompt()}
+                Define inputs. Outputs are judged by the evaluation model.
+            {:else}
+                Define inputs and expected JSON outputs. Edit fast with the split view.
+            {/if}
+        </p>
     </div>
     <div class="content-actions">
         <button class="btn btn-secondary btn-sm" disabled={!$selectedPrompt} onclick={handleExport}>
@@ -292,7 +313,9 @@
                             >
                                 <div class="tc-list-item-top">
                                     <div class="tc-list-item-title">#{idx + 1}</div>
-                                    <span class="pill pill-muted">{tc.expectedOutputType}</span>
+                                    {#if !isLlmEvaluationPrompt()}
+                                        <span class="pill pill-muted">{tc.expectedOutputType}</span>
+                                    {/if}
                                 </div>
                                 <div class="tc-list-item-preview">
                                     {tc.input.replace(/\s+/g, " ").slice(0, 120) || "(empty input)"}
@@ -342,24 +365,26 @@
                                     bind:value={formInput}
                                 ></textarea>
                             </div>
-                            <div class="form-group">
-                                <label for="tc-expected-output">Expected output (JSON)</label>
-                                <textarea
-                                    id="tc-expected-output"
-                                    class="tall"
-                                    placeholder={'[{"type":"company","name":"Microsoft"}]'}
-                                    bind:value={formExpectedOutput}
-                                ></textarea>
-                                <small>Must be valid JSON. We compare structure + values.</small>
-                            </div>
-                            <div class="form-group">
-                                <label for="tc-expected-output-type">Expected output type</label>
-                                <select id="tc-expected-output-type" bind:value={formExpectedOutputType}>
-                                    <option value="string">String</option>
-                                    <option value="array">Array</option>
-                                    <option value="object">Object</option>
-                                </select>
-                            </div>
+                            {#if !isLlmEvaluationPrompt()}
+                                <div class="form-group">
+                                    <label for="tc-expected-output">Expected output (JSON)</label>
+                                    <textarea
+                                        id="tc-expected-output"
+                                        class="tall"
+                                        placeholder={'[{"type":"company","name":"Microsoft"}]'}
+                                        bind:value={formExpectedOutput}
+                                    ></textarea>
+                                    <small>Must be valid JSON. We compare structure + values.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="tc-expected-output-type">Expected output type</label>
+                                    <select id="tc-expected-output-type" bind:value={formExpectedOutputType}>
+                                        <option value="string">String</option>
+                                        <option value="array">Array</option>
+                                        <option value="object">Object</option>
+                                    </select>
+                                </div>
+                            {/if}
                         </div>
 
                         <div class="editor-footer">

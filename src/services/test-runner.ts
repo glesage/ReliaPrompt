@@ -22,6 +22,10 @@ export interface ModelRunner {
 }
 
 const DEFAULT_RUNS_PER_TEST = 1;
+const DEFAULT_EVALUATION_MODEL: ModelSelection = {
+    provider: "OpenAI",
+    modelId: "gpt-5.2",
+};
 
 export interface TestProgress {
     jobId: string;
@@ -37,6 +41,7 @@ export interface TestResults {
     promptId: number;
     promptContent: string;
     totalTestCases: number;
+    evaluationModel?: ModelSelection;
     llmResults: LLMTestResult[];
     overallScore: number;
 }
@@ -76,6 +81,7 @@ export interface BaseTestResult {
     unexpectedFound: number;
     error?: string;
     durationMs?: number;
+    reason?: string; // LLM evaluation reason (when using LLM evaluation mode)
 }
 
 export interface RunResult extends BaseTestResult {
@@ -88,15 +94,80 @@ export function getTestProgress(jobId: string): TestProgress | null {
     return activeJobs.get(jobId) ?? null;
 }
 
+/**
+ * Calls the selected judge model to evaluate an AI output based on evaluation criteria.
+ * Returns a score (0-1) and a reason string.
+ */
+async function evaluateWithLLMJudge(
+    promptContent: string,
+    testCaseInput: string,
+    actualOutput: string,
+    evaluationCriteria: string,
+    evaluationModelRunner: ModelRunner
+): Promise<{ score: number; reason: string }> {
+    const judgePrompt = `You are an expert evaluator. Your task is to evaluate the quality of an AI-generated output based on specific criteria.
+
+## Original Prompt:
+${promptContent}
+
+## User Input:
+${testCaseInput}
+
+## Evaluation Criteria:
+${evaluationCriteria}
+
+Evaluate the AI output based on the criteria above. Return your evaluation as a JSON object with exactly two fields:
+- "score": A number between 0 and 1 indicating the quality (0 = poor, 1 = excellent)
+- "reason": A string explaining your score and what could be improved
+
+Return ONLY valid JSON, no other text. Example format:
+{"score": 0.85, "reason": "The output is mostly correct but lacks some detail in..."}`;
+
+    try {
+        const judgeResponse = await evaluationModelRunner.client.complete(
+            judgePrompt,
+            actualOutput,
+            evaluationModelRunner.modelId
+        );
+        const parsed = JSON.parse(judgeResponse.trim());
+
+        // Validate and clamp score
+        let score = typeof parsed.score === "number" ? parsed.score : parseFloat(parsed.score);
+        if (isNaN(score)) {
+            score = 0;
+        }
+        score = Math.max(0, Math.min(1, score)); // Clamp to [0, 1]
+
+        const reason = typeof parsed.reason === "string" ? parsed.reason : "No reason provided";
+
+        return { score, reason };
+    } catch (error) {
+        // If parsing fails, return a low score with error message
+        return {
+            score: 0,
+            reason: `Failed to parse judge response: ${getErrorMessage(error)}`,
+        };
+    }
+}
+
 async function handleTestRun(
     jobId: string,
     prompt: Prompt,
     testCases: TestCase[],
     modelRunners: ModelRunner[],
-    runsPerTest: number
+    runsPerTest: number,
+    evaluationModelRunner?: ModelRunner
 ): Promise<void> {
     try {
-        await runTests(prompt, testCases, modelRunners, runsPerTest, jobId);
+        await runTests(
+            prompt,
+            testCases,
+            modelRunners,
+            runsPerTest,
+            jobId,
+            undefined,
+            evaluationModelRunner
+        );
     } catch (error) {
         const progress = activeJobs.get(jobId);
         if (progress) {
@@ -126,6 +197,34 @@ function getModelRunnersFromSelections(selectedModels: ModelSelection[]): ModelR
     return runners;
 }
 
+function getModelRunnerFromSelection(selection: ModelSelection): ModelRunner | null {
+    const client = getConfiguredClients().find(
+        (candidate) => candidate.name === selection.provider
+    );
+    if (!client) {
+        return null;
+    }
+
+    return {
+        client,
+        modelId: selection.modelId,
+        displayName: `${selection.provider} (${selection.modelId})`,
+    };
+}
+
+function getEvaluationModelRunner(evaluationModel?: ModelSelection): ModelRunner {
+    const selectedEvaluationModel = evaluationModel ?? DEFAULT_EVALUATION_MODEL;
+    const evaluationRunner = getModelRunnerFromSelection(selectedEvaluationModel);
+
+    if (!evaluationRunner) {
+        throw new ConfigurationError(
+            `Evaluation model ${selectedEvaluationModel.provider} (${selectedEvaluationModel.modelId}) is not available. Please configure the provider API key or pick another evaluation model.`
+        );
+    }
+
+    return evaluationRunner;
+}
+
 function getSavedModelRunners(): ModelRunner[] {
     // Check for saved selected_models in config
     const savedModelsJson = getConfig("selected_models");
@@ -148,7 +247,8 @@ function getSavedModelRunners(): ModelRunner[] {
 export async function startTestRun(
     promptId: number,
     runsPerTest: number = DEFAULT_RUNS_PER_TEST,
-    selectedModels?: ModelSelection[]
+    selectedModels?: ModelSelection[],
+    evaluationModel?: ModelSelection
 ): Promise<string> {
     // Use OrFail variant - throws NotFoundError if prompt doesn't exist
     const prompt = getPromptByIdOrFail(promptId);
@@ -169,6 +269,10 @@ export async function startTestRun(
         );
     }
 
+    const evaluationMode = prompt.evaluationMode || "schema";
+    const evaluationModelRunner =
+        evaluationMode === "llm" ? getEvaluationModelRunner(evaluationModel) : undefined;
+
     const jobId = crypto.randomUUID();
     const totalTests = testCases.length * modelRunners.length * runsPerTest;
 
@@ -183,7 +287,7 @@ export async function startTestRun(
     };
     activeJobs.set(jobId, progress);
 
-    handleTestRun(jobId, prompt, testCases, modelRunners, runsPerTest);
+    handleTestRun(jobId, prompt, testCases, modelRunners, runsPerTest, evaluationModelRunner);
 
     return jobId;
 }
@@ -194,11 +298,17 @@ export async function runTests(
     modelRunners: ModelRunner[],
     runsPerTest: number = DEFAULT_RUNS_PER_TEST,
     jobId?: string,
-    expectedSchema?: string
+    expectedSchema?: string,
+    evaluationModelRunner?: ModelRunner
 ): Promise<{ score: number; results: LLMTestResult[] }> {
     // Extract prompt content and ID
     const promptContent = typeof prompt === "string" ? prompt : prompt.content;
     const promptId = typeof prompt === "string" ? undefined : prompt.id;
+    const promptObj = typeof prompt === "object" ? prompt : null;
+
+    // Get evaluation mode and criteria if prompt is an object
+    const evaluationMode = promptObj?.evaluationMode || "schema";
+    const evaluationCriteria = promptObj?.evaluationCriteria || null;
 
     // If expectedSchema not passed explicitly, try to get from prompt object
     const schemaString =
@@ -258,28 +368,72 @@ export async function runTests(
                         runner.modelId
                     );
                     const durationMs = Date.now() - startTime;
-                    const expectedOutputType = testCase.expectedOutputType as ParseType;
-                    const expectedParsed = parse(testCase.expectedOutput, expectedOutputType);
-                    const actualParsed = parse(actualOutput, expectedOutputType);
-                    const comparison = compare(expectedParsed, actualParsed, expectedOutputType);
 
-                    const isCorrect = comparison.score === 1;
+                    let score = 0;
+                    let isCorrect = false;
+                    let expectedFound = 0;
+                    let expectedTotal = 0;
+                    let unexpectedFound = 0;
+                    let reason: string | undefined = undefined;
+
+                    if (evaluationMode === "llm" && evaluationCriteria) {
+                        // LLM evaluation mode: use judge model
+                        if (!evaluationModelRunner) {
+                            throw new ConfigurationError(
+                                "Evaluation model is required when running LLM evaluation mode."
+                            );
+                        }
+
+                        const evaluation = await evaluateWithLLMJudge(
+                            promptContent,
+                            testCase.input,
+                            actualOutput,
+                            evaluationCriteria,
+                            evaluationModelRunner
+                        );
+                        score = evaluation.score;
+                        reason = evaluation.reason;
+                        isCorrect = score === 1;
+                        // For LLM evaluation, we don't have expectedFound/expectedTotal/unexpectedFound
+                        // Set defaults that make sense
+                        expectedTotal = 1;
+                        expectedFound = score === 1 ? 1 : 0;
+                        unexpectedFound = 0;
+                    } else {
+                        // Schema evaluation mode: use existing comparison logic
+                        const expectedOutputType = testCase.expectedOutputType as ParseType;
+                        const expectedParsed = parse(testCase.expectedOutput, expectedOutputType);
+                        const actualParsed = parse(actualOutput, expectedOutputType);
+                        const comparison = compare(
+                            expectedParsed,
+                            actualParsed,
+                            expectedOutputType
+                        );
+
+                        score = comparison.score;
+                        isCorrect = comparison.score === 1;
+                        expectedFound = comparison.expectedFound;
+                        expectedTotal = comparison.expectedTotal;
+                        unexpectedFound = comparison.unexpectedFound;
+                    }
+
                     if (isCorrect) {
                         correctRuns++;
                         llmCorrectCount++;
                     }
-                    totalScore += comparison.score;
+                    totalScore += score;
                     llmTotalRuns++;
 
                     runs.push({
                         runNumber,
                         actualOutput,
                         isCorrect,
-                        score: comparison.score,
-                        expectedFound: comparison.expectedFound,
-                        expectedTotal: comparison.expectedTotal,
-                        unexpectedFound: comparison.unexpectedFound,
+                        score,
+                        expectedFound,
+                        expectedTotal,
+                        unexpectedFound,
                         durationMs,
+                        reason,
                     });
 
                     // Persist to database if jobId is provided
@@ -291,10 +445,10 @@ export async function runTests(
                             runNumber,
                             actualOutput,
                             isCorrect,
-                            comparison.score,
-                            comparison.expectedFound,
-                            comparison.expectedTotal,
-                            comparison.unexpectedFound,
+                            score,
+                            expectedFound,
+                            expectedTotal,
+                            unexpectedFound,
                             durationMs
                         );
                     }
@@ -400,6 +554,13 @@ export async function runTests(
             promptId: promptId ?? 0,
             promptContent: promptContent,
             totalTestCases: testCases.length,
+            evaluationModel:
+                evaluationMode === "llm" && evaluationCriteria && evaluationModelRunner
+                    ? {
+                          provider: evaluationModelRunner.client.name,
+                          modelId: evaluationModelRunner.modelId,
+                      }
+                    : undefined,
             llmResults,
             overallScore: score,
         };

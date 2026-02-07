@@ -11,11 +11,13 @@ import {
     createPrompt,
     getLatestPrompts,
     getPromptVersionsByGroupId,
+    getLatestPromptForGroupId,
     getPromptByIdOrFail,
     deletePrompt,
     deleteAllVersionsOfPrompt,
     createTestCase,
     getTestCasesForPrompt,
+    getTestCaseById,
     deleteTestCase,
     updateTestCase,
     getTestJobByIdOrFail,
@@ -150,11 +152,13 @@ app.get("/api/prompts/export", (req, res) => {
     try {
         const prompts = getLatestPrompts();
 
-        // Export format: only include name, content, and expected_schema
+        // Export format: include name, content, expected_schema, evaluation_mode, and evaluation_criteria
         const exportData = prompts.map((p) => ({
             name: p.name,
             content: p.content,
             expected_schema: p.expectedSchema || null,
+            evaluation_mode: p.evaluationMode || "schema",
+            evaluation_criteria: p.evaluationCriteria || null,
         }));
 
         res.json(exportData);
@@ -169,6 +173,8 @@ app.post("/api/prompts/import", validate(importPromptsSchema), (req, res) => {
             name: string;
             content: string;
             expected_schema?: string | null;
+            evaluation_mode?: "schema" | "llm";
+            evaluation_criteria?: string | null;
         }>;
 
         const existingPrompts = getLatestPrompts();
@@ -188,7 +194,9 @@ app.post("/api/prompts/import", validate(importPromptsSchema), (req, res) => {
                 promptData.name,
                 promptData.content,
                 undefined,
-                promptData.expected_schema || undefined
+                promptData.expected_schema || undefined,
+                promptData.evaluation_mode || "schema",
+                promptData.evaluation_criteria || undefined
             );
             created.push({ name: prompt.name, id: prompt.id });
             existingNames.add(promptData.name.toLowerCase());
@@ -207,9 +215,23 @@ app.post("/api/prompts/import", validate(importPromptsSchema), (req, res) => {
 
 app.post("/api/prompts", validate(createPromptSchema), (req, res) => {
     try {
-        const { name, content, parentVersionId, expectedSchema } = req.body;
+        const {
+            name,
+            content,
+            parentVersionId,
+            expectedSchema,
+            evaluationMode,
+            evaluationCriteria,
+        } = req.body;
 
-        const prompt = createPrompt(name, content, parentVersionId, expectedSchema);
+        const prompt = createPrompt(
+            name,
+            content,
+            parentVersionId,
+            expectedSchema,
+            evaluationMode,
+            evaluationCriteria
+        );
         res.json(prompt);
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
@@ -273,14 +295,21 @@ app.get("/api/prompts/:id/test-cases", validateIdParam, (req, res) => {
 app.get("/api/prompts/:id/test-cases/export", validateIdParam, (req, res) => {
     try {
         const promptId = parseInt(req.params.id, 10);
+        const prompt = getPromptByIdOrFail(promptId);
         const testCases = getTestCasesForPrompt(promptId);
 
         // Export format: exclude internal IDs and timestamps
-        const exportData = testCases.map((tc) => ({
-            input: tc.input,
-            expected_output: tc.expectedOutput,
-            expected_output_type: tc.expectedOutputType,
-        }));
+        // For LLM evaluation prompts, expected output fields are optional.
+        const exportData =
+            (prompt.evaluationMode || "schema") === "llm"
+                ? testCases.map((tc) => ({
+                      input: tc.input,
+                  }))
+                : testCases.map((tc) => ({
+                      input: tc.input,
+                      expected_output: tc.expectedOutput,
+                      expected_output_type: tc.expectedOutputType,
+                  }));
 
         res.json(exportData);
     } catch (error) {
@@ -297,23 +326,43 @@ app.post(
             const promptId = parseInt(req.params.id, 10);
             const { input, expected_output, expected_output_type } = req.body;
 
-            // Additional validation: ensure expected_output can be parsed with the specified type
-            try {
-                parse(expected_output, expected_output_type as ParseType);
-            } catch {
-                return res.status(400).json({
-                    error: "Validation error: expected_output must be valid JSON matching the expected_output_type",
-                });
-            }
-
             const prompt = getPromptByIdOrFail(promptId);
             const promptGroupId = prompt.promptGroupId ?? promptId;
+            const evaluationMode = (prompt.evaluationMode || "schema") as "schema" | "llm";
+
+            const resolvedExpectedOutput =
+                evaluationMode === "llm" ? "[]" : (expected_output as string | undefined)?.trim();
+            const resolvedExpectedOutputType =
+                evaluationMode === "llm"
+                    ? ParseType.ARRAY
+                    : (expected_output_type as ParseType | undefined);
+
+            if (evaluationMode !== "llm") {
+                if (!resolvedExpectedOutput) {
+                    return res.status(400).json({
+                        error: "Validation error: expected_output is required for schema evaluation prompts",
+                    });
+                }
+                if (!resolvedExpectedOutputType) {
+                    return res.status(400).json({
+                        error: "Validation error: expected_output_type is required for schema evaluation prompts",
+                    });
+                }
+                // Additional validation: ensure expected_output can be parsed with the specified type
+                try {
+                    parse(resolvedExpectedOutput, resolvedExpectedOutputType);
+                } catch {
+                    return res.status(400).json({
+                        error: "Validation error: expected_output must be valid JSON matching the expected_output_type",
+                    });
+                }
+            }
 
             const testCase = createTestCase(
                 promptGroupId,
                 input,
-                expected_output,
-                expected_output_type
+                resolvedExpectedOutput ?? "[]",
+                resolvedExpectedOutputType ?? ParseType.ARRAY
             );
             res.json(testCase);
         } catch (error) {
@@ -327,16 +376,53 @@ app.put("/api/test-cases/:id", validateIdParam, validate(updateTestCaseSchema), 
         const id = parseInt(req.params.id, 10);
         const { input, expected_output, expected_output_type } = req.body;
 
-        // Additional validation: ensure expected_output can be parsed with the specified type
-        try {
-            parse(expected_output, expected_output_type as ParseType);
-        } catch {
-            return res.status(400).json({
-                error: "Validation error: expected_output must be valid JSON matching the expected_output_type",
-            });
+        const existing = getTestCaseById(id);
+        if (!existing) {
+            throw new NotFoundError("Test case", id);
         }
 
-        const testCase = updateTestCase(id, input, expected_output, expected_output_type);
+        const latestPrompt = getLatestPromptForGroupId(existing.promptGroupId);
+        const evaluationMode =
+            ((latestPrompt?.evaluationMode || "schema") as "schema" | "llm") ?? "schema";
+
+        const resolvedExpectedOutput =
+            evaluationMode === "llm"
+                ? existing.expectedOutput?.trim()
+                    ? existing.expectedOutput
+                    : "[]"
+                : (expected_output as string | undefined)?.trim();
+        const resolvedExpectedOutputType =
+            evaluationMode === "llm"
+                ? ((existing.expectedOutputType as ParseType) ?? ParseType.ARRAY)
+                : (expected_output_type as ParseType | undefined);
+
+        if (evaluationMode !== "llm") {
+            if (!resolvedExpectedOutput) {
+                return res.status(400).json({
+                    error: "Validation error: expected_output is required for schema evaluation prompts",
+                });
+            }
+            if (!resolvedExpectedOutputType) {
+                return res.status(400).json({
+                    error: "Validation error: expected_output_type is required for schema evaluation prompts",
+                });
+            }
+            // Additional validation: ensure expected_output can be parsed with the specified type
+            try {
+                parse(resolvedExpectedOutput, resolvedExpectedOutputType);
+            } catch {
+                return res.status(400).json({
+                    error: "Validation error: expected_output must be valid JSON matching the expected_output_type",
+                });
+            }
+        }
+
+        const testCase = updateTestCase(
+            id,
+            input,
+            resolvedExpectedOutput ?? "[]",
+            resolvedExpectedOutputType ?? ParseType.ARRAY
+        );
         if (!testCase) {
             throw new NotFoundError("Test case", id);
         }
@@ -365,23 +451,33 @@ app.post(
             const promptId = parseInt(req.params.id, 10);
             const testCasesData = req.body as Array<{
                 input: string;
-                expected_output: string;
-                expected_output_type: string;
+                expected_output?: string;
+                expected_output_type?: string;
             }>;
-
-            // Validate all test cases can be parsed with their specified types
-            for (const tc of testCasesData) {
-                try {
-                    parse(tc.expected_output, tc.expected_output_type as ParseType);
-                } catch {
-                    return res.status(400).json({
-                        error: `Validation error: expected_output for test case "${tc.input.substring(0, 50)}..." must be valid JSON matching the expected_output_type`,
-                    });
-                }
-            }
 
             const prompt = getPromptByIdOrFail(promptId);
             const promptGroupId = prompt.promptGroupId ?? promptId;
+            const evaluationMode = (prompt.evaluationMode || "schema") as "schema" | "llm";
+
+            if (evaluationMode !== "llm") {
+                // Validate all test cases can be parsed with their specified types
+                for (const tc of testCasesData) {
+                    const expectedOutput = tc.expected_output?.trim();
+                    const expectedType = tc.expected_output_type as ParseType | undefined;
+                    if (!expectedOutput || !expectedType) {
+                        return res.status(400).json({
+                            error: `Validation error: expected_output and expected_output_type are required for schema evaluation prompts (test case "${tc.input.substring(0, 50)}...")`,
+                        });
+                    }
+                    try {
+                        parse(expectedOutput, expectedType);
+                    } catch {
+                        return res.status(400).json({
+                            error: `Validation error: expected_output for test case "${tc.input.substring(0, 50)}..." must be valid JSON matching the expected_output_type`,
+                        });
+                    }
+                }
+            }
 
             // Delete all existing test cases for this prompt group
             deleteAllTestCasesForPromptGroup(promptGroupId);
@@ -391,8 +487,13 @@ app.post(
                 promptGroupId,
                 testCasesData.map((tc) => ({
                     input: tc.input,
-                    expectedOutput: tc.expected_output,
-                    expectedOutputType: tc.expected_output_type,
+                    expectedOutput:
+                        evaluationMode === "llm" ? "[]" : (tc.expected_output?.trim() ?? "[]"),
+                    expectedOutputType:
+                        evaluationMode === "llm"
+                            ? ParseType.ARRAY
+                            : ((tc.expected_output_type as ParseType | undefined) ??
+                              ParseType.ARRAY),
                 }))
             );
 
@@ -405,9 +506,9 @@ app.post(
 
 app.post("/api/test/run", validate(testRunSchema), async (req, res) => {
     try {
-        const { promptId, runsPerTest, selectedModels } = req.body;
+        const { promptId, runsPerTest, selectedModels, evaluationModel } = req.body;
 
-        const jobId = await startTestRun(promptId, runsPerTest, selectedModels);
+        const jobId = await startTestRun(promptId, runsPerTest, selectedModels, evaluationModel);
         res.json({ jobId });
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });

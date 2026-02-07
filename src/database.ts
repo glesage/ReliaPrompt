@@ -51,13 +51,17 @@ export function createPrompt(
     name: string,
     content: string,
     parentVersionId?: number,
-    expectedSchema?: string
+    expectedSchema?: string,
+    evaluationMode?: "schema" | "llm",
+    evaluationCriteria?: string
 ) {
     return withSave(() => {
         const db = getDb();
         let version = 1;
         let promptGroupId: number | null = null;
         let schemaToUse = expectedSchema ?? null;
+        let evaluationModeToUse: "schema" | "llm" = evaluationMode ?? "schema";
+        let evaluationCriteriaToUse = evaluationCriteria ?? null;
 
         if (parentVersionId) {
             const parent = db
@@ -65,6 +69,8 @@ export function createPrompt(
                     version: prompts.version,
                     promptGroupId: prompts.promptGroupId,
                     expectedSchema: prompts.expectedSchema,
+                    evaluationMode: prompts.evaluationMode,
+                    evaluationCriteria: prompts.evaluationCriteria,
                 })
                 .from(prompts)
                 .where(eq(prompts.id, parentVersionId))
@@ -76,6 +82,13 @@ export function createPrompt(
                 if (!expectedSchema && parent.expectedSchema) {
                     schemaToUse = parent.expectedSchema;
                 }
+                // Inherit evaluation mode and criteria from parent if not explicitly provided
+                if (!evaluationMode && parent.evaluationMode) {
+                    evaluationModeToUse = parent.evaluationMode as "schema" | "llm";
+                }
+                if (!evaluationCriteria && parent.evaluationCriteria) {
+                    evaluationCriteriaToUse = parent.evaluationCriteria;
+                }
             }
         }
 
@@ -86,6 +99,8 @@ export function createPrompt(
                 name,
                 content,
                 expectedSchema: schemaToUse,
+                evaluationMode: evaluationModeToUse,
+                evaluationCriteria: evaluationCriteriaToUse,
                 version,
                 parentVersionId: parentVersionId ?? null,
                 promptGroupId,
@@ -193,6 +208,8 @@ export function getLatestPrompts(): Prompt[] {
             name: prompts.name,
             content: prompts.content,
             expectedSchema: prompts.expectedSchema,
+            evaluationMode: prompts.evaluationMode,
+            evaluationCriteria: prompts.evaluationCriteria,
             version: prompts.version,
             parentVersionId: prompts.parentVersionId,
             promptGroupId: prompts.promptGroupId,
@@ -217,6 +234,17 @@ export function getPromptVersionsByGroupId(groupId: number): Prompt[] {
         .where(eq(prompts.promptGroupId, groupId))
         .orderBy(desc(prompts.version))
         .all();
+}
+
+export function getLatestPromptForGroupId(groupId: number): Prompt | null {
+    return (
+        getDb()
+            .select()
+            .from(prompts)
+            .where(eq(prompts.promptGroupId, groupId))
+            .orderBy(desc(prompts.version))
+            .get() ?? null
+    );
 }
 
 export function createTestCase(

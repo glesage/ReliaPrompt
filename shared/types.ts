@@ -15,6 +15,8 @@ export interface Prompt {
     version: number;
     promptGroupId: number;
     expectedSchema?: string | null;
+    evaluationMode?: "schema" | "llm";
+    evaluationCriteria?: string | null;
     createdAt: string;
 }
 
@@ -29,11 +31,16 @@ export interface CreatePromptRequest {
     name: string;
     content: string;
     expectedSchema?: string;
+    evaluationMode?: "schema" | "llm";
+    evaluationCriteria?: string;
+    parentVersionId?: number;
 }
 
 export interface CreateVersionRequest {
     content: string;
     expectedSchema?: string;
+    evaluationMode?: "schema" | "llm";
+    evaluationCriteria?: string;
 }
 
 // ============================================
@@ -85,8 +92,12 @@ export interface TestCase {
 
 export interface CreateTestCaseRequest {
     input: string;
-    expected_output: string;
-    expected_output_type: ExpectedOutputType;
+    /**
+     * Only required for schema evaluation prompts.
+     * For LLM evaluation prompts, the server will auto-fill safe defaults if omitted.
+     */
+    expected_output?: string;
+    expected_output_type?: ExpectedOutputType;
 }
 
 export interface UpdateTestCaseRequest {
@@ -115,6 +126,7 @@ export interface TestJob {
 
 export interface TestResults {
     overallScore: number;
+    evaluationModel?: SelectedModel;
     llmResults: LLMResult[];
 }
 
@@ -147,12 +159,14 @@ export interface TestRun {
     expectedFound?: number;
     expectedTotal?: number;
     unexpectedFound?: number;
+    reason?: string;
 }
 
 export interface StartTestRunRequest {
     promptId: number;
     runsPerTest: number;
     selectedModels: SelectedModel[];
+    evaluationModel?: SelectedModel;
 }
 
 export interface StartTestRunResponse {
@@ -176,10 +190,16 @@ export interface ExportPromptData {
     name: string;
     content: string;
     expectedSchema?: string;
+    evaluation_mode?: "schema" | "llm";
+    evaluation_criteria?: string | null;
 }
 
 export interface ExportTestCaseData {
     input: string;
-    expected_output: string;
-    expected_output_type: ExpectedOutputType;
+    /**
+     * Present for schema evaluation prompts.
+     * For LLM evaluation prompts, exports may omit these fields.
+     */
+    expected_output?: string;
+    expected_output_type?: ExpectedOutputType;
 }

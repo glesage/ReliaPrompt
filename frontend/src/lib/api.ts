@@ -45,6 +45,8 @@ export async function createPrompt(data: {
     name: string;
     content: string;
     expectedSchema?: string;
+    evaluationMode?: "schema" | "llm";
+    evaluationCriteria?: string;
     parentVersionId?: number;
 }): Promise<Prompt> {
     return fetchJSON<Prompt>("/api/prompts", {
@@ -66,7 +68,13 @@ export async function exportPrompts(): Promise<Prompt[]> {
 }
 
 export async function importPrompts(
-    prompts: Array<{ name: string; content: string; expected_schema?: string }>
+    prompts: Array<{
+        name: string;
+        content: string;
+        expected_schema?: string;
+        evaluation_mode?: "schema" | "llm";
+        evaluation_criteria?: string | null;
+    }>
 ): Promise<{ created: number; skipped: number }> {
     return fetchJSON<{ created: number; skipped: number }>("/api/prompts/import", {
         method: "POST",
@@ -104,8 +112,8 @@ export async function createTestCase(
     promptId: number,
     data: {
         input: string;
-        expected_output: string;
-        expected_output_type: string;
+        expected_output?: string;
+        expected_output_type?: string;
     }
 ): Promise<TestCase> {
     return fetchJSON<TestCase>(`/api/prompts/${promptId}/test-cases`, {
@@ -118,8 +126,8 @@ export async function updateTestCase(
     id: number,
     data: {
         input: string;
-        expected_output: string;
-        expected_output_type: string;
+        expected_output?: string;
+        expected_output_type?: string;
     }
 ): Promise<TestCase> {
     return fetchJSON<TestCase>(`/api/test-cases/${id}`, {
@@ -140,8 +148,8 @@ export async function importTestCases(
     promptId: number,
     testCases: Array<{
         input: string;
-        expected_output: string;
-        expected_output_type: string;
+        expected_output?: string;
+        expected_output_type?: string;
     }>
 ): Promise<{ count: number }> {
     return fetchJSON<{ count: number }>(`/api/prompts/${promptId}/test-cases/import`, {
@@ -159,6 +167,7 @@ export async function startTestRun(data: {
     promptId: number;
     runsPerTest: number;
     selectedModels: SelectedModel[];
+    evaluationModel?: SelectedModel;
 }): Promise<{ jobId: string }> {
     return fetchJSON<{ jobId: string }>("/api/test/run", {
         method: "POST",
@@ -169,4 +178,3 @@ export async function startTestRun(data: {
 export async function getTestStatus(jobId: string): Promise<TestJob & { results?: TestResults }> {
     return fetchJSON<TestJob & { results?: TestResults }>(`/api/test/status/${jobId}`);
 }
-
