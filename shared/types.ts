@@ -127,6 +127,7 @@ export interface TestJob {
 export interface TestResults {
     overallScore: number;
     evaluationModel?: SelectedModel;
+    optimizationModel?: SelectedModel;
     llmResults: LLMResult[];
 }
 
@@ -160,6 +161,23 @@ export interface TestRun {
     expectedTotal?: number;
     unexpectedFound?: number;
     reason?: string;
+    /**
+     * History of optimization rounds when using LLM evaluation with optimization enabled.
+     * Round 0 = initial model output + evaluation
+     * Round N (N>=1) = each optimization iteration + evaluation
+     */
+    optimizationHistory?: OptimizationRound[];
+}
+
+/**
+ * Represents a single round of optimization in LLM evaluation mode.
+ */
+export interface OptimizationRound {
+    roundNumber: number; // 0 = initial, 1+ = optimization iterations
+    output: string;
+    score: number;
+    reason: string;
+    durationMs: number; // Time in milliseconds for this round (model output + judge evaluation)
 }
 
 export interface StartTestRunRequest {
@@ -167,6 +185,9 @@ export interface StartTestRunRequest {
     runsPerTest: number;
     selectedModels: SelectedModel[];
     evaluationModel?: SelectedModel;
+    optimizationMaxIterations?: number;
+    optimizationThreshold?: number;
+    optimizationModel?: SelectedModel;
 }
 
 export interface StartTestRunResponse {

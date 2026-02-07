@@ -214,4 +214,16 @@ export const testRunSchema = Joi.object({
         "array.min": "selectedModels must contain at least one model",
     }),
     evaluationModel: modelSelectionSchema.optional(),
+    optimizationMaxIterations: Joi.number().integer().min(0).max(20).optional().messages({
+        "number.base": "optimizationMaxIterations must be a number",
+        "number.integer": "optimizationMaxIterations must be an integer",
+        "number.min": "optimizationMaxIterations must be at least 0",
+        "number.max": "optimizationMaxIterations must be at most 20",
+    }),
+    optimizationThreshold: Joi.number().min(0).max(1).optional().messages({
+        "number.base": "optimizationThreshold must be a number",
+        "number.min": "optimizationThreshold must be at least 0",
+        "number.max": "optimizationThreshold must be at most 1",
+    }),
+    optimizationModel: modelSelectionSchema.optional(),
 }).unknown(false);

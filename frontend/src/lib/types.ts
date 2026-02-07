@@ -18,6 +18,7 @@ export type {
     DurationStats,
     TestCaseResult,
     TestRun,
+    OptimizationRound,
     StartTestRunRequest,
     StartTestRunResponse,
     ImportPromptsResult,

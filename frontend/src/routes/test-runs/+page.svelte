@@ -21,11 +21,15 @@
     let storedLlmResults = $state<Record<string, LLMResult>>({});
     let pollInterval: ReturnType<typeof setInterval> | null = null;
     let selectedEvaluationModels = $state<SelectedModel[]>([]);
+    let selectedOptimizationModels = $state<SelectedModel[]>([]);
+    let optimizationMaxIterations = $state(0);
+    let optimizationThreshold = $state(0.9);
 
     const shouldShowEvaluationModelSelector = $derived(
         $selectedPrompt?.evaluationMode === "llm" &&
             Boolean($selectedPrompt?.evaluationCriteria?.trim())
     );
+    const shouldShowOptimizationControls = $derived(shouldShowEvaluationModelSelector);
 
     // Test details modal
     let detailsModalOpen = $state(false);
@@ -47,6 +51,8 @@
     $effect(() => {
         if (!shouldShowEvaluationModelSelector) {
             selectedEvaluationModels = [];
+            selectedOptimizationModels = [];
+            optimizationMaxIterations = 0;
             return;
         }
 
@@ -66,6 +72,32 @@
             $availableModels[0];
 
         selectedEvaluationModels = preferredModel
+            ? [{ provider: preferredModel.provider, modelId: preferredModel.id }]
+            : [];
+    });
+
+    $effect(() => {
+        if (!shouldShowOptimizationControls || optimizationMaxIterations <= 0) {
+            selectedOptimizationModels = [];
+            return;
+        }
+
+        const availableModelKeys = new Set($availableModels.map((model) => `${model.provider}:${model.id}`));
+        const hasValidSelection =
+            selectedOptimizationModels.length > 0 &&
+            availableModelKeys.has(
+                `${selectedOptimizationModels[0].provider}:${selectedOptimizationModels[0].modelId}`
+            );
+
+        if (hasValidSelection) {
+            return;
+        }
+
+        const preferredModel =
+            $availableModels.find((model) => model.provider === "OpenAI" && model.id === "gpt-5.2") ||
+            $availableModels[0];
+
+        selectedOptimizationModels = preferredModel
             ? [{ provider: preferredModel.provider, modelId: preferredModel.id }]
             : [];
     });
@@ -93,6 +125,16 @@
             showError("Select an evaluation model before running LLM evaluation");
             return;
         }
+        if (shouldShowOptimizationControls && optimizationMaxIterations > 0) {
+            if (selectedOptimizationModels.length === 0) {
+                showError("Select an optimization model when optimization iterations are enabled");
+                return;
+            }
+            if (optimizationThreshold < 0 || optimizationThreshold > 1) {
+                showError("Optimization threshold must be between 0 and 1");
+                return;
+            }
+        }
 
         running = true;
         progress = 0;
@@ -108,6 +150,18 @@
                 evaluationModel:
                     shouldShowEvaluationModelSelector
                         ? selectedEvaluationModels[0]
+                        : undefined,
+                optimizationMaxIterations:
+                    shouldShowOptimizationControls && optimizationMaxIterations > 0
+                        ? optimizationMaxIterations
+                        : undefined,
+                optimizationThreshold:
+                    shouldShowOptimizationControls && optimizationMaxIterations > 0
+                        ? optimizationThreshold
+                        : undefined,
+                optimizationModel:
+                    shouldShowOptimizationControls && optimizationMaxIterations > 0
+                        ? selectedOptimizationModels[0]
                         : undefined,
             });
             pollProgress(jobId);
@@ -247,7 +301,10 @@
         testCaseCount > 0 &&
             $selectedModels.length > 0 &&
             !running &&
-            (!shouldShowEvaluationModelSelector || selectedEvaluationModels.length > 0)
+            (!shouldShowEvaluationModelSelector || selectedEvaluationModels.length > 0) &&
+            (!shouldShowOptimizationControls ||
+                optimizationMaxIterations <= 0 ||
+                selectedOptimizationModels.length > 0)
     );
 
     onMount(() => {
@@ -331,6 +388,60 @@
                             </select>
                             <small>Used as the judge model to score outputs in LLM evaluation mode.</small>
                         </div>
+
+                        <div class="form-group mb-20">
+                            <label for="optimization-max-iterations">Optimization max iterations</label>
+                            <input
+                                id="optimization-max-iterations"
+                                type="number"
+                                min="0"
+                                max="20"
+                                bind:value={optimizationMaxIterations}
+                            />
+                            <small>
+                                Set to 0 or less to disable optimization. Optimization only runs in LLM evaluation mode.
+                            </small>
+                        </div>
+
+                        {#if optimizationMaxIterations > 0}
+                            <div class="form-group mb-20">
+                                <label for="optimization-threshold">Optimization threshold</label>
+                                <div class="range-row">
+                                    <input
+                                        type="range"
+                                        id="optimization-threshold"
+                                        min="0"
+                                        max="1"
+                                        step="0.01"
+                                        bind:value={optimizationThreshold}
+                                    />
+                                    <span class="range-value">{optimizationThreshold.toFixed(2)}</span>
+                                </div>
+                                <small>
+                                    Stop optimization when the judge score reaches this threshold (0 to 1).
+                                </small>
+                            </div>
+
+                            <div class="form-group mb-20">
+                                <label for="optimization-model">Optimization model</label>
+                                <select
+                                    id="optimization-model"
+                                    value={getEvaluationModelValue(selectedOptimizationModels[0])}
+                                    onchange={(event) => {
+                                        const selectedValue = (event.currentTarget as HTMLSelectElement).value;
+                                        const parsedSelection = parseEvaluationModelValue(selectedValue);
+                                        selectedOptimizationModels = parsedSelection ? [parsedSelection] : [];
+                                    }}
+                                >
+                                    {#each $availableModels as model}
+                                        <option value={`${model.provider}:${model.id}`}>{model.provider} - {model.name}</option>
+                                    {/each}
+                                </select>
+                                <small>
+                                    Used to revise the latest output using the evaluator reason before re-evaluation.
+                                </small>
+                            </div>
+                        {/if}
                     {/if}
 
                     <button id="run-btn" onclick={runTests} disabled={!canRun}>
@@ -362,7 +473,13 @@
                         {#if results.evaluationModel}
                             {@const evaluationModelLabel = formatEvaluationModel(results.evaluationModel)}
                             {#if evaluationModelLabel}
-                                <div class="muted" style="margin-bottom: 16px; font-size: 14px;">Judge: {evaluationModelLabel}</div>
+                                <div class="muted" style="margin-bottom: 16px; font-size: 14px;">Evaluation Model: {evaluationModelLabel}</div>
+                            {/if}
+                        {/if}
+                        {#if results.optimizationModel}
+                            {@const optimizationModelLabel = formatEvaluationModel(results.optimizationModel)}
+                            {#if optimizationModelLabel}
+                                <div class="muted" style="margin-bottom: 16px; font-size: 14px;">Optimization Model: {optimizationModelLabel}</div>
                             {/if}
                         {/if}
                         <div id="llm-results" class="llm-results">
@@ -508,28 +625,80 @@
                         {#each tc.runs as run, runIdx}
                             {@const runScore = scoreToPercent(run.score || 0)}
                             {@const borderColor = runScore >= 90 ? "var(--color-success)" : runScore >= 80 ? "var(--color-warning)" : "var(--color-danger)"}
+                            {@const runOptimizationDurationMs = run.optimizationHistory ? run.optimizationHistory.reduce((total, round) => total + (round.durationMs || 0), 0) : 0}
                             <div style="background: var(--color-bg-elevated); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid {borderColor};">
                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
                                     <span style="font-weight: 500;">Run #{runIdx + 1}</span>
                                     <ScoreBadge score={run.score} />
+                                    <span class="duration-badge" style="font-size: 11px; opacity: 0.8;">Score: {runScore}%</span>
                                     {#if run.durationMs !== undefined}
                                         <span class="duration-badge" style="font-size: 11px; opacity: 0.8;">⏱ {formatDuration(run.durationMs)}</span>
                                     {/if}
-                                </div>
-                                <div style="margin-top: 6px;">
-                                    <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px;">Actual Output:</div>
-                                    <div class="json-preview" style="font-size: 13px; max-height: 150px; overflow-y: auto;">
-                                        {run.actualOutput || (run.error ? `Error: ${run.error}` : "N/A")}
-                                    </div>
-                                    {#if run.reason}
-                                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--color-border);">
-                                            <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px; font-weight: 500;">Evaluation Reason:</div>
-                                            <div style="font-size: 13px; color: var(--color-text); line-height: 1.5;">
-                                                {run.reason}
-                                            </div>
-                                        </div>
+                                    {#if run.optimizationHistory && run.optimizationHistory.length > 0}
+                                        <span class="duration-badge" style="font-size: 11px; opacity: 0.8; background: var(--color-bg); padding: 2px 6px; border-radius: 4px;">
+                                            {run.optimizationHistory.length} round{run.optimizationHistory.length !== 1 ? "s" : ""}
+                                        </span>
+                                        <span class="duration-badge" style="font-size: 11px; opacity: 0.8;">Optimization: {formatDuration(runOptimizationDurationMs)}</span>
                                     {/if}
                                 </div>
+
+                                {#if run.optimizationHistory && run.optimizationHistory.length > 0}
+                                    <div style="margin-top: 8px;">
+                                        <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 8px; font-weight: 500;">Optimization History:</div>
+                                        {#each run.optimizationHistory as round}
+                                            {@const roundScore = scoreToPercent(round.score)}
+                                            {@const roundBorderColor = roundScore >= 90 ? "var(--color-success)" : roundScore >= 80 ? "var(--color-warning)" : "var(--color-danger)"}
+                                                <div style="background: var(--color-bg); padding: 8px 10px; border-radius: 4px; margin-bottom: 6px; border-left: 3px solid {roundBorderColor};">
+                                                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap;">
+                                                        <span style="font-weight: 500; font-size: 12px;">{round.roundNumber === 0 ? "Initial Round" : `Optimization ${round.roundNumber}`}</span>
+                                                        <ScoreBadge score={round.score} />
+                                                        <span class="duration-badge" style="font-size: 11px; opacity: 0.8;">⏱ {formatDuration(round.durationMs)}</span>
+                                                    </div>
+                                                <div style="margin-top: 4px;">
+                                                    <div style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 2px;">Output:</div>
+                                                    <div class="json-preview" style="font-size: 12px; max-height: 100px; overflow-y: auto;">
+                                                        {formatJSON(round.output)}
+                                                    </div>
+                                                </div>
+                                                <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--color-border);">
+                                                    <div style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 2px; font-weight: 500;">Reason:</div>
+                                                    <div style="font-size: 12px; color: var(--color-text); line-height: 1.4;">
+                                                        {round.reason?.trim() || "N/A"}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {/each}
+                                        <div style="margin-top: 10px; padding-top: 8px; border-top: 2px solid var(--color-border);">
+                                            <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px; font-weight: 500;">Final Output:</div>
+                                            <div class="json-preview" style="font-size: 13px; max-height: 150px; overflow-y: auto;">
+                                                {run.actualOutput ? formatJSON(run.actualOutput) : "N/A"}
+                                            </div>
+                                            {#if run.reason}
+                                                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--color-border);">
+                                                    <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px; font-weight: 500;">Final Reason:</div>
+                                                    <div style="font-size: 13px; color: var(--color-text); line-height: 1.5;">
+                                                        {run.reason.trim()}
+                                                    </div>
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    </div>
+                                {:else}
+                                    <div style="margin-top: 6px;">
+                                        <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px;">Output:</div>
+                                        <div class="json-preview" style="font-size: 13px; max-height: 150px; overflow-y: auto;">
+                                            {run.actualOutput ? formatJSON(run.actualOutput) : (run.error ? `Error: ${run.error}` : "N/A")}
+                                        </div>
+                                        {#if run.reason}
+                                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--color-border);">
+                                                <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px; font-weight: 500;">Reason:</div>
+                                                <div style="font-size: 13px; color: var(--color-text); line-height: 1.5;">
+                                                    {run.reason?.trim() || "N/A"}
+                                                </div>
+                                            </div>
+                                        {/if}
+                                    </div>
+                                {/if}
                             </div>
                         {/each}
                     </div>

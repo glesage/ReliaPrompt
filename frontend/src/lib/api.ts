@@ -168,6 +168,9 @@ export async function startTestRun(data: {
     runsPerTest: number;
     selectedModels: SelectedModel[];
     evaluationModel?: SelectedModel;
+    optimizationMaxIterations?: number;
+    optimizationThreshold?: number;
+    optimizationModel?: SelectedModel;
 }): Promise<{ jobId: string }> {
     return fetchJSON<{ jobId: string }>("/api/test/run", {
         method: "POST",
