@@ -359,6 +359,12 @@
                                 <ScoreBadge score={getBestScore(results.llmResults)! / 100} tooltip="Best LLM" variant="best" />
                             {/if}
                         </h2>
+                        {#if results.evaluationModel}
+                            {@const evaluationModelLabel = formatEvaluationModel(results.evaluationModel)}
+                            {#if evaluationModelLabel}
+                                <div class="muted" style="margin-bottom: 16px; font-size: 14px;">Judge: {evaluationModelLabel}</div>
+                            {/if}
+                        {/if}
                         <div id="llm-results" class="llm-results">
                             {#each results.llmResults as llm}
                                 <div class="llm-result-row">
@@ -402,13 +408,6 @@
                                     <div class="previous-run-info">
                                         <span class="previous-run-date">{formatDate(job.createdAt)}</span>
                                         <span class="previous-run-tests">{job.totalTests} tests</span>
-                                        {#if job.status === "completed" && job.results}
-                                            {@const parsed = typeof job.results === "string" ? JSON.parse(job.results) : job.results}
-                                            {@const evaluationModelLabel = formatEvaluationModel(parsed.evaluationModel)}
-                                            {#if evaluationModelLabel}
-                                                <span class="previous-run-tests">Judge: {evaluationModelLabel}</span>
-                                            {/if}
-                                        {/if}
                                     </div>
                                     <div class="previous-run-status">
                                         {#if job.status === "completed" && job.results}
