@@ -41,6 +41,7 @@ export interface TestResults {
     promptId: number;
     promptContent: string;
     totalTestCases: number;
+    evaluationModel?: ModelSelection;
     llmResults: LLMTestResult[];
     overallScore: number;
 }
@@ -553,6 +554,13 @@ export async function runTests(
             promptId: promptId ?? 0,
             promptContent: promptContent,
             totalTestCases: testCases.length,
+            evaluationModel:
+                evaluationMode === "llm" && evaluationCriteria && evaluationModelRunner
+                    ? {
+                          provider: evaluationModelRunner.client.name,
+                          modelId: evaluationModelRunner.modelId,
+                      }
+                    : undefined,
             llmResults,
             overallScore: score,
         };

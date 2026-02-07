@@ -126,6 +126,7 @@ export interface TestJob {
 
 export interface TestResults {
     overallScore: number;
+    evaluationModel?: SelectedModel;
     llmResults: LLMResult[];
 }
 

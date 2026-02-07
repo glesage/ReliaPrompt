@@ -194,6 +194,14 @@
         return date.toLocaleDateString() + " " + date.toLocaleTimeString();
     }
 
+    function formatEvaluationModel(model?: SelectedModel): string | null {
+        if (!model?.provider || !model?.modelId) {
+            return null;
+        }
+
+        return `${model.provider} (${model.modelId})`;
+    }
+
     function scoreToPercent(score: number): number {
         if (score > 1) return score;
         return Math.round(score * 100);
@@ -394,6 +402,13 @@
                                     <div class="previous-run-info">
                                         <span class="previous-run-date">{formatDate(job.createdAt)}</span>
                                         <span class="previous-run-tests">{job.totalTests} tests</span>
+                                        {#if job.status === "completed" && job.results}
+                                            {@const parsed = typeof job.results === "string" ? JSON.parse(job.results) : job.results}
+                                            {@const evaluationModelLabel = formatEvaluationModel(parsed.evaluationModel)}
+                                            {#if evaluationModelLabel}
+                                                <span class="previous-run-tests">Judge: {evaluationModelLabel}</span>
+                                            {/if}
+                                        {/if}
                                     </div>
                                     <div class="previous-run-status">
                                         {#if job.status === "completed" && job.results}
