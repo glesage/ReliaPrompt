@@ -476,11 +476,7 @@
                 </div>
                 <div style="margin-top: 10px; margin-bottom: 5px;"><strong>Input:</strong></div>
                 <div class="json-preview">{tc.input.substring(0, 200)}{tc.input.length > 200 ? "..." : ""}</div>
-                {#if $selectedPrompt?.evaluationMode === "llm"}
-                    {@const firstRun = tc.runs && tc.runs.length > 0 ? tc.runs[0] : null}
-                    <div style="margin-top: 10px; margin-bottom: 5px;"><strong>Model Output:</strong></div>
-                    <div class="json-preview">{firstRun?.actualOutput ? formatJSON(firstRun.actualOutput) : (firstRun?.error ? `Error: ${firstRun.error}` : "N/A")}</div>
-                {:else}
+                {#if $selectedPrompt?.evaluationMode !== "llm"}
                     <div style="margin-top: 10px; margin-bottom: 5px;"><strong>Expected:</strong></div>
                     <div class="json-preview">{formatJSON(tc.expectedOutput)}</div>
                 {/if}
