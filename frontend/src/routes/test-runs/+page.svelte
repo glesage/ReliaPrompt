@@ -1,6 +1,6 @@
 <script lang="ts">
     import { selectedPrompt } from "$lib/stores/prompts";
-    import { selectedModels, initModels, saveSelectedModels } from "$lib/stores/models";
+    import { selectedModels, availableModels, initModels, saveSelectedModels } from "$lib/stores/models";
     import { showSuccess, showError, showInfo } from "$lib/stores/messages";
     import EmptyState from "$lib/components/EmptyState.svelte";
     import ModelSelector from "$lib/components/ModelSelector.svelte";
@@ -20,6 +20,12 @@
     let previousRuns = $state<TestJob[]>([]);
     let storedLlmResults = $state<Record<string, LLMResult>>({});
     let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let selectedEvaluationModels = $state<SelectedModel[]>([]);
+
+    const shouldShowEvaluationModelSelector = $derived(
+        $selectedPrompt?.evaluationMode === "llm" &&
+            Boolean($selectedPrompt?.evaluationCriteria?.trim())
+    );
 
     // Test details modal
     let detailsModalOpen = $state(false);
@@ -36,6 +42,32 @@
             previousRuns = [];
             results = null;
         }
+    });
+
+    $effect(() => {
+        if (!shouldShowEvaluationModelSelector) {
+            selectedEvaluationModels = [];
+            return;
+        }
+
+        const availableModelKeys = new Set($availableModels.map((model) => `${model.provider}:${model.id}`));
+        const hasValidSelection =
+            selectedEvaluationModels.length > 0 &&
+            availableModelKeys.has(
+                `${selectedEvaluationModels[0].provider}:${selectedEvaluationModels[0].modelId}`
+            );
+
+        if (hasValidSelection) {
+            return;
+        }
+
+        const preferredModel =
+            $availableModels.find((model) => model.provider === "OpenAI" && model.id === "gpt-5.2") ||
+            $availableModels[0];
+
+        selectedEvaluationModels = preferredModel
+            ? [{ provider: preferredModel.provider, modelId: preferredModel.id }]
+            : [];
     });
 
     async function loadTestCaseCount(promptId: number) {
@@ -57,6 +89,10 @@
 
     async function runTests() {
         if (!$selectedPrompt || $selectedModels.length === 0) return;
+        if (shouldShowEvaluationModelSelector && selectedEvaluationModels.length === 0) {
+            showError("Select an evaluation model before running LLM evaluation");
+            return;
+        }
 
         running = true;
         progress = 0;
@@ -69,6 +105,10 @@
                 promptId: $selectedPrompt.id,
                 runsPerTest,
                 selectedModels: $selectedModels,
+                evaluationModel:
+                    shouldShowEvaluationModelSelector
+                        ? selectedEvaluationModels[0]
+                        : undefined,
             });
             pollProgress(jobId);
         } catch (error) {
@@ -154,6 +194,14 @@
         return date.toLocaleDateString() + " " + date.toLocaleTimeString();
     }
 
+    function formatEvaluationModel(model?: SelectedModel): string | null {
+        if (!model?.provider || !model?.modelId) {
+            return null;
+        }
+
+        return `${model.provider} (${model.modelId})`;
+    }
+
     function scoreToPercent(score: number): number {
         if (score > 1) return score;
         return Math.round(score * 100);
@@ -178,7 +226,29 @@
         }
     }
 
-    const canRun = $derived(testCaseCount > 0 && $selectedModels.length > 0 && !running);
+    function getEvaluationModelValue(model: SelectedModel | undefined): string {
+        if (!model) return "";
+        return `${model.provider}:${model.modelId}`;
+    }
+
+    function parseEvaluationModelValue(value: string): SelectedModel | null {
+        const splitIndex = value.indexOf(":");
+        if (splitIndex <= 0 || splitIndex >= value.length - 1) {
+            return null;
+        }
+
+        return {
+            provider: value.slice(0, splitIndex),
+            modelId: value.slice(splitIndex + 1),
+        };
+    }
+
+    const canRun = $derived(
+        testCaseCount > 0 &&
+            $selectedModels.length > 0 &&
+            !running &&
+            (!shouldShowEvaluationModelSelector || selectedEvaluationModels.length > 0)
+    );
 
     onMount(() => {
         initModels();
@@ -243,6 +313,26 @@
                         />
                     </div>
 
+                    {#if shouldShowEvaluationModelSelector}
+                        <div class="form-group mb-20">
+                            <label for="evaluation-model">Evaluation model</label>
+                            <select
+                                id="evaluation-model"
+                                value={getEvaluationModelValue(selectedEvaluationModels[0])}
+                                onchange={(event) => {
+                                    const selectedValue = (event.currentTarget as HTMLSelectElement).value;
+                                    const parsedSelection = parseEvaluationModelValue(selectedValue);
+                                    selectedEvaluationModels = parsedSelection ? [parsedSelection] : [];
+                                }}
+                            >
+                                {#each $availableModels as model}
+                                    <option value={`${model.provider}:${model.id}`}>{model.provider} - {model.name}</option>
+                                {/each}
+                            </select>
+                            <small>Used as the judge model to score outputs in LLM evaluation mode.</small>
+                        </div>
+                    {/if}
+
                     <button id="run-btn" onclick={runTests} disabled={!canRun}>
                         {running ? "Running..." : "Run Tests"}
                     </button>
@@ -269,6 +359,12 @@
                                 <ScoreBadge score={getBestScore(results.llmResults)! / 100} tooltip="Best LLM" variant="best" />
                             {/if}
                         </h2>
+                        {#if results.evaluationModel}
+                            {@const evaluationModelLabel = formatEvaluationModel(results.evaluationModel)}
+                            {#if evaluationModelLabel}
+                                <div class="muted" style="margin-bottom: 16px; font-size: 14px;">Judge: {evaluationModelLabel}</div>
+                            {/if}
+                        {/if}
                         <div id="llm-results" class="llm-results">
                             {#each results.llmResults as llm}
                                 <div class="llm-result-row">
@@ -380,8 +476,10 @@
                 </div>
                 <div style="margin-top: 10px; margin-bottom: 5px;"><strong>Input:</strong></div>
                 <div class="json-preview">{tc.input.substring(0, 200)}{tc.input.length > 200 ? "..." : ""}</div>
-                <div style="margin-top: 10px; margin-bottom: 5px;"><strong>Expected:</strong></div>
-                <div class="json-preview">{formatJSON(tc.expectedOutput)}</div>
+                {#if $selectedPrompt?.evaluationMode !== "llm"}
+                    <div style="margin-top: 10px; margin-bottom: 5px;"><strong>Expected:</strong></div>
+                    <div class="json-preview">{formatJSON(tc.expectedOutput)}</div>
+                {/if}
 
                 {#if !showAllRuns && tc.runs && tc.runs.length > 0}
                     <div style="margin-top: 12px;">
@@ -423,6 +521,14 @@
                                     <div class="json-preview" style="font-size: 13px; max-height: 150px; overflow-y: auto;">
                                         {run.actualOutput || (run.error ? `Error: ${run.error}` : "N/A")}
                                     </div>
+                                    {#if run.reason}
+                                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--color-border);">
+                                            <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px; font-weight: 500;">Evaluation Reason:</div>
+                                            <div style="font-size: 13px; color: var(--color-text); line-height: 1.5;">
+                                                {run.reason}
+                                            </div>
+                                        </div>
+                                    {/if}
                                 </div>
                             </div>
                         {/each}

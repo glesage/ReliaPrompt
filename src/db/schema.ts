@@ -12,6 +12,8 @@ export const prompts = sqliteTable(
         name: text("name").notNull(),
         content: text("content").notNull(),
         expectedSchema: text("expected_schema"),
+        evaluationMode: text("evaluation_mode").notNull().default("schema"),
+        evaluationCriteria: text("evaluation_criteria"),
         version: integer("version").notNull().default(1),
         parentVersionId: integer("parent_version_id").references((): any => prompts.id),
         promptGroupId: integer("prompt_group_id"),

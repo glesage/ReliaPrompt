@@ -133,6 +133,8 @@ export async function createPrompt(data: {
     name: string;
     content: string;
     expectedSchema?: string;
+    evaluationMode?: "schema" | "llm";
+    evaluationCriteria?: string;
 }): Promise<Prompt | null> {
     try {
         const prompt = await api.createPrompt(data);
@@ -157,13 +159,17 @@ export async function createPromptVersion(
     parentId: number,
     name: string,
     content: string,
-    expectedSchema?: string
+    expectedSchema?: string,
+    evaluationMode?: "schema" | "llm",
+    evaluationCriteria?: string
 ): Promise<Prompt | null> {
     try {
         const prompt = await api.createPrompt({
             name,
             content,
             expectedSchema,
+            evaluationMode,
+            evaluationCriteria,
             parentVersionId: parentId,
         });
 

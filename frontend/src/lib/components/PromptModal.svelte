@@ -19,6 +19,8 @@
     let name = $state("");
     let content = $state("");
     let expectedSchema = $state("");
+    let evaluationMode = $state<"schema" | "llm">("schema");
+    let evaluationCriteria = $state("");
     let loading = $state(false);
     let loadedPrompt = $state<Prompt | null>(null);
 
@@ -31,6 +33,8 @@
             name = "";
             content = "";
             expectedSchema = "";
+            evaluationMode = "schema";
+            evaluationCriteria = "";
             loadedPrompt = null;
         }
     });
@@ -43,6 +47,8 @@
             name = prompt.name;
             content = prompt.content;
             expectedSchema = prompt.expectedSchema || "";
+            evaluationMode = prompt.evaluationMode || "schema";
+            evaluationCriteria = prompt.evaluationCriteria || "";
         } catch (error) {
             showError("Error loading prompt");
         } finally {
@@ -73,6 +79,11 @@
             return;
         }
 
+        if (evaluationMode === "llm" && !evaluationCriteria.trim()) {
+            showError("Evaluation criteria is required when using LLM evaluation");
+            return;
+        }
+
         loading = true;
         try {
             if (mode === "new") {
@@ -80,6 +91,8 @@
                     name: name.trim(),
                     content: content.trim(),
                     expectedSchema: expectedSchema.trim() || undefined,
+                    evaluationMode,
+                    evaluationCriteria: evaluationMode === "llm" ? evaluationCriteria.trim() : undefined,
                 });
                 if (result) {
                     onclose();
@@ -89,7 +102,9 @@
                     promptId,
                     promptName,
                     content.trim(),
-                    expectedSchema.trim() || undefined
+                    expectedSchema.trim() || undefined,
+                    evaluationMode,
+                    evaluationMode === "llm" ? evaluationCriteria.trim() : undefined
                 );
                 if (result) {
                     onclose();
@@ -137,6 +152,18 @@
                 <pre class="view-prompt-content">{formatJSON(loadedPrompt.expectedSchema)}</pre>
             </div>
         {/if}
+        <div class="form-group">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label>Evaluation Mode</label>
+            <div class="view-prompt-content">{loadedPrompt?.evaluationMode || "schema"}</div>
+        </div>
+        {#if loadedPrompt?.evaluationMode === "llm" && loadedPrompt?.evaluationCriteria}
+            <div class="form-group">
+                <!-- svelte-ignore a11y_label_has_associated_control -->
+                <label>Evaluation Criteria</label>
+                <pre class="view-prompt-content">{loadedPrompt.evaluationCriteria}</pre>
+            </div>
+        {/if}
     {:else}
         <form id="new-prompt-form" onsubmit={handleSubmit}>
             {#if mode === "new"}
@@ -174,6 +201,27 @@
                 ></textarea>
                 <small>Optional. JSON Schema for structured LLM output (used with response_format).</small>
             </div>
+            <div class="form-group">
+                <label for="evaluation-mode">Evaluation Mode</label>
+                <select id="evaluation-mode" bind:value={evaluationMode}>
+                    <option value="schema">Schema evaluation</option>
+                    <option value="llm">LLM evaluation</option>
+                </select>
+                <small>How to evaluate the quality of AI outputs.</small>
+            </div>
+            {#if evaluationMode === "llm"}
+                <div class="form-group">
+                    <label for="evaluation-criteria">Evaluation Criteria</label>
+                    <textarea
+                        id="evaluation-criteria"
+                        class="medium"
+                        bind:value={evaluationCriteria}
+                        placeholder="Describe how to evaluate the quality of AI outputs. The judge will return a score (0-1) and a reason."
+                        required
+                    ></textarea>
+                    <small>Required for LLM evaluation. Used by the judge model to score outputs.</small>
+                </div>
+            {/if}
         </form>
     {/if}
 

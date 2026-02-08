@@ -68,6 +68,20 @@ export const createPromptSchema = Joi.object({
         .messages({
             "any.invalid": "Expected schema must be valid JSON",
         }),
+    evaluationMode: Joi.string().valid("schema", "llm").default("schema").messages({
+        "any.only": "evaluationMode must be either 'schema' or 'llm'",
+    }),
+    evaluationCriteria: Joi.string()
+        .trim()
+        .allow("")
+        .optional()
+        .when("evaluationMode", {
+            is: "llm",
+            then: Joi.required().messages({
+                "any.required": "evaluationCriteria is required when evaluationMode is 'llm'",
+            }),
+            otherwise: Joi.optional(),
+        }),
     parentVersionId: Joi.number().integer().positive().optional(),
 }).unknown(false);
 
@@ -77,11 +91,16 @@ export const createTestCaseSchema = Joi.object({
         "string.empty": "Input cannot be empty",
         "any.required": "Input is required",
     }),
+    // For LLM evaluation prompts, expected_output and expected_output_type may be omitted.
+    // Server-side route logic enforces requirements for schema evaluation prompts.
     expected_output: Joi.string()
         .trim()
-        .min(1)
-        .required()
+        .allow("")
+        .optional()
         .custom((value, helpers) => {
+            if (!value || value.trim() === "") {
+                return undefined;
+            }
             try {
                 JSON.parse(value);
                 return value;
@@ -90,12 +109,11 @@ export const createTestCaseSchema = Joi.object({
             }
         })
         .messages({
-            "string.empty": "Expected output cannot be empty",
-            "any.required": "Expected output is required",
             "any.invalid": "Expected output must be valid JSON",
         }),
     expected_output_type: Joi.string()
         .valid(...Object.values(ParseType))
+        .optional()
         .default(ParseType.ARRAY)
         .messages({
             "any.only": "expected_output_type must be one of: string, array, object",
@@ -109,9 +127,12 @@ export const updateTestCaseSchema = Joi.object({
     }),
     expected_output: Joi.string()
         .trim()
-        .min(1)
-        .required()
+        .allow("")
+        .optional()
         .custom((value, helpers) => {
+            if (!value || value.trim() === "") {
+                return undefined;
+            }
             try {
                 JSON.parse(value);
                 return value;
@@ -120,16 +141,14 @@ export const updateTestCaseSchema = Joi.object({
             }
         })
         .messages({
-            "string.empty": "Expected output cannot be empty",
-            "any.required": "Expected output is required",
             "any.invalid": "Expected output must be valid JSON",
         }),
     expected_output_type: Joi.string()
         .valid(...Object.values(ParseType))
-        .required()
+        .optional()
+        .default(ParseType.ARRAY)
         .messages({
             "any.only": "expected_output_type must be one of: string, array, object",
-            "any.required": "expected_output_type is required",
         }),
 }).unknown(false);
 
@@ -165,6 +184,10 @@ const importPromptItemSchema = Joi.object({
         .messages({
             "any.invalid": "expected_schema must be valid JSON",
         }),
+    evaluation_mode: Joi.string().valid("schema", "llm").optional().messages({
+        "any.only": "evaluation_mode must be either 'schema' or 'llm'",
+    }),
+    evaluation_criteria: Joi.string().trim().allow("", null).optional(),
 }).unknown(false);
 
 export const importPromptsSchema = Joi.array().items(importPromptItemSchema).min(1).messages({
@@ -190,5 +213,5 @@ export const testRunSchema = Joi.object({
     selectedModels: Joi.array().items(modelSelectionSchema).min(1).optional().messages({
         "array.min": "selectedModels must contain at least one model",
     }),
+    evaluationModel: modelSelectionSchema.optional(),
 }).unknown(false);
-
