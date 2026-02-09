@@ -31,7 +31,6 @@ const DEFAULT_EVALUATION_MODEL: ModelSelection = {
 interface OptimizationSettings {
     maxIterations: number;
     threshold: number;
-    modelRunner: ModelRunner;
 }
 
 export interface TestProgress {
@@ -49,7 +48,6 @@ export interface TestResults {
     promptContent: string;
     totalTestCases: number;
     evaluationModel?: ModelSelection;
-    optimizationModel?: ModelSelection;
     llmResults: LLMTestResult[];
     overallScore: number;
 }
@@ -171,7 +169,7 @@ async function optimizeOutputWithLLM(
     latestOutput: string,
     evaluationReason: string,
     expectedOutputSchema: string | null | undefined,
-    optimizationModelRunner: ModelRunner
+    testedModelRunner: ModelRunner
 ): Promise<string> {
     const schemaInstruction = expectedOutputSchema
         ? `\n\n## expected_outpue_schema:\n${expectedOutputSchema}`
@@ -195,10 +193,10 @@ ${schemaInstruction}
 Rewrite the latest model output to address the feedback while preserving useful content.
 Return only the improved output text. Do not explain.`;
 
-    return optimizationModelRunner.client.complete(
+    return testedModelRunner.client.complete(
         "You are an expert output optimizer.",
         optimizerPrompt,
-        optimizationModelRunner.modelId
+        testedModelRunner.modelId
     );
 }
 
@@ -304,8 +302,7 @@ export async function startTestRun(
     selectedModels?: ModelSelection[],
     evaluationModel?: ModelSelection,
     optimizationMaxIterations: number = 0,
-    optimizationThreshold: number = DEFAULT_OPTIMIZATION_THRESHOLD,
-    optimizationModel?: ModelSelection
+    optimizationThreshold: number = DEFAULT_OPTIMIZATION_THRESHOLD
 ): Promise<string> {
     // Use OrFail variant - throws NotFoundError if prompt doesn't exist
     const prompt = getPromptByIdOrFail(promptId);
@@ -334,7 +331,6 @@ export async function startTestRun(
         ? {
               maxIterations: optimizationMaxIterations,
               threshold: Math.max(0, Math.min(1, optimizationThreshold)),
-              modelRunner: getEvaluationModelRunner(optimizationModel),
           }
         : undefined;
 
@@ -509,7 +505,7 @@ export async function runTests(
                                     latestOutput,
                                     latestReason,
                                     schemaString,
-                                    optimizationSettings.modelRunner
+                                    runner
                                 );
 
                                 const optimizedEvaluation = await evaluateWithLLMJudge(
@@ -744,12 +740,6 @@ export async function runTests(
                           modelId: evaluationModelRunner.modelId,
                       }
                     : undefined,
-            optimizationModel: optimizationSettings?.modelRunner
-                ? {
-                      provider: optimizationSettings.modelRunner.client.name,
-                      modelId: optimizationSettings.modelRunner.modelId,
-                  }
-                : undefined,
             llmResults,
             overallScore: score,
         };

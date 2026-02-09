@@ -128,7 +128,6 @@ export interface TestJob {
 export interface TestResults {
     overallScore: number;
     evaluationModel?: SelectedModel;
-    optimizationModel?: SelectedModel;
     llmResults: LLMResult[];
 }
 
@@ -188,7 +187,6 @@ export interface StartTestRunRequest {
     evaluationModel?: SelectedModel;
     optimizationMaxIterations?: number;
     optimizationThreshold?: number;
-    optimizationModel?: SelectedModel;
 }
 
 export interface StartTestRunResponse {

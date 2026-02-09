@@ -21,7 +21,6 @@
     let storedLlmResults = $state<Record<string, LLMResult>>({});
     let pollInterval: ReturnType<typeof setInterval> | null = null;
     let selectedEvaluationModels = $state<SelectedModel[]>([]);
-    let selectedOptimizationModels = $state<SelectedModel[]>([]);
     let optimizationMaxIterations = $state(0);
     let optimizationThreshold = $state(0.9);
 
@@ -51,7 +50,6 @@
     $effect(() => {
         if (!shouldShowEvaluationModelSelector) {
             selectedEvaluationModels = [];
-            selectedOptimizationModels = [];
             optimizationMaxIterations = 0;
             return;
         }
@@ -72,32 +70,6 @@
             $availableModels[0];
 
         selectedEvaluationModels = preferredModel
-            ? [{ provider: preferredModel.provider, modelId: preferredModel.id }]
-            : [];
-    });
-
-    $effect(() => {
-        if (!shouldShowOptimizationControls || optimizationMaxIterations <= 0) {
-            selectedOptimizationModels = [];
-            return;
-        }
-
-        const availableModelKeys = new Set($availableModels.map((model) => `${model.provider}:${model.id}`));
-        const hasValidSelection =
-            selectedOptimizationModels.length > 0 &&
-            availableModelKeys.has(
-                `${selectedOptimizationModels[0].provider}:${selectedOptimizationModels[0].modelId}`
-            );
-
-        if (hasValidSelection) {
-            return;
-        }
-
-        const preferredModel =
-            $availableModels.find((model) => model.provider === "OpenAI" && model.id === "gpt-5.2") ||
-            $availableModels[0];
-
-        selectedOptimizationModels = preferredModel
             ? [{ provider: preferredModel.provider, modelId: preferredModel.id }]
             : [];
     });
@@ -126,10 +98,6 @@
             return;
         }
         if (shouldShowOptimizationControls && optimizationMaxIterations > 0) {
-            if (selectedOptimizationModels.length === 0) {
-                showError("Select an optimization model when optimization iterations are enabled");
-                return;
-            }
             if (optimizationThreshold < 0 || optimizationThreshold > 1) {
                 showError("Optimization threshold must be between 0 and 1");
                 return;
@@ -158,10 +126,6 @@
                 optimizationThreshold:
                     shouldShowOptimizationControls && optimizationMaxIterations > 0
                         ? optimizationThreshold
-                        : undefined,
-                optimizationModel:
-                    shouldShowOptimizationControls && optimizationMaxIterations > 0
-                        ? selectedOptimizationModels[0]
                         : undefined,
             });
             pollProgress(jobId);
@@ -301,10 +265,7 @@
         testCaseCount > 0 &&
             $selectedModels.length > 0 &&
             !running &&
-            (!shouldShowEvaluationModelSelector || selectedEvaluationModels.length > 0) &&
-            (!shouldShowOptimizationControls ||
-                optimizationMaxIterations <= 0 ||
-                selectedOptimizationModels.length > 0)
+            (!shouldShowEvaluationModelSelector || selectedEvaluationModels.length > 0)
     );
 
     onMount(() => {
@@ -422,25 +383,6 @@
                                 </small>
                             </div>
 
-                            <div class="form-group mb-20">
-                                <label for="optimization-model">Optimization model</label>
-                                <select
-                                    id="optimization-model"
-                                    value={getEvaluationModelValue(selectedOptimizationModels[0])}
-                                    onchange={(event) => {
-                                        const selectedValue = (event.currentTarget as HTMLSelectElement).value;
-                                        const parsedSelection = parseEvaluationModelValue(selectedValue);
-                                        selectedOptimizationModels = parsedSelection ? [parsedSelection] : [];
-                                    }}
-                                >
-                                    {#each $availableModels as model}
-                                        <option value={`${model.provider}:${model.id}`}>{model.provider} - {model.name}</option>
-                                    {/each}
-                                </select>
-                                <small>
-                                    Used to revise the latest output using the evaluator reason before re-evaluation.
-                                </small>
-                            </div>
                         {/if}
                     {/if}
 
@@ -474,12 +416,6 @@
                             {@const evaluationModelLabel = formatEvaluationModel(results.evaluationModel)}
                             {#if evaluationModelLabel}
                                 <div class="muted" style="margin-bottom: 16px; font-size: 14px;">Evaluation Model: {evaluationModelLabel}</div>
-                            {/if}
-                        {/if}
-                        {#if results.optimizationModel}
-                            {@const optimizationModelLabel = formatEvaluationModel(results.optimizationModel)}
-                            {#if optimizationModelLabel}
-                                <div class="muted" style="margin-bottom: 16px; font-size: 14px;">Optimization Model: {optimizationModelLabel}</div>
                             {/if}
                         {/if}
                         <div id="llm-results" class="llm-results">

@@ -513,7 +513,6 @@ app.post("/api/test/run", validate(testRunSchema), async (req, res) => {
             evaluationModel,
             optimizationMaxIterations,
             optimizationThreshold,
-            optimizationModel,
         } = req.body;
 
         const jobId = await startTestRun(
@@ -522,8 +521,7 @@ app.post("/api/test/run", validate(testRunSchema), async (req, res) => {
             selectedModels,
             evaluationModel,
             optimizationMaxIterations,
-            optimizationThreshold,
-            optimizationModel
+            optimizationThreshold
         );
         res.json({ jobId });
     } catch (error) {

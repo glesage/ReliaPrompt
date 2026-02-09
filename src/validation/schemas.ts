@@ -225,5 +225,4 @@ export const testRunSchema = Joi.object({
         "number.min": "optimizationThreshold must be at least 0",
         "number.max": "optimizationThreshold must be at most 1",
     }),
-    optimizationModel: modelSelectionSchema.optional(),
 }).unknown(false);
