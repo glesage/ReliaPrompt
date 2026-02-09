@@ -22,10 +22,17 @@ export interface ModelRunner {
 }
 
 const DEFAULT_RUNS_PER_TEST = 1;
+const DEFAULT_OPTIMIZATION_THRESHOLD = 1;
 const DEFAULT_EVALUATION_MODEL: ModelSelection = {
     provider: "OpenAI",
     modelId: "gpt-5.2",
 };
+
+interface OptimizationSettings {
+    maxIterations: number;
+    threshold: number;
+    modelRunner: ModelRunner;
+}
 
 export interface TestProgress {
     jobId: string;
@@ -42,6 +49,7 @@ export interface TestResults {
     promptContent: string;
     totalTestCases: number;
     evaluationModel?: ModelSelection;
+    optimizationModel?: ModelSelection;
     llmResults: LLMTestResult[];
     overallScore: number;
 }
@@ -86,6 +94,13 @@ export interface BaseTestResult {
 
 export interface RunResult extends BaseTestResult {
     runNumber: number;
+    optimizationHistory?: Array<{
+        roundNumber: number;
+        output: string;
+        score: number;
+        reason: string;
+        durationMs: number;
+    }>;
 }
 
 const activeJobs = new Map<string, TestProgress>();
@@ -150,13 +165,51 @@ Return ONLY valid JSON, no other text. Example format:
     }
 }
 
+async function optimizeOutputWithLLM(
+    promptContent: string,
+    testCaseInput: string,
+    latestOutput: string,
+    evaluationReason: string,
+    expectedOutputSchema: string | null | undefined,
+    optimizationModelRunner: ModelRunner
+): Promise<string> {
+    const schemaInstruction = expectedOutputSchema
+        ? `\n\n## expected_outpue_schema:\n${expectedOutputSchema}`
+        : "";
+
+    const optimizerPrompt = `You optimize model outputs based on evaluator feedback.
+
+## Original Prompt:
+${promptContent}
+
+## User Input:
+${testCaseInput}
+
+## Latest Model Output:
+${latestOutput}
+
+## Evaluator Feedback:
+${evaluationReason}
+${schemaInstruction}
+
+Rewrite the latest model output to address the feedback while preserving useful content.
+Return only the improved output text. Do not explain.`;
+
+    return optimizationModelRunner.client.complete(
+        "You are an expert output optimizer.",
+        optimizerPrompt,
+        optimizationModelRunner.modelId
+    );
+}
+
 async function handleTestRun(
     jobId: string,
     prompt: Prompt,
     testCases: TestCase[],
     modelRunners: ModelRunner[],
     runsPerTest: number,
-    evaluationModelRunner?: ModelRunner
+    evaluationModelRunner?: ModelRunner,
+    optimizationSettings?: OptimizationSettings
 ): Promise<void> {
     try {
         await runTests(
@@ -166,7 +219,8 @@ async function handleTestRun(
             runsPerTest,
             jobId,
             undefined,
-            evaluationModelRunner
+            evaluationModelRunner,
+            optimizationSettings
         );
     } catch (error) {
         const progress = activeJobs.get(jobId);
@@ -248,7 +302,10 @@ export async function startTestRun(
     promptId: number,
     runsPerTest: number = DEFAULT_RUNS_PER_TEST,
     selectedModels?: ModelSelection[],
-    evaluationModel?: ModelSelection
+    evaluationModel?: ModelSelection,
+    optimizationMaxIterations: number = 0,
+    optimizationThreshold: number = DEFAULT_OPTIMIZATION_THRESHOLD,
+    optimizationModel?: ModelSelection
 ): Promise<string> {
     // Use OrFail variant - throws NotFoundError if prompt doesn't exist
     const prompt = getPromptByIdOrFail(promptId);
@@ -272,6 +329,14 @@ export async function startTestRun(
     const evaluationMode = prompt.evaluationMode || "schema";
     const evaluationModelRunner =
         evaluationMode === "llm" ? getEvaluationModelRunner(evaluationModel) : undefined;
+    const optimizationEnabled = evaluationMode === "llm" && optimizationMaxIterations > 0;
+    const optimizationSettings = optimizationEnabled
+        ? {
+              maxIterations: optimizationMaxIterations,
+              threshold: Math.max(0, Math.min(1, optimizationThreshold)),
+              modelRunner: getEvaluationModelRunner(optimizationModel),
+          }
+        : undefined;
 
     const jobId = crypto.randomUUID();
     const totalTests = testCases.length * modelRunners.length * runsPerTest;
@@ -287,7 +352,15 @@ export async function startTestRun(
     };
     activeJobs.set(jobId, progress);
 
-    handleTestRun(jobId, prompt, testCases, modelRunners, runsPerTest, evaluationModelRunner);
+    handleTestRun(
+        jobId,
+        prompt,
+        testCases,
+        modelRunners,
+        runsPerTest,
+        evaluationModelRunner,
+        optimizationSettings
+    );
 
     return jobId;
 }
@@ -299,7 +372,8 @@ export async function runTests(
     runsPerTest: number = DEFAULT_RUNS_PER_TEST,
     jobId?: string,
     expectedSchema?: string,
-    evaluationModelRunner?: ModelRunner
+    evaluationModelRunner?: ModelRunner,
+    optimizationSettings?: OptimizationSettings
 ): Promise<{ score: number; results: LLMTestResult[] }> {
     // Extract prompt content and ID
     const promptContent = typeof prompt === "string" ? prompt : prompt.content;
@@ -367,7 +441,6 @@ export async function runTests(
                         testCase.input,
                         runner.modelId
                     );
-                    const durationMs = Date.now() - startTime;
 
                     let score = 0;
                     let isCorrect = false;
@@ -375,6 +448,8 @@ export async function runTests(
                     let expectedTotal = 0;
                     let unexpectedFound = 0;
                     let reason: string | undefined = undefined;
+                    let finalOutput = actualOutput;
+                    let durationMs: number;
 
                     if (evaluationMode === "llm" && evaluationCriteria) {
                         // LLM evaluation mode: use judge model
@@ -387,18 +462,125 @@ export async function runTests(
                         const evaluation = await evaluateWithLLMJudge(
                             promptContent,
                             testCase.input,
-                            actualOutput,
+                            finalOutput,
                             evaluationCriteria,
                             evaluationModelRunner
                         );
-                        score = evaluation.score;
-                        reason = evaluation.reason;
-                        isCorrect = score === 1;
+                        let bestScore = evaluation.score;
+                        let bestReason = evaluation.reason;
+                        let bestOutput = finalOutput;
+
+                        let latestScore = evaluation.score;
+                        let latestReason = evaluation.reason;
+                        let latestOutput = finalOutput;
+
+                        // Collect round-by-round history
+                        const optimizationHistory: Array<{
+                            roundNumber: number;
+                            output: string;
+                            score: number;
+                            reason: string;
+                            durationMs: number;
+                        }> = [];
+
+                        // Record round 0 duration (model output + judge evaluation)
+                        const round0DurationMs = Date.now() - startTime;
+
+                        // Round 0: initial model output
+                        optimizationHistory.push({
+                            roundNumber: 0,
+                            output: finalOutput,
+                            score: evaluation.score,
+                            reason: evaluation.reason,
+                            durationMs: round0DurationMs,
+                        });
+
+                        if (optimizationSettings) {
+                            let iterationCount = 0;
+                            while (
+                                latestScore < optimizationSettings.threshold &&
+                                iterationCount < optimizationSettings.maxIterations
+                            ) {
+                                const roundStartTime = Date.now();
+
+                                const optimizedOutput = await optimizeOutputWithLLM(
+                                    promptContent,
+                                    testCase.input,
+                                    latestOutput,
+                                    latestReason,
+                                    schemaString,
+                                    optimizationSettings.modelRunner
+                                );
+
+                                const optimizedEvaluation = await evaluateWithLLMJudge(
+                                    promptContent,
+                                    testCase.input,
+                                    optimizedOutput,
+                                    evaluationCriteria,
+                                    evaluationModelRunner
+                                );
+
+                                latestOutput = optimizedOutput;
+                                latestScore = optimizedEvaluation.score;
+                                latestReason = optimizedEvaluation.reason;
+                                iterationCount++;
+
+                                // Record this optimization round
+                                optimizationHistory.push({
+                                    roundNumber: iterationCount,
+                                    output: optimizedOutput,
+                                    score: optimizedEvaluation.score,
+                                    reason: optimizedEvaluation.reason,
+                                    durationMs: Date.now() - roundStartTime,
+                                });
+
+                                if (latestScore > bestScore) {
+                                    bestScore = latestScore;
+                                    bestReason = latestReason;
+                                    bestOutput = latestOutput;
+                                }
+                            }
+                        }
+
+                        score = bestScore;
+                        reason = bestReason;
+                        finalOutput = bestOutput;
+                        isCorrect = bestScore === 1;
                         // For LLM evaluation, we don't have expectedFound/expectedTotal/unexpectedFound
                         // Set defaults that make sense
                         expectedTotal = 1;
                         expectedFound = score === 1 ? 1 : 0;
                         unexpectedFound = 0;
+
+                        durationMs = Date.now() - startTime;
+
+                        // Store optimization history in the run result
+                        if (optimizationHistory.length > 0) {
+                            runs.push({
+                                runNumber,
+                                actualOutput: finalOutput,
+                                isCorrect,
+                                score,
+                                expectedFound,
+                                expectedTotal,
+                                unexpectedFound,
+                                durationMs,
+                                reason,
+                                optimizationHistory,
+                            });
+                        } else {
+                            runs.push({
+                                runNumber,
+                                actualOutput: finalOutput,
+                                isCorrect,
+                                score,
+                                expectedFound,
+                                expectedTotal,
+                                unexpectedFound,
+                                durationMs,
+                                reason,
+                            });
+                        }
                     } else {
                         // Schema evaluation mode: use existing comparison logic
                         const expectedOutputType = testCase.expectedOutputType as ParseType;
@@ -415,6 +597,19 @@ export async function runTests(
                         expectedFound = comparison.expectedFound;
                         expectedTotal = comparison.expectedTotal;
                         unexpectedFound = comparison.unexpectedFound;
+
+                        durationMs = Date.now() - startTime;
+
+                        runs.push({
+                            runNumber,
+                            actualOutput,
+                            isCorrect,
+                            score,
+                            expectedFound,
+                            expectedTotal,
+                            unexpectedFound,
+                            durationMs,
+                        });
                     }
 
                     if (isCorrect) {
@@ -424,18 +619,6 @@ export async function runTests(
                     totalScore += score;
                     llmTotalRuns++;
 
-                    runs.push({
-                        runNumber,
-                        actualOutput,
-                        isCorrect,
-                        score,
-                        expectedFound,
-                        expectedTotal,
-                        unexpectedFound,
-                        durationMs,
-                        reason,
-                    });
-
                     // Persist to database if jobId is provided
                     if (jobId) {
                         createTestResult(
@@ -443,7 +626,7 @@ export async function runTests(
                             testCase.id,
                             runner.displayName,
                             runNumber,
-                            actualOutput,
+                            finalOutput,
                             isCorrect,
                             score,
                             expectedFound,
@@ -561,6 +744,12 @@ export async function runTests(
                           modelId: evaluationModelRunner.modelId,
                       }
                     : undefined,
+            optimizationModel: optimizationSettings?.modelRunner
+                ? {
+                      provider: optimizationSettings.modelRunner.client.name,
+                      modelId: optimizationSettings.modelRunner.modelId,
+                  }
+                : undefined,
             llmResults,
             overallScore: score,
         };

@@ -506,9 +506,25 @@ app.post(
 
 app.post("/api/test/run", validate(testRunSchema), async (req, res) => {
     try {
-        const { promptId, runsPerTest, selectedModels, evaluationModel } = req.body;
+        const {
+            promptId,
+            runsPerTest,
+            selectedModels,
+            evaluationModel,
+            optimizationMaxIterations,
+            optimizationThreshold,
+            optimizationModel,
+        } = req.body;
 
-        const jobId = await startTestRun(promptId, runsPerTest, selectedModels, evaluationModel);
+        const jobId = await startTestRun(
+            promptId,
+            runsPerTest,
+            selectedModels,
+            evaluationModel,
+            optimizationMaxIterations,
+            optimizationThreshold,
+            optimizationModel
+        );
         res.json({ jobId });
     } catch (error) {
         res.status(getErrorStatusCode(error)).json({ error: getErrorMessage(error) });
