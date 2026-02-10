@@ -1,4 +1,4 @@
-import { LLMClient, ModelInfo } from "./llm-client";
+import { LLMClient, ModelInfo, CompletionOptions } from "./llm-client";
 import { getConfig } from "../database";
 import { ConfigurationError, LLMError } from "../errors";
 
@@ -121,7 +121,12 @@ export class GeminiClient implements LLMClient {
         return data.candidates?.[0]?.content?.parts?.[0]?.text ?? defaultValue;
     }
 
-    async complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string> {
+    async complete(
+        systemPrompt: string,
+        userMessage: string,
+        modelId: string,
+        _options?: CompletionOptions
+    ): Promise<string> {
         const combinedMessage = systemPrompt
             ? `${systemPrompt}\n\n---\n\n${userMessage}`
             : userMessage;

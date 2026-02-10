@@ -1,4 +1,4 @@
-import { LLMClient, ModelInfo } from "./llm-client";
+import { LLMClient, ModelInfo, CompletionOptions } from "./llm-client";
 import { getConfig } from "../database";
 import { ConfigurationError, LLMError } from "../errors";
 
@@ -63,6 +63,7 @@ export class GroqClient implements LLMClient {
         messages: Array<{ role: "system" | "user"; content: string }>,
         temperature: number,
         modelId: string,
+        options: CompletionOptions | undefined,
         defaultValue: string = ""
     ): Promise<string> {
         const apiKey = this.getApiKey();
@@ -78,6 +79,13 @@ export class GroqClient implements LLMClient {
             max_tokens: 4096,
             response_format: { type: "json_object" },
         };
+
+        // qwen/qwen3-32b does not support reasoning_effort
+        const isQwenQwen332B = modelId === "qwen/qwen3-32b";
+
+        if (options?.reasoningLevel && options.reasoningLevel !== "none" && !isQwenQwen332B) {
+            requestBody.reasoning_effort = options.reasoningLevel;
+        }
 
         const response = await fetch(`${this.baseUrl}/chat/completions`, {
             method: "POST",
@@ -99,7 +107,12 @@ export class GroqClient implements LLMClient {
         return data.choices?.[0]?.message?.content ?? defaultValue;
     }
 
-    async complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string> {
+    async complete(
+        systemPrompt: string,
+        userMessage: string,
+        modelId: string,
+        options?: CompletionOptions
+    ): Promise<string> {
         return this.makeRequest(
             [
                 { role: "system", content: systemPrompt },
@@ -107,6 +120,7 @@ export class GroqClient implements LLMClient {
             ],
             0.1,
             modelId,
+            options,
             ""
         );
     }

@@ -1,4 +1,4 @@
-import { LLMClient, ModelInfo } from "./llm-client";
+import { LLMClient, ModelInfo, CompletionOptions } from "./llm-client";
 import { getConfig } from "../database";
 import { ConfigurationError, LLMError } from "../errors";
 
@@ -129,7 +129,12 @@ export class DeepseekClient implements LLMClient {
         return "[]";
     }
 
-    async complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string> {
+    async complete(
+        systemPrompt: string,
+        userMessage: string,
+        modelId: string,
+        _options?: CompletionOptions
+    ): Promise<string> {
         if (this.isTestMode()) {
             return this.mockComplete(userMessage);
         }

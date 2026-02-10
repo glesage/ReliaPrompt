@@ -9,7 +9,13 @@ import {
     Prompt,
     TestResult as DbTestResult,
 } from "../database";
-import { getConfiguredClients, ModelSelection, LLMClient } from "../llm-clients";
+import {
+    getConfiguredClients,
+    ModelSelection,
+    LLMClient,
+    CompletionOptions,
+    ReasoningLevel,
+} from "../llm-clients";
 import { compare } from "../utils/compare";
 import { parse, ParseType } from "../utils/parse";
 import { ConfigurationError, getErrorMessage, requireEntity } from "../errors";
@@ -18,6 +24,7 @@ import { ConfigurationError, getErrorMessage, requireEntity } from "../errors";
 export interface ModelRunner {
     client: LLMClient;
     modelId: string;
+    completionOptions?: CompletionOptions;
     displayName: string; // e.g., "OpenAI (gpt-4o)"
 }
 
@@ -26,6 +33,8 @@ const DEFAULT_EVALUATION_MODEL: ModelSelection = {
     provider: "OpenAI",
     modelId: "gpt-5.2",
 };
+const OPENAI_REASONING_LEVELS: ReasoningLevel[] = ["none", "low", "medium", "high", "xhigh"];
+const GROQ_REASONING_LEVELS: ReasoningLevel[] = ["none", "low", "medium", "high"];
 
 export interface TestProgress {
     jobId: string;
@@ -127,7 +136,8 @@ Return ONLY valid JSON, no other text. Example format:
         const judgeResponse = await evaluationModelRunner.client.complete(
             judgePrompt,
             actualOutput,
-            evaluationModelRunner.modelId
+            evaluationModelRunner.modelId,
+            { reasoningLevel: "none" }
         );
         const parsed = JSON.parse(judgeResponse.trim());
 
@@ -178,6 +188,43 @@ async function handleTestRun(
     }
 }
 
+// The implementation here is hardcoded, only these models are supported for reasoning tests
+// - OpenAI gpt-5.2 and gpt-5.2-chat-latest
+// - Groq openai/gpt-oss-20b, openai/gpt-oss-120b
+// - Groq qwen/qwen3-32b (by default reasoning is on)
+// - Groq deepseek-reasoner (by default reasoning is on)
+function getReasoningLevelsForSelection(selection: ModelSelection): ReasoningLevel[] | null {
+    if (selection.provider === "OpenAI" && selection.modelId === "gpt-5.2") {
+        return OPENAI_REASONING_LEVELS;
+    }
+
+    if (selection.provider === "OpenAI" && selection.modelId === "gpt-5.2-chat-latest") {
+        return ["medium"];
+    }
+
+    if (selection.provider === "Groq" && selection.modelId === "openai/gpt-oss-20b") {
+        return GROQ_REASONING_LEVELS;
+    }
+
+    if (selection.provider === "Groq" && selection.modelId === "openai/gpt-oss-120b") {
+        return GROQ_REASONING_LEVELS;
+    }
+
+    if (selection.provider === "Groq" && selection.modelId === "qwen/qwen3-32b") {
+        return null;
+    }
+
+    return null;
+}
+
+function getReasoningLabel(reasoningLevel: ReasoningLevel): string {
+    return reasoningLevel === "none" ? "no reasoning" : `${reasoningLevel} reasoning`;
+}
+
+function stripReasoningBlocks(output: string): string {
+    return output.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
 function getModelRunnersFromSelections(selectedModels: ModelSelection[]): ModelRunner[] {
     const clients = getConfiguredClients();
     const clientMap = new Map(clients.map((c) => [c.name, c]));
@@ -186,6 +233,20 @@ function getModelRunnersFromSelections(selectedModels: ModelSelection[]): ModelR
     for (const selection of selectedModels) {
         const client = clientMap.get(selection.provider);
         if (client) {
+            const reasoningLevels = getReasoningLevelsForSelection(selection);
+
+            if (reasoningLevels) {
+                for (const reasoningLevel of reasoningLevels) {
+                    runners.push({
+                        client,
+                        modelId: selection.modelId,
+                        completionOptions: { reasoningLevel },
+                        displayName: `${selection.provider} (${selection.modelId} - ${getReasoningLabel(reasoningLevel)})`,
+                    });
+                }
+                continue;
+            }
+
             runners.push({
                 client,
                 modelId: selection.modelId,
@@ -218,7 +279,7 @@ function getEvaluationModelRunner(evaluationModel?: ModelSelection): ModelRunner
 
     if (!evaluationRunner) {
         throw new ConfigurationError(
-            `Evaluation model ${selectedEvaluationModel.provider} (${selectedEvaluationModel.modelId}) is not available. Please configure the provider API key or pick another evaluation model.`
+            `Evaluation model ${selectedEvaluationModel.provider} (${selectedEvaluationModel.modelId}) is not available. Please configure the provider API key.`
         );
     }
 
@@ -362,11 +423,13 @@ export async function runTests(
                 try {
                     const startTime = Date.now();
                     // System prompt includes schema hint if present
-                    const actualOutput = await runner.client.complete(
+                    const rawOutput = await runner.client.complete(
                         systemPrompt,
                         testCase.input,
-                        runner.modelId
+                        runner.modelId,
+                        runner.completionOptions
                     );
+                    const actualOutput = stripReasoningBlocks(rawOutput);
                     const durationMs = Date.now() - startTime;
 
                     let score = 0;

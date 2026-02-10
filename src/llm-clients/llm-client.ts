@@ -4,11 +4,22 @@ export interface ModelInfo {
     provider: string;
 }
 
+export type ReasoningLevel = "none" | "low" | "medium" | "high" | "xhigh";
+
+export interface CompletionOptions {
+    reasoningLevel?: ReasoningLevel;
+}
+
 export interface LLMClient {
     name: string;
     isConfigured(): boolean;
     listModels(): Promise<ModelInfo[]>;
-    complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string>;
+    complete(
+        systemPrompt: string,
+        userMessage: string,
+        modelId: string,
+        options?: CompletionOptions
+    ): Promise<string>;
 }
 
 let activeClients: LLMClient[] = [];

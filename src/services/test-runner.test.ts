@@ -5,12 +5,12 @@ import { test, expect, describe, beforeEach, mock } from "bun:test";
 const mockCreateTestJob = mock(() => {});
 const mockUpdateTestJob = mock(() => {});
 const mockCreateTestResult = mock(() => {});
-const mockGetTestCasesForPrompt = mock(() => []);
-const mockGetPromptByIdOrFail = mock(() => ({}));
+const mockGetTestCasesForPrompt = mock(() => [] as TestCase[]);
+const mockGetPromptByIdOrFail = mock(() => ({}) as Prompt);
 const mockGetConfig = mock(() => null);
 
 // Mock LLM clients module
-const mockGetConfiguredClients = mock(() => []);
+const mockGetConfiguredClients = mock(() => [] as LLMClient[]);
 
 // Mock the db module to prevent database initialization errors
 const mockDb = {
@@ -132,6 +132,9 @@ function createPrompt(id: number, content: string): Prompt {
         id,
         name: `Test Prompt ${id}`,
         content,
+        expectedSchema: null,
+        evaluationMode: "schema",
+        evaluationCriteria: null,
         version: 1,
         parentVersionId: null,
         promptGroupId: id,
@@ -480,7 +483,8 @@ describe("test-runner", () => {
             expect(mockClient.complete).toHaveBeenCalledWith(
                 "Test prompt string",
                 "input1",
-                "test-model"
+                "test-model",
+                undefined
             );
         });
 
@@ -685,6 +689,45 @@ describe("test-runner", () => {
     });
 
     describe("startTestRun", () => {
+        test("should use provided evaluation model instead of default in llm mode", async () => {
+            const mockRunnerClient = createMockLLMClient("runner-client");
+            mockRunnerClient.complete = mock(() => Promise.resolve("hello"));
+
+            const mockEvaluationClient = createMockLLMClient("Groq");
+            mockEvaluationClient.complete = mock(() =>
+                Promise.resolve('{"score": 1, "reason": "correct"}')
+            );
+
+            mockGetConfiguredClients.mockReturnValue([mockRunnerClient, mockEvaluationClient]);
+
+            const prompt: Prompt = {
+                ...createPrompt(1, "Test prompt"),
+                evaluationMode: "llm",
+                evaluationCriteria: "Answer should match expected output.",
+            };
+            mockGetPromptByIdOrFail.mockReturnValue(prompt);
+
+            const testCases = [createTestCase(1, "input1", "hello", ParseType.STRING)];
+            mockGetTestCasesForPrompt.mockReturnValue(testCases);
+
+            const selectedModels = [{ provider: "runner-client", modelId: "runner-model" }];
+            const evaluationModel = { provider: "Groq", modelId: "qwen/qwen3-32b" };
+
+            const jobId = await startTestRun(1, 1, selectedModels, evaluationModel);
+
+            expect(jobId).toBeDefined();
+
+            await new Promise((resolve) => setTimeout(resolve, 100));
+
+            expect(mockRunnerClient.complete).toHaveBeenCalled();
+            expect(mockEvaluationClient.complete).toHaveBeenCalledWith(
+                expect.any(String),
+                "hello",
+                "qwen/qwen3-32b",
+                { reasoningLevel: "none" }
+            );
+        });
+
         test("should start a test run with provided models", async () => {
             const mockClient = createMockLLMClient("test-client");
             mockClient.complete = mock(() => Promise.resolve("hello"));

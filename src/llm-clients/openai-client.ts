@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { LLMClient, ModelInfo } from "./llm-client";
+import { LLMClient, ModelInfo, CompletionOptions } from "./llm-client";
 import { getConfig } from "../database";
 import { ConfigurationError } from "../errors";
 
@@ -66,6 +66,7 @@ export class OpenAIClient implements LLMClient {
     private async makeRequest(
         messages: Array<{ role: "system" | "user"; content: string }>,
         modelId: string,
+        options: CompletionOptions | undefined,
         defaultValue: string = ""
     ): Promise<string> {
         const client = this.getClient();
@@ -73,25 +74,44 @@ export class OpenAIClient implements LLMClient {
             throw new ConfigurationError("OpenAI API key not configured");
         }
 
-        const response = await client.responses.create({
+        const requestBody: Parameters<typeof client.responses.create>[0] = {
             model: modelId,
             input: messages,
+            stream: false,
             max_output_tokens: 4096,
             text: {
                 format: { type: "json_object" },
             },
-        });
+        };
 
-        return response.output_text ?? defaultValue;
+        if (options?.reasoningLevel) {
+            requestBody.reasoning = {
+                effort: options.reasoningLevel,
+            };
+        }
+
+        const response = await client.responses.create(requestBody);
+
+        if ("output_text" in response) {
+            return response.output_text ?? defaultValue;
+        }
+
+        return defaultValue;
     }
 
-    async complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string> {
+    async complete(
+        systemPrompt: string,
+        userMessage: string,
+        modelId: string,
+        options?: CompletionOptions
+    ): Promise<string> {
         return this.makeRequest(
             [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userMessage },
             ],
             modelId,
+            options,
             ""
         );
     }
