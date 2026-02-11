@@ -127,11 +127,19 @@ function createTestCase(
 }
 
 // Helper to create a prompt
-function createPrompt(id: number, content: string): Prompt {
+function createPrompt(
+    id: number,
+    content: string,
+    evaluationMode: "schema" | "llm" = "schema",
+    evaluationCriteria: string | null = null
+): Prompt {
     return {
         id,
         name: `Test Prompt ${id}`,
         content,
+        expectedSchema: null,
+        evaluationMode,
+        evaluationCriteria,
         version: 1,
         parentVersionId: null,
         promptGroupId: id,
@@ -508,6 +516,119 @@ describe("test-runner", () => {
             expect(result.results).toHaveLength(1);
             expect(mockCreateTestResult).toHaveBeenCalled();
             expect(mockUpdateTestJob).toHaveBeenCalled();
+        });
+
+        test("should score LLM evaluation with deterministic linear equation from issues", async () => {
+            const generationClient = createMockLLMClient("generator");
+            const judgeClient = createMockLLMClient("judge");
+
+            generationClient.complete = mock(() => Promise.resolve("candidate output"));
+            judgeClient.complete = mock(() =>
+                Promise.resolve(
+                    JSON.stringify({
+                        issues: [
+                            {
+                                substring: "wrong safety value",
+                                explanation: "Safety requirement violated",
+                            },
+                            {
+                                substring: "missing criteria",
+                                explanation: "Missing acceptance criteria",
+                            },
+                            {
+                                substring: "ambiguous wording",
+                                explanation: "Minor wording ambiguity",
+                            },
+                        ],
+                        reason: "Mainly safety and completeness issues with minor phrasing noise.",
+                    })
+                )
+            );
+
+            const prompt = createPrompt(1, "Test prompt", "llm", "Must be safe and complete.");
+            const testCases = [createTestCase(1, "input1", "[]", ParseType.ARRAY)];
+            const modelRunners: ModelRunner[] = [
+                {
+                    client: generationClient,
+                    modelId: "gen-model",
+                    displayName: "generator (gen-model)",
+                },
+            ];
+
+            const result = await runTests(
+                prompt,
+                testCases,
+                modelRunners,
+                1,
+                undefined,
+                undefined,
+                {
+                    client: judgeClient,
+                    modelId: "judge-model",
+                    displayName: "judge (judge-model)",
+                }
+            );
+
+            // 3 unique issues (no duplicates):
+            // All have character lengths >= 12, so each deduction floors at 0.2:
+            // - "wrong safety value" (19 chars): max(0.2, -0.2667*19+1.2667) = max(0.2, -3.8006) = 0.2
+            // - "missing criteria" (15 chars): max(0.2, -0.2667*15+1.2667) = max(0.2, -2.7338) = 0.2
+            // - "ambiguous wording" (18 chars): max(0.2, -0.2667*18+1.2667) = max(0.2, -3.5339) = 0.2
+            // Total deduction = 0.2 + 0.2 + 0.2 = 0.6
+            // Score = 1 - 0.6 = 0.4 (rounded to 6 decimals: 0.4)
+            expect(result.results[0].testCaseResults[0].runs[0].score).toBeCloseTo(0.4, 6);
+            expect(result.results[0].testCaseResults[0].runs[0].issues).toHaveLength(3);
+            expect(result.results[0].testCaseResults[0].runs[0].unexpectedFound).toBe(3);
+        });
+
+        test("should score 0.8 for single issue with 12-char substring", async () => {
+            const generationClient = createMockLLMClient("generator");
+            const judgeClient = createMockLLMClient("judge");
+
+            generationClient.complete = mock(() => Promise.resolve("candidate output"));
+            judgeClient.complete = mock(() =>
+                Promise.resolve(
+                    JSON.stringify({
+                        issues: [
+                            {
+                                substring: "twelve chars!!", // Exactly 12 characters
+                                explanation: "Minor issue",
+                            },
+                        ],
+                        reason: "Minor issue found.",
+                    })
+                )
+            );
+
+            const prompt = createPrompt(1, "Test prompt", "llm", "Must be safe and complete.");
+            const testCases = [createTestCase(1, "input1", "[]", ParseType.ARRAY)];
+            const modelRunners: ModelRunner[] = [
+                {
+                    client: generationClient,
+                    modelId: "gen-model",
+                    displayName: "generator (gen-model)",
+                },
+            ];
+
+            const result = await runTests(
+                prompt,
+                testCases,
+                modelRunners,
+                1,
+                undefined,
+                undefined,
+                {
+                    client: judgeClient,
+                    modelId: "judge-model",
+                    displayName: "judge (judge-model)",
+                }
+            );
+
+            // 1 issue with 12 characters: max(0.2, -0.2667*12+1.2667) = max(0.2, -1.9337) = 0.2
+            // Score = 1 - 0.2 = 0.8
+            expect(result.results[0].testCaseResults[0].runs[0].score).toBeCloseTo(0.8, 6);
+            expect(result.results[0].testCaseResults[0].runs[0].issues).toHaveLength(1);
+            expect(result.results[0].testCaseResults[0].runs[0].unexpectedFound).toBe(1);
         });
     });
 

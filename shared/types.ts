@@ -160,6 +160,7 @@ export interface TestRun {
     expectedFound?: number;
     expectedTotal?: number;
     unexpectedFound?: number;
+    issues?: Array<{ substring: string; explanation: string }>;
     reason?: string;
 }
 

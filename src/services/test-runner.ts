@@ -69,6 +69,14 @@ export interface TestCaseResult {
 }
 
 /**
+ * Represents a single evaluation issue with structured information.
+ */
+export interface EvaluationIssue {
+    substring: string;
+    explanation: string;
+}
+
+/**
  * Base type containing common fields shared across test result types.
  * Used by RunResult, TestResultSummary, and database TestResult.
  */
@@ -79,6 +87,7 @@ export interface BaseTestResult {
     expectedFound: number;
     expectedTotal: number;
     unexpectedFound: number;
+    issues?: EvaluationIssue[];
     error?: string;
     durationMs?: number;
     reason?: string; // LLM evaluation reason (when using LLM evaluation mode)
@@ -95,8 +104,52 @@ export function getTestProgress(jobId: string): TestProgress | null {
 }
 
 /**
+ * Computes the deduction for a single issue using the deterministic formula:
+ * deduction = max(0.2, (-0.2667 * substringLength) + 1.2667)
+ * Uses trimmed substring character length, not word count.
+ */
+function computeIssueDeduction(issue: EvaluationIssue): number {
+    const substringLength = issue.substring.trim().length;
+    const deduction = Math.max(0.2, -0.2667 * substringLength + 1.2667);
+    return deduction;
+}
+
+/**
+ * Deduplicates issues by normalized key (substring+explanation, trimmed and lowercase).
+ */
+function deduplicateIssues(issues: EvaluationIssue[]): EvaluationIssue[] {
+    const uniqueIssues = new Map<string, EvaluationIssue>();
+
+    for (const issue of issues) {
+        const normalizedSubstring = issue.substring.trim().toLowerCase();
+        const normalizedExplanation = issue.explanation.trim().toLowerCase();
+        const key = `${normalizedSubstring}|||${normalizedExplanation}`;
+
+        if (!uniqueIssues.has(key)) {
+            uniqueIssues.set(key, issue);
+        }
+    }
+
+    return [...uniqueIssues.values()];
+}
+
+/**
+ * Deterministic linear equation for quality scoring using issue substring character length.
+ * score = clamp(1 - Σ(deduction per normalized issue), 0, 1)
+ */
+function calculateScoreFromIssues(issues: EvaluationIssue[]): number {
+    const normalizedIssues = deduplicateIssues(issues);
+    const totalDeduction = normalizedIssues.reduce((total, issue) => {
+        return total + computeIssueDeduction(issue);
+    }, 0);
+
+    const score = 1 - totalDeduction;
+    return Math.max(0, Math.min(1, Number(score.toFixed(6))));
+}
+
+/**
  * Calls the selected judge model to evaluate an AI output based on evaluation criteria.
- * Returns a score (0-1) and a reason string.
+ * Returns structured issues; score is computed deterministically from issues.
  */
 async function evaluateWithLLMJudge(
     promptContent: string,
@@ -104,24 +157,36 @@ async function evaluateWithLLMJudge(
     actualOutput: string,
     evaluationCriteria: string,
     evaluationModelRunner: ModelRunner
-): Promise<{ score: number; reason: string }> {
-    const judgePrompt = `You are an expert evaluator. Your task is to evaluate the quality of an AI-generated output based on specific criteria.
+): Promise<{ issues: EvaluationIssue[] }> {
+    const judgePrompt = `You will be given the context (task for model to be evaluated, task input) and evaluation criteria.
 
-## Original Prompt:
+    Your task is to evaluate the quality of the AI-generated output based on the criteria.
+
+## Task for model to be evaluated:
+\`\`\`
 ${promptContent}
+\`\`\`
 
-## User Input:
+## Task input:
+\`\`\`
 ${testCaseInput}
+\`\`\`
 
-## Evaluation Criteria:
+## Evaluation criteria:
+\`\`\`
 ${evaluationCriteria}
+\`\`\`
 
-Evaluate the AI output based on the criteria above. Return your evaluation as a JSON object with exactly two fields:
-- "score": A number between 0 and 1 indicating the quality (0 = poor, 1 = excellent)
-- "reason": A string explaining your score and what could be improved
+## Evaluation output:
+Evaluate the AI output based on the criteria above. Return your evaluation as a JSON object with exactly one field:
+- "issues": An array of objects, where each object has:
+  - "substring": The specific text fragment from the output that has the issue (exact text to match)
+  - "explanation": Clear explanation of what the issue is and how to fix it
+
+If no issues are found, return "issues": [].
 
 Return ONLY valid JSON, no other text. Example format:
-{"score": 0.85, "reason": "The output is mostly correct but lacks some detail in..."}`;
+{"issues": [{"substring": "missing disclaimer text", "explanation": "The output is missing the required safety disclaimer"}, {"substring": "incorrect value", "explanation": "The calculated value is incorrect"}]}`;
 
     try {
         const judgeResponse = await evaluationModelRunner.client.complete(
@@ -131,21 +196,39 @@ Return ONLY valid JSON, no other text. Example format:
         );
         const parsed = JSON.parse(judgeResponse.trim());
 
-        // Validate and clamp score
-        let score = typeof parsed.score === "number" ? parsed.score : parseFloat(parsed.score);
-        if (isNaN(score)) {
-            score = 0;
+        const parsedIssues = Array.isArray(parsed.issues) ? (parsed.issues as unknown[]) : [];
+        const issues: EvaluationIssue[] = [];
+
+        for (const item of parsedIssues) {
+            if (
+                typeof item === "object" &&
+                item !== null &&
+                typeof (item as EvaluationIssue).substring === "string" &&
+                typeof (item as EvaluationIssue).explanation === "string"
+            ) {
+                const issue = item as EvaluationIssue;
+                const trimmedSubstring = issue.substring.trim();
+                const trimmedExplanation = issue.explanation.trim();
+
+                if (trimmedSubstring.length > 0 && trimmedExplanation.length > 0) {
+                    issues.push({
+                        substring: trimmedSubstring,
+                        explanation: trimmedExplanation,
+                    });
+                }
+            }
         }
-        score = Math.max(0, Math.min(1, score)); // Clamp to [0, 1]
 
-        const reason = typeof parsed.reason === "string" ? parsed.reason : "No reason provided";
-
-        return { score, reason };
+        return { issues };
     } catch (error) {
-        // If parsing fails, return a low score with error message
+        // If parsing fails, return parse failure as critical issue
         return {
-            score: 0,
-            reason: `Failed to parse judge response: ${getErrorMessage(error)}`,
+            issues: [
+                {
+                    substring: "",
+                    explanation: `Failed to parse judge response JSON: ${getErrorMessage(error)}`,
+                },
+            ],
         };
     }
 }
@@ -374,7 +457,7 @@ export async function runTests(
                     let expectedFound = 0;
                     let expectedTotal = 0;
                     let unexpectedFound = 0;
-                    let reason: string | undefined = undefined;
+                    let issues: EvaluationIssue[] | undefined = undefined;
 
                     if (evaluationMode === "llm" && evaluationCriteria) {
                         // LLM evaluation mode: use judge model
@@ -391,14 +474,13 @@ export async function runTests(
                             evaluationCriteria,
                             evaluationModelRunner
                         );
-                        score = evaluation.score;
-                        reason = evaluation.reason;
+                        issues = deduplicateIssues(evaluation.issues);
+                        score = calculateScoreFromIssues(issues);
                         isCorrect = score === 1;
-                        // For LLM evaluation, we don't have expectedFound/expectedTotal/unexpectedFound
-                        // Set defaults that make sense
+                        // For LLM evaluation mode, track issue counts as mismatch metrics.
                         expectedTotal = 1;
-                        expectedFound = score === 1 ? 1 : 0;
-                        unexpectedFound = 0;
+                        expectedFound = issues.length === 0 ? 1 : 0;
+                        unexpectedFound = issues.length;
                     } else {
                         // Schema evaluation mode: use existing comparison logic
                         const expectedOutputType = testCase.expectedOutputType as ParseType;
@@ -415,6 +497,7 @@ export async function runTests(
                         expectedFound = comparison.expectedFound;
                         expectedTotal = comparison.expectedTotal;
                         unexpectedFound = comparison.unexpectedFound;
+                        issues = [];
                     }
 
                     if (isCorrect) {
@@ -432,8 +515,8 @@ export async function runTests(
                         expectedFound,
                         expectedTotal,
                         unexpectedFound,
+                        issues,
                         durationMs,
-                        reason,
                     });
 
                     // Persist to database if jobId is provided
@@ -449,12 +532,16 @@ export async function runTests(
                             expectedFound,
                             expectedTotal,
                             unexpectedFound,
+                            issues,
                             durationMs
                         );
                     }
                 } catch (error) {
                     llmTotalRuns++;
                     const errorMessage = getErrorMessage(error);
+                    const runIssues: EvaluationIssue[] = [
+                        { substring: "", explanation: "Test run failed before evaluation" },
+                    ];
                     runs.push({
                         runNumber,
                         actualOutput: null,
@@ -463,6 +550,7 @@ export async function runTests(
                         expectedFound: 0,
                         expectedTotal: 0,
                         unexpectedFound: 0,
+                        issues: runIssues,
                         error: errorMessage,
                     });
 
@@ -478,7 +566,8 @@ export async function runTests(
                             0,
                             0,
                             0,
-                            0
+                            0,
+                            runIssues
                         );
                     }
                 }
@@ -670,6 +759,25 @@ export function getTestResultSummary(results: LLMTestResult[]) {
  * Handles conversion of isCorrect from integer (0/1) to boolean.
  */
 export function dbTestResultToRunResult(dbResult: DbTestResult): RunResult {
+    let issues: EvaluationIssue[] | undefined = undefined;
+
+    if (dbResult.issues) {
+        try {
+            const parsedIssues = JSON.parse(dbResult.issues);
+            if (Array.isArray(parsedIssues)) {
+                issues = parsedIssues.filter(
+                    (issue): issue is EvaluationIssue =>
+                        typeof issue === "object" &&
+                        issue !== null &&
+                        typeof issue.substring === "string" &&
+                        typeof issue.explanation === "string"
+                );
+            }
+        } catch {
+            issues = [{ substring: "", explanation: "Failed to parse persisted issues" }];
+        }
+    }
+
     return {
         runNumber: dbResult.runNumber,
         actualOutput: dbResult.actualOutput,
@@ -678,6 +786,7 @@ export function dbTestResultToRunResult(dbResult: DbTestResult): RunResult {
         expectedFound: dbResult.expectedFound,
         expectedTotal: dbResult.expectedTotal,
         unexpectedFound: dbResult.unexpectedFound,
+        issues,
         error: dbResult.error ?? undefined,
         durationMs: dbResult.durationMs ?? undefined,
     };
@@ -704,6 +813,7 @@ export function runResultToDbTestResult(
         expectedFound: runResult.expectedFound,
         expectedTotal: runResult.expectedTotal,
         unexpectedFound: runResult.unexpectedFound,
+        issues: runResult.issues ? JSON.stringify(runResult.issues) : null,
         error: runResult.error ?? null,
         durationMs: runResult.durationMs ?? null,
     };
