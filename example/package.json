@@ -1,0 +1,17 @@
+{
+    "name": "relia-prompt-example",
+    "version": "0.0.1",
+    "private": true,
+    "description": "Example service using relia-prompt as a library",
+    "scripts": {
+        "test": "bun test .",
+        "reliaprompt:ui": "NODE_ENV=development bun ../src/cli-ui.ts"
+    },
+    "dependencies": {
+        "joi": "^18.0.2",
+        "joi-to-json": "^5.0.1"
+    },
+    "devDependencies": {
+        "@types/bun": "latest"
+    }
+}

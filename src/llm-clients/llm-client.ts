@@ -4,11 +4,14 @@ export interface ModelInfo {
     provider: string;
 }
 
+export type ProviderId = string;
+
 export interface LLMClient {
-    name: string;
+    providerId: ProviderId;
     isConfigured(): boolean;
     listModels(): Promise<ModelInfo[]>;
     complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string>;
+    refresh(): void;
 }
 
 let activeClients: LLMClient[] = [];
@@ -21,10 +24,9 @@ export function getConfiguredClients(): LLMClient[] {
     return activeClients.filter((client) => client.isConfigured());
 }
 
-export interface ModelSelection {
-    provider: string;
-    modelId: string;
-}
+import type { SelectedModel } from "../../shared/types";
+
+export type ModelSelection = SelectedModel;
 
 export async function getAllAvailableModels(): Promise<ModelInfo[]> {
     const configuredClients = getConfiguredClients();

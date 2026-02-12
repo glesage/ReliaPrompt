@@ -58,15 +58,6 @@ export class LLMError extends AppError {
 }
 
 /**
- * Error thrown when database operations fail.
- */
-export class DatabaseError extends AppError {
-    constructor(message: string) {
-        super(message, 500);
-    }
-}
-
-/**
  * Safely extracts an error message from an unknown error type.
  * Use this instead of `(error as Error).message`.
  */

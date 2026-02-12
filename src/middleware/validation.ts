@@ -1,41 +1,22 @@
 import { Request, Response, NextFunction } from "express";
-import Joi from "joi";
 
 /**
- * Validation middleware factory that validates request data using Joi schemas
- * @param schema - Joi schema to validate against
- * @param source - Where to get the data from: 'body', 'params', or 'query'
+ * Validation middleware that runs a validator on the request body.
+ * On success, assigns the validated value to req.body and calls next().
+ * On throw, returns 400 with { error: "Validation error: <message>" }.
  */
-export function validate(
-    schema: Joi.ObjectSchema | Joi.ArraySchema,
-    source: "body" | "params" | "query" = "body"
-) {
+export function validateBody<T>(validator: (data: unknown) => T) {
     return (req: Request, res: Response, next: NextFunction) => {
-        const data = source === "body" ? req.body : source === "params" ? req.params : req.query;
-
-        const { error, value } = schema.validate(data, {
-            abortEarly: false,
-            stripUnknown: true,
-            convert: true,
-        });
-
-        if (error) {
-            const errorMessages = error.details.map((detail) => detail.message).join(", ");
+        try {
+            const value = validator(req.body);
+            req.body = value;
+            next();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
             return res.status(400).json({
-                error: `Validation error: ${errorMessages}`,
+                error: `Validation error: ${message}`,
             });
         }
-
-        // Replace the original data with validated and sanitized data
-        if (source === "body") {
-            req.body = value;
-        } else if (source === "params") {
-            req.params = value;
-        } else {
-            req.query = value;
-        }
-
-        next();
     };
 }
 

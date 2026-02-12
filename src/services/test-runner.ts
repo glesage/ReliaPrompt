@@ -1,18 +1,25 @@
-import {
-    createTestJob,
-    updateTestJob,
-    createTestResult,
-    getTestCasesForPrompt,
-    getPromptByIdOrFail,
-    getConfig,
-    TestCase,
-    Prompt,
-    TestResult as DbTestResult,
-} from "../database";
-import { getConfiguredClients, ModelSelection, LLMClient } from "../llm-clients";
+import type { EvaluationMode } from "../../shared/types";
+import type { LLMClient, ModelSelection } from "../llm-clients";
 import { compare } from "../utils/compare";
 import { parse, ParseType } from "../utils/parse";
-import { ConfigurationError, getErrorMessage, requireEntity } from "../errors";
+import { ConfigurationError, getErrorMessage } from "../errors";
+
+/** Minimal prompt shape for runTests (no DB-only fields). */
+export interface MinimalPrompt {
+    content: string;
+    expectedSchema?: string | null;
+    evaluationMode?: EvaluationMode;
+    evaluationCriteria?: string | null;
+    id?: number;
+}
+
+/** Minimal test case shape for runTests (id required for result grouping). */
+export interface MinimalTestCase {
+    id: number;
+    input: string;
+    expectedOutput: string;
+    expectedOutputType: string;
+}
 
 // Represents a model to run tests against
 export interface ModelRunner {
@@ -22,19 +29,60 @@ export interface ModelRunner {
 }
 
 const DEFAULT_RUNS_PER_TEST = 1;
-const DEFAULT_EVALUATION_MODEL: ModelSelection = {
-    provider: "OpenAI",
-    modelId: "gpt-5.2",
-};
 
-export interface TestProgress {
-    jobId: string;
-    status: "pending" | "running" | "completed" | "failed";
-    totalTests: number;
-    completedTests: number;
-    progress: number; // 0-100
-    results?: TestResults;
-    error?: string;
+type JsonSchemaObject = Record<string, unknown>;
+
+function isJsonObject(value: unknown): value is JsonSchemaObject {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Validates that the value is a JSON object (valid JSON). Does not require JSON Schema-specific fields like $schema. */
+function validate(schemaCandidate: unknown): JsonSchemaObject {
+    if (!isJsonObject(schemaCandidate)) {
+        throw new Error("Schema must be a JSON object");
+    }
+    return schemaCandidate;
+}
+
+function resolveComparisonParseType(
+    declaredExpectedOutputType: string,
+    expectedOutput: string
+): ParseType {
+    if (declaredExpectedOutputType === ParseType.ARRAY) {
+        return ParseType.ARRAY;
+    }
+    if (declaredExpectedOutputType === ParseType.OBJECT) {
+        return ParseType.OBJECT;
+    }
+    if (declaredExpectedOutputType === ParseType.STRING) {
+        const trimmedExpectedOutput = expectedOutput.trim();
+        try {
+            const parsedExpectedOutput = JSON.parse(trimmedExpectedOutput);
+            if (Array.isArray(parsedExpectedOutput)) {
+                return ParseType.ARRAY;
+            }
+            if (parsedExpectedOutput !== null && typeof parsedExpectedOutput === "object") {
+                return ParseType.OBJECT;
+            }
+        } catch {
+            return ParseType.STRING;
+        }
+        return ParseType.STRING;
+    }
+
+    const trimmedExpectedOutput = expectedOutput.trim();
+    try {
+        const parsedExpectedOutput = JSON.parse(trimmedExpectedOutput);
+        if (Array.isArray(parsedExpectedOutput)) {
+            return ParseType.ARRAY;
+        }
+        if (parsedExpectedOutput !== null && typeof parsedExpectedOutput === "object") {
+            return ParseType.OBJECT;
+        }
+    } catch {
+        return ParseType.STRING;
+    }
+    return ParseType.STRING;
 }
 
 export interface TestResults {
@@ -78,7 +126,6 @@ export interface EvaluationIssue {
 
 /**
  * Base type containing common fields shared across test result types.
- * Used by RunResult, TestResultSummary, and database TestResult.
  */
 export interface BaseTestResult {
     actualOutput: string | null;
@@ -95,12 +142,6 @@ export interface BaseTestResult {
 
 export interface RunResult extends BaseTestResult {
     runNumber: number;
-}
-
-const activeJobs = new Map<string, TestProgress>();
-
-export function getTestProgress(jobId: string): TestProgress | null {
-    return activeJobs.get(jobId) ?? null;
 }
 
 /**
@@ -175,24 +216,43 @@ async function evaluateWithLLMJudge(
     evaluationCriteria: string,
     evaluationModelRunner: ModelRunner
 ): Promise<{ issues: EvaluationIssue[] }> {
-    const judgePrompt = `Your task is to evaluate the quality of the AI-generated output based on the criteria.
+    const evaluationIssuesJsonSchema = {
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        type: "object",
+        additionalProperties: false,
+        required: ["issues"],
+        properties: {
+            issues: {
+                type: "array",
+                items: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["substring", "explanation"],
+                    properties: {
+                        substring: { type: "string" },
+                        explanation: { type: "string" },
+                    },
+                },
+            },
+        },
+    };
 
-## Task that was done
-\`\`\`
-${promptContent}
-\`\`\`
+    const judgePrompt = `You are evaluating an extraction result and must identify issues only.
+Return only a valid json object.
 
-## Task input
-\`\`\`
-${testCaseInput}
-\`\`\`
-
-## Your evaluation criteria
-\`\`\`
+## Your task
 ${evaluationCriteria}
-\`\`\`
 
-## Evaluation JSON format
+## Initial task
+${promptContent}
+
+## Initial input
+${testCaseInput}
+
+## Required json schema
+${JSON.stringify(evaluationIssuesJsonSchema)}
+
+## Evaluation json format
 {
   "issues": [
     {
@@ -205,7 +265,8 @@ ${evaluationCriteria}
     }
   ]
 }
-If no issues are found, return {"issues": []}`;
+If no issues are found, return {"issues": []}.
+Do not include markdown fences. Output only json.`;
 
     try {
         const judgeResponse = await evaluationModelRunner.client.complete(
@@ -252,161 +313,16 @@ If no issues are found, return {"issues": []}`;
     }
 }
 
-async function handleTestRun(
-    jobId: string,
-    prompt: Prompt,
-    testCases: TestCase[],
-    modelRunners: ModelRunner[],
-    runsPerTest: number,
-    evaluationModelRunner?: ModelRunner
-): Promise<void> {
-    try {
-        await runTests(
-            prompt,
-            testCases,
-            modelRunners,
-            runsPerTest,
-            jobId,
-            undefined,
-            evaluationModelRunner
-        );
-    } catch (error) {
-        const progress = activeJobs.get(jobId);
-        if (progress) {
-            progress.status = "failed";
-            progress.error = error instanceof Error ? error.message : String(error);
-        }
-        updateTestJob(jobId, { status: "failed" });
-    }
-}
-
-function getModelRunnersFromSelections(selectedModels: ModelSelection[]): ModelRunner[] {
-    const clients = getConfiguredClients();
-    const clientMap = new Map(clients.map((c) => [c.name, c]));
-    const runners: ModelRunner[] = [];
-
-    for (const selection of selectedModels) {
-        const client = clientMap.get(selection.provider);
-        if (client) {
-            runners.push({
-                client,
-                modelId: selection.modelId,
-                displayName: `${selection.provider} (${selection.modelId})`,
-            });
-        }
-    }
-
-    return runners;
-}
-
-function getModelRunnerFromSelection(selection: ModelSelection): ModelRunner | null {
-    const client = getConfiguredClients().find(
-        (candidate) => candidate.name === selection.provider
-    );
-    if (!client) {
-        return null;
-    }
-
-    return {
-        client,
-        modelId: selection.modelId,
-        displayName: `${selection.provider} (${selection.modelId})`,
-    };
-}
-
-function getEvaluationModelRunner(evaluationModel?: ModelSelection): ModelRunner {
-    const selectedEvaluationModel = evaluationModel ?? DEFAULT_EVALUATION_MODEL;
-    const evaluationRunner = getModelRunnerFromSelection(selectedEvaluationModel);
-
-    if (!evaluationRunner) {
-        throw new ConfigurationError(
-            `Evaluation model ${selectedEvaluationModel.provider} (${selectedEvaluationModel.modelId}) is not available. Please configure the provider API key or pick another evaluation model.`
-        );
-    }
-
-    return evaluationRunner;
-}
-
-function getSavedModelRunners(): ModelRunner[] {
-    // Check for saved selected_models in config
-    const savedModelsJson = getConfig("selected_models");
-    if (savedModelsJson) {
-        try {
-            const savedModels = JSON.parse(savedModelsJson) as ModelSelection[];
-            if (Array.isArray(savedModels) && savedModels.length > 0) {
-                return getModelRunnersFromSelections(savedModels);
-            }
-        } catch {
-            // Fall through to throw error
-        }
-    }
-
-    throw new ConfigurationError(
-        "No models selected. Please select at least one model in settings before running tests."
-    );
-}
-
-export async function startTestRun(
-    promptId: number,
-    runsPerTest: number = DEFAULT_RUNS_PER_TEST,
-    selectedModels?: ModelSelection[],
-    evaluationModel?: ModelSelection
-): Promise<string> {
-    // Use OrFail variant - throws NotFoundError if prompt doesn't exist
-    const prompt = getPromptByIdOrFail(promptId);
-
-    const testCases = getTestCasesForPrompt(promptId);
-    // Use requireEntity for explicit assertion with clear error message
-    requireEntity(testCases.length > 0 ? testCases : null, `Test cases for prompt ${promptId}`);
-
-    // Get model runners based on selection or saved settings
-    const modelRunners =
-        selectedModels && selectedModels.length > 0
-            ? getModelRunnersFromSelections(selectedModels)
-            : getSavedModelRunners();
-
-    if (modelRunners.length === 0) {
-        throw new ConfigurationError(
-            "No LLM models selected. Please select at least one model to run tests."
-        );
-    }
-
-    const evaluationMode = prompt.evaluationMode || "schema";
-    const evaluationModelRunner =
-        evaluationMode === "llm" ? getEvaluationModelRunner(evaluationModel) : undefined;
-
-    const jobId = crypto.randomUUID();
-    const totalTests = testCases.length * modelRunners.length * runsPerTest;
-
-    createTestJob(jobId, promptId, totalTests);
-
-    const progress: TestProgress = {
-        jobId,
-        status: "pending",
-        totalTests,
-        completedTests: 0,
-        progress: 0,
-    };
-    activeJobs.set(jobId, progress);
-
-    handleTestRun(jobId, prompt, testCases, modelRunners, runsPerTest, evaluationModelRunner);
-
-    return jobId;
-}
-
 export async function runTests(
-    prompt: Prompt | string,
-    testCases: TestCase[],
+    prompt: MinimalPrompt | string,
+    testCases: MinimalTestCase[],
     modelRunners: ModelRunner[],
     runsPerTest: number = DEFAULT_RUNS_PER_TEST,
-    jobId?: string,
     expectedSchema?: string,
     evaluationModelRunner?: ModelRunner
 ): Promise<{ score: number; results: LLMTestResult[] }> {
-    // Extract prompt content and ID
     const promptContent = typeof prompt === "string" ? prompt : prompt.content;
-    const promptId = typeof prompt === "string" ? undefined : prompt.id;
-    const promptObj = typeof prompt === "object" ? prompt : null;
+    const promptObj = typeof prompt === "object" && prompt !== null ? prompt : null;
 
     // Get evaluation mode and criteria if prompt is an object
     const evaluationMode = promptObj?.evaluationMode || "schema";
@@ -428,27 +344,17 @@ export async function runTests(
                 parsedSchema.schema && typeof parsedSchema.schema === "object"
                     ? parsedSchema.schema
                     : parsedSchema;
+            const normalizedSchema = validate(schema);
 
             // Append schema hint to the system prompt
-            systemPrompt = `${promptContent}\n\n## Response Schema:\n${JSON.stringify(schema)}`;
+            systemPrompt = `${promptContent}\n\n## Response Schema:\n${JSON.stringify(normalizedSchema)}`;
         } catch {
             // If parsing fails, ignore the schema
             console.warn("Failed to parse expectedSchema, ignoring structured output");
         }
     }
 
-    // Initialize progress tracking if jobId is provided
-    if (jobId) {
-        const progress = activeJobs.get(jobId);
-        if (progress) {
-            progress.status = "running";
-        }
-        updateTestJob(jobId, { status: "running" });
-    }
-
     const llmResults: LLMTestResult[] = [];
-    let completedTests = 0;
-    const totalTests = testCases.length * modelRunners.length * runsPerTest;
 
     const llmPromises = modelRunners.map(async (runner) => {
         const testCaseResults: TestCaseResult[] = [];
@@ -502,9 +408,19 @@ export async function runTests(
                         unexpectedFound = issues.length;
                     } else {
                         // Schema evaluation mode: use existing comparison logic
-                        const expectedOutputType = testCase.expectedOutputType as ParseType;
+                        const expectedOutputType = resolveComparisonParseType(
+                            testCase.expectedOutputType,
+                            testCase.expectedOutput
+                        );
                         const expectedParsed = parse(testCase.expectedOutput, expectedOutputType);
-                        const actualParsed = parse(actualOutput, expectedOutputType);
+                        let actualParsed;
+                        try {
+                            actualParsed = parse(actualOutput, expectedOutputType);
+                        } catch {
+                            // Model outputs that do not match the expected JSON shape are treated as
+                            // incorrect outputs (score 0), not runtime failures.
+                            actualParsed = undefined;
+                        }
                         const comparison = compare(
                             expectedParsed,
                             actualParsed,
@@ -537,24 +453,6 @@ export async function runTests(
                         issues,
                         durationMs,
                     });
-
-                    // Persist to database if jobId is provided
-                    if (jobId) {
-                        createTestResult(
-                            jobId,
-                            testCase.id,
-                            runner.displayName,
-                            runNumber,
-                            actualOutput,
-                            isCorrect,
-                            score,
-                            expectedFound,
-                            expectedTotal,
-                            unexpectedFound,
-                            issues,
-                            durationMs
-                        );
-                    }
                 } catch (error) {
                     llmTotalRuns++;
                     const errorMessage = getErrorMessage(error);
@@ -572,34 +470,6 @@ export async function runTests(
                         issues: runIssues,
                         error: errorMessage,
                     });
-
-                    // Persist to database if jobId is provided
-                    if (jobId) {
-                        createTestResult(
-                            jobId,
-                            testCase.id,
-                            runner.displayName,
-                            runNumber,
-                            null,
-                            false,
-                            0,
-                            0,
-                            0,
-                            0,
-                            runIssues
-                        );
-                    }
-                }
-
-                // Update progress if jobId is provided
-                if (jobId) {
-                    completedTests++;
-                    const progress = activeJobs.get(jobId);
-                    if (progress) {
-                        progress.completedTests = completedTests;
-                        progress.progress = Math.round((completedTests / totalTests) * 100);
-                    }
-                    updateTestJob(jobId, { completedTests: completedTests });
                 }
             }
 
@@ -655,34 +525,6 @@ export async function runTests(
     // Calculate overall score as average of all LLM scores
     const totalScore = llmResults.reduce((sum, r) => sum + r.score, 0);
     const score = llmResults.length > 0 ? totalScore / llmResults.length : 0;
-
-    // Update job status and results if jobId is provided
-    if (jobId) {
-        const testResults: TestResults = {
-            promptId: promptId ?? 0,
-            promptContent: promptContent,
-            totalTestCases: testCases.length,
-            evaluationModel:
-                evaluationMode === "llm" && evaluationCriteria && evaluationModelRunner
-                    ? {
-                          provider: evaluationModelRunner.client.name,
-                          modelId: evaluationModelRunner.modelId,
-                      }
-                    : undefined,
-            llmResults,
-            overallScore: score,
-        };
-
-        const progress = activeJobs.get(jobId);
-        if (progress) {
-            progress.status = "completed";
-            progress.results = testResults;
-        }
-        updateTestJob(jobId, {
-            status: "completed",
-            results: JSON.stringify(testResults),
-        });
-    }
 
     return { score, results: llmResults };
 }
@@ -771,69 +613,4 @@ export function getTestResultSummary(results: LLMTestResult[]) {
     }
 
     return summary;
-}
-
-/**
- * Converts a database TestResult to a RunResult.
- * Handles conversion of isCorrect from integer (0/1) to boolean.
- */
-export function dbTestResultToRunResult(dbResult: DbTestResult): RunResult {
-    let issues: EvaluationIssue[] | undefined = undefined;
-
-    if (dbResult.issues) {
-        try {
-            const parsedIssues = JSON.parse(dbResult.issues);
-            if (Array.isArray(parsedIssues)) {
-                issues = parsedIssues.filter(
-                    (issue): issue is EvaluationIssue =>
-                        typeof issue === "object" &&
-                        issue !== null &&
-                        typeof issue.substring === "string" &&
-                        typeof issue.explanation === "string"
-                );
-            }
-        } catch {
-            issues = [{ substring: "", explanation: "Failed to parse persisted issues" }];
-        }
-    }
-
-    return {
-        runNumber: dbResult.runNumber,
-        actualOutput: dbResult.actualOutput,
-        isCorrect: dbResult.isCorrect === 1,
-        score: dbResult.score,
-        expectedFound: dbResult.expectedFound,
-        expectedTotal: dbResult.expectedTotal,
-        unexpectedFound: dbResult.unexpectedFound,
-        issues,
-        error: dbResult.error ?? undefined,
-        durationMs: dbResult.durationMs ?? undefined,
-    };
-}
-
-/**
- * Converts a RunResult to a database TestResult format (for creating new records).
- * Note: This returns a partial object - you still need to provide jobId, testCaseId, and llmProvider.
- */
-export function runResultToDbTestResult(
-    runResult: RunResult,
-    jobId: string,
-    testCaseId: number,
-    llmProvider: string
-): Omit<DbTestResult, "id" | "createdAt"> {
-    return {
-        jobId,
-        testCaseId,
-        llmProvider,
-        runNumber: runResult.runNumber,
-        actualOutput: runResult.actualOutput,
-        isCorrect: runResult.isCorrect ? 1 : 0,
-        score: runResult.score,
-        expectedFound: runResult.expectedFound,
-        expectedTotal: runResult.expectedTotal,
-        unexpectedFound: runResult.unexpectedFound,
-        issues: runResult.issues ? JSON.stringify(runResult.issues) : null,
-        error: runResult.error ?? null,
-        durationMs: runResult.durationMs ?? null,
-    };
 }

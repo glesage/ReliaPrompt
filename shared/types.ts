@@ -1,8 +1,18 @@
 // ============================================
 // Shared Types for Relia Prompt
 // ============================================
-// These types are shared between the frontend and backend.
+// These types are shared between the dashboard and backend.
 // They define the API request/response interfaces.
+
+// ============================================
+// Canonical literals (single source of truth)
+// ============================================
+
+export const EVALUATION_MODES = ["schema", "llm"] as const;
+export type EvaluationMode = (typeof EVALUATION_MODES)[number];
+
+export const EXPECTED_OUTPUT_TYPES = ["string", "array", "object"] as const;
+export type ExpectedOutputType = (typeof EXPECTED_OUTPUT_TYPES)[number];
 
 // ============================================
 // Prompt Types
@@ -15,7 +25,7 @@ export interface Prompt {
     version: number;
     promptGroupId: number;
     expectedSchema?: string | null;
-    evaluationMode?: "schema" | "llm";
+    evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
     createdAt: string;
 }
@@ -31,7 +41,7 @@ export interface CreatePromptRequest {
     name: string;
     content: string;
     expectedSchema?: string;
-    evaluationMode?: "schema" | "llm";
+    evaluationMode?: EvaluationMode;
     evaluationCriteria?: string;
     parentVersionId?: number;
 }
@@ -39,7 +49,7 @@ export interface CreatePromptRequest {
 export interface CreateVersionRequest {
     content: string;
     expectedSchema?: string;
-    evaluationMode?: "schema" | "llm";
+    evaluationMode?: EvaluationMode;
     evaluationCriteria?: string;
 }
 
@@ -79,8 +89,6 @@ export interface LLMConfig {
 // ============================================
 // Test Case Types
 // ============================================
-
-export type ExpectedOutputType = "string" | "array" | "object";
 
 export interface TestCase {
     id: number;
@@ -192,7 +200,7 @@ export interface ExportPromptData {
     name: string;
     content: string;
     expectedSchema?: string;
-    evaluation_mode?: "schema" | "llm";
+    evaluation_mode?: EvaluationMode;
     evaluation_criteria?: string | null;
 }
 

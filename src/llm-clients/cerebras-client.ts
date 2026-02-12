@@ -1,5 +1,6 @@
 import { LLMClient, ModelInfo } from "./llm-client";
-import { getConfig } from "../database";
+import { formatModelName } from "./utils";
+import { getConfig } from "../runtime/config";
 import { ConfigurationError, LLMError } from "../errors";
 
 interface CerebrasModel {
@@ -14,8 +15,10 @@ interface CerebrasModelsResponse {
 }
 
 export class CerebrasClient implements LLMClient {
-    name = "Cerebras";
+    providerId = "cerebras";
     private baseUrl = "https://api.cerebras.ai/v1";
+
+    refresh(): void {}
 
     private getApiKey(): string | null {
         return getConfig("cerebras_api_key");
@@ -44,19 +47,12 @@ export class CerebrasClient implements LLMClient {
             const data = (await response.json()) as CerebrasModelsResponse;
             return data.data.map((model) => ({
                 id: model.id,
-                name: this.formatModelName(model.id),
-                provider: "Cerebras",
+                name: formatModelName(model.id),
+                provider: this.providerId,
             }));
         } catch {
             return [];
         }
-    }
-
-    private formatModelName(modelId: string): string {
-        return modelId
-            .split("-")
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" ");
     }
 
     private async makeRequest(

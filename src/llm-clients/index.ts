@@ -16,7 +16,7 @@ import { geminiClient } from "./gemini-client";
 import { groqClient } from "./groq-client";
 import { openrouterClient } from "./openrouter-client";
 
-const allClients: LLMClient[] = [
+const registry: LLMClient[] = [
     openaiClient,
     bedrockClient,
     cerebrasClient,
@@ -25,12 +25,16 @@ const allClients: LLMClient[] = [
     groqClient,
     openrouterClient,
 ];
-setActiveClients(allClients);
+setActiveClients(registry);
+
+export function getClient(providerId: string): LLMClient | undefined {
+    const key = providerId.toLowerCase();
+    return registry.find((c) => c.providerId.toLowerCase() === key);
+}
 
 export function refreshClients(): void {
-    openaiClient.reset();
-    bedrockClient.reset();
-    geminiClient.reset();
-    openrouterClient.reset();
-    setActiveClients(allClients);
+    for (const client of registry) {
+        client.refresh();
+    }
+    setActiveClients(registry);
 }

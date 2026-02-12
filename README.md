@@ -11,40 +11,94 @@ This tool is aimed at agentic use-cases for large production applications that r
 - **Multi-Provider Testing** – OpenAI, Bedrock, DeepSeek, Gemini, Groq, OpenRouter
 - **Parallel Execution** – Run tests concurrently across all configured LLMs
 - **Repeatability** – Each test runs N times per model to measure consistency
-- **Version Control** – Full prompt history with easy rollback
+- **Code-first** – Define prompts and tests in code
 
 ## Quick Start
 
+Prompts and tests live in your code. Use the example project pattern:
+
 ```bash
-# Install dependencies
+# From a project that has reliaprompt.definitions.ts (see example)
+cd example
 bun install
-
-# Start backend + frontend in watch mode
-bun dev
-
-# Open http://localhost:5173
+bun run reliaprompt:ui   # or: from your app, add "reliaprompt:ui" and run from project root
+# Open http://localhost:3000
 ```
 
-Configure API keys in the app's Configuration page. At least one provider is required.
+Set credentials via the `RELIA_PROMPT_LLM_CONFIG_JSON` environment variable (see [Configuration](#configuration)). At least one provider is required.
 
 ## Usage
 
-1. **Prompts** – Create and version your system prompts
-2. **Test Cases** – Add input/expected output pairs (JSON) for each prompt
-3. **Test Runs** – Execute tests and view per-model scores
+### Code-first (only mode)
+
+Use ReliaPrompt inside your service for LLM benchmarking and testing from unit tests.
+
+1. **Install** – Add `relia-prompt` as a dependency.
+2. **Initialize** – Pass credentials at startup (or load from `RELIA_PROMPT_LLM_CONFIG_JSON` when using the UI):
+
+    ```ts
+    import {
+        initializeReliaPrompt,
+        runPromptTestsFromSuite,
+        definePrompt,
+        defineTestCase,
+        defineSuite,
+    } from "relia-prompt";
+
+    initializeReliaPrompt({
+        providers: {
+            // Canonical keys can be provided directly in library mode.
+            // For UI/server mode prefer RELIA_PROMPT_LLM_CONFIG_JSON in .env.
+        },
+    });
+    ```
+
+3. **Define prompts and tests in code** – Use the builder API and export `suites` for the UI:
+
+    ```ts
+    const prompt = definePrompt({ name: "my-prompt", content: "..." });
+    const testCases = [
+        defineTestCase({ input: "...", expectedOutput: "[...]", expectedOutputType: "array" }),
+    ];
+    export const suites = [defineSuite({ prompt, testCases })];
+    ```
+
+4. **Run tests** – Require `testModels` (and `evaluationModel` when using LLM evaluation) per run:
+
+    ```ts
+    const { score, results } = await runPromptTestsFromSuite(suite, {
+      testModels: [{ provider: "provider-id", modelId: "model-id" }],
+      evaluationModel: ..., // required when prompt.evaluationMode === "llm"
+      runsPerTest: 1,
+    });
+    ```
+
+5. **Optional UI** – From your project root (where your definitions live), run:
+
+    ```bash
+    yarn reliaprompt:ui
+    ```
+
+    The UI shows prompts and tests from your code (read-only tests; prompt edits in the browser are drafts only). Configure `RELIA_PROMPT_LLM_CONFIG_JSON` in `.env` and choose test/evaluation models on each run.
+
+### Configuration
+
+Configuration is JSON-only via `RELIA_PROMPT_LLM_CONFIG_JSON`.
+Use `.env.example` as the canonical template for the full JSON object.
+
+See [example](example) for a full example and smoke test.
 
 ## Development
 
 ```bash
-bun dev              # Backend + frontend with hot reload
+bun dev              # Backend + dashboard with hot reload
 bun run dev:backend  # Backend only with hot reload
-bun dev:frontend     # Frontend dev server
-bun run build        # Build frontend + backend
+bun dev:dashboard    # Dashboard dev server
+bun run build        # Build dashboard + backend
 bun run lint         # Lint backend
 bun run test         # Unit tests
 bun run test:e2e     # E2E tests (Playwright)
 bun run format       # Format code
-bun run db:studio    # Drizzle Studio
 ```
 
 ## Project Structure
@@ -52,15 +106,13 @@ bun run db:studio    # Drizzle Studio
 ```
 ├── src/                    # Backend (Express + Bun)
 │   ├── server.ts           # API routes
-│   ├── db/                  # Drizzle schema & init
 │   ├── llm-clients/        # Provider clients
 │   └── services/           # Test runner
-├── frontend/               # SvelteKit app
+├── dashboard/              # SvelteKit app
 │   └── src/
 │       ├── lib/            # Components & stores
 │       └── routes/         # Pages
-├── drizzle/                # Database migrations
-└── data/                   # SQLite database
+└── example/                # Example project
 ```
 
 ## License

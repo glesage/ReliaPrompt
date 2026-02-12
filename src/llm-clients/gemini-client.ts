@@ -1,5 +1,5 @@
 import { LLMClient, ModelInfo } from "./llm-client";
-import { getConfig } from "../database";
+import { getConfig } from "../runtime/config";
 import { ConfigurationError, LLMError } from "../errors";
 
 interface GeminiModel {
@@ -27,7 +27,7 @@ interface GeminiResponse {
 }
 
 export class GeminiClient implements LLMClient {
-    name = "Gemini";
+    providerId = "gemini";
     private baseUrl = "https://generativelanguage.googleapis.com/v1beta";
     private cachedApiKey: string | null = null;
 
@@ -46,7 +46,7 @@ export class GeminiClient implements LLMClient {
         return !!this.cachedApiKey;
     }
 
-    reset(): void {
+    refresh(): void {
         this.cachedApiKey = null;
     }
 
@@ -74,7 +74,7 @@ export class GeminiClient implements LLMClient {
                 .map((model) => ({
                     id: model.name.replace("models/", ""),
                     name: model.displayName,
-                    provider: this.name,
+                    provider: this.providerId,
                 }));
         } catch (error) {
             console.error("Failed to fetch Gemini models:", error);

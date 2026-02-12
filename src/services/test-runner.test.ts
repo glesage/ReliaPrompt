@@ -1,161 +1,59 @@
 import { test, expect, describe, beforeEach, mock } from "bun:test";
 
-// Set up mocks BEFORE any other imports to ensure they intercept module loading
-// Mock database functions - these need to be defined before mock.module calls
-const mockCreateTestJob = mock(() => {});
-const mockUpdateTestJob = mock(() => {});
-const mockCreateTestResult = mock(() => {});
-const mockGetTestCasesForPrompt = mock(() => []);
-const mockGetPromptByIdOrFail = mock(() => ({}));
-const mockGetConfig = mock(() => null);
-
-// Mock LLM clients module
 const mockGetConfiguredClients = mock(() => []);
 
-// Mock the db module to prevent database initialization errors
-const mockDb = {
-    select: () => ({
-        from: () => ({
-            where: () => ({
-                get: () => null,
-                all: () => [],
-            }),
-        }),
-    }),
-    insert: () => ({
-        values: () => ({
-            returning: () => ({
-                get: () => ({}),
-            }),
-        }),
-    }),
-    update: () => ({
-        set: () => ({
-            where: () => ({
-                run: () => {},
-            }),
-        }),
-    }),
-    delete: () => ({
-        where: () => ({
-            run: () => {},
-        }),
-    }),
-};
-
-// Initialize mock database state
-let mockDbInitialized = true;
-
-// Set up module mocks FIRST, before any imports that might load these modules
-mock.module("../db", () => ({
-    getDb: () => {
-        if (!mockDbInitialized) {
-            throw new Error("Database not initialized. Call initializeDatabase() first.");
-        }
-        return mockDb;
-    },
-    getSqlDb: () => {
-        if (!mockDbInitialized) {
-            throw new Error("Database not initialized. Call initializeDatabase() first.");
-        }
-        return {
-            run: () => {},
-        };
-    },
-    withSave: <T>(operation: () => T): T => operation(),
-    initializeDatabase: () => {
-        mockDbInitialized = true;
-    },
-    schema: {},
-}));
-
-// Mock the database module
-mock.module("../database", () => ({
-    createTestJob: mockCreateTestJob,
-    updateTestJob: mockUpdateTestJob,
-    createTestResult: mockCreateTestResult,
-    getTestCasesForPrompt: mockGetTestCasesForPrompt,
-    getPromptByIdOrFail: mockGetPromptByIdOrFail,
-    getConfig: mockGetConfig,
-}));
-
-// Mock the llm-clients module
 mock.module("../llm-clients", () => ({
     getConfiguredClients: mockGetConfiguredClients,
 }));
 
-// NOW import everything else after mocks are set up
 import {
     runTests,
-    startTestRun,
-    getTestProgress,
     getTestResultSummary,
     type ModelRunner,
     type LLMTestResult,
+    type MinimalPrompt,
+    type MinimalTestCase,
 } from "./test-runner";
 import type { LLMClient } from "../llm-clients/llm-client";
-import type { Prompt, TestCase } from "../database";
 import { ParseType } from "../utils/parse";
-import { ConfigurationError, NotFoundError } from "../errors";
 
 // Create a mock LLM client
-function createMockLLMClient(name: string): LLMClient {
+function createMockLLMClient(providerId: string): LLMClient {
     const mockComplete = mock(() => Promise.resolve(""));
     return {
-        name,
+        providerId,
         isConfigured: () => true,
         listModels: async () => [],
         complete: mockComplete,
+        refresh: () => {},
     };
 }
 
-// Helper to create test cases
 function createTestCase(
     id: number,
     input: string,
     expectedOutput: string,
     expectedOutputType: string = "string"
-): TestCase {
-    return {
-        id,
-        promptGroupId: 1,
-        input,
-        expectedOutput,
-        expectedOutputType,
-        createdAt: new Date().toISOString(),
-    };
+): MinimalTestCase {
+    return { id, input, expectedOutput, expectedOutputType };
 }
 
-// Helper to create a prompt
 function createPrompt(
     id: number,
     content: string,
     evaluationMode: "schema" | "llm" = "schema",
     evaluationCriteria: string | null = null
-): Prompt {
+): MinimalPrompt {
     return {
-        id,
-        name: `Test Prompt ${id}`,
         content,
         expectedSchema: null,
         evaluationMode,
-        evaluationCriteria,
-        version: 1,
-        parentVersionId: null,
-        promptGroupId: id,
-        createdAt: new Date().toISOString(),
+        evaluationCriteria: evaluationCriteria ?? undefined,
+        id,
     };
 }
 
-// Setup mocks before each test
 beforeEach(() => {
-    // Reset all mocks
-    mockCreateTestJob.mockClear();
-    mockUpdateTestJob.mockClear();
-    mockCreateTestResult.mockClear();
-    mockGetTestCasesForPrompt.mockClear();
-    mockGetPromptByIdOrFail.mockClear();
-    mockGetConfig.mockClear();
     mockGetConfiguredClients.mockClear();
 });
 
@@ -232,6 +130,37 @@ describe("test-runner", () => {
             expect(result.results[0].testCaseResults[0].runs[0].actualOutput).toBeNull();
             expect(result.results[0].testCaseResults[0].runs[0].error).toBe("LLM API error");
             expect(result.results[0].testCaseResults[0].runs[0].isCorrect).toBe(false);
+        });
+
+        test("accepts expectedSchema as valid JSON object without $schema", async () => {
+            const mockClient = createMockLLMClient("test-client");
+            mockClient.complete = mock(() => Promise.resolve("hello"));
+
+            const schemaWithoutDialect = JSON.stringify({
+                type: "object",
+                properties: { name: { type: "string" } },
+            });
+            const prompt: MinimalPrompt = {
+                ...createPrompt(1, "Test prompt"),
+                expectedSchema: schemaWithoutDialect,
+            };
+            const testCases = [createTestCase(1, "input1", "hello", ParseType.STRING)];
+            const modelRunners: ModelRunner[] = [
+                {
+                    client: mockClient,
+                    modelId: "test-model",
+                    displayName: "test-client (test-model)",
+                },
+            ];
+
+            const result = await runTests(prompt, testCases, modelRunners, 1);
+
+            expect(result.score).toBe(1);
+            expect(mockClient.complete).toHaveBeenCalled();
+            const [systemPrompt] = (mockClient.complete as ReturnType<typeof mock>).mock
+                .calls[0] as [string, string, string];
+            expect(systemPrompt).toContain("## Response Schema:");
+            expect(systemPrompt).toContain('"type":"object"');
         });
 
         test("should run multiple test cases", async () => {
@@ -388,6 +317,30 @@ describe("test-runner", () => {
             expect(result.results[0].testCaseResults[0].runs[0].isCorrect).toBe(true);
         });
 
+        test("should infer JSON object comparison when expectedOutputType is string", async () => {
+            const mockClient = createMockLLMClient("test-client");
+            mockClient.complete = mock(() =>
+                Promise.resolve(`{
+  "key": "value"
+}`)
+            );
+
+            const prompt = createPrompt(1, "Test prompt");
+            const testCases = [createTestCase(1, "input1", '{"key":"value"}', ParseType.STRING)];
+            const modelRunners: ModelRunner[] = [
+                {
+                    client: mockClient,
+                    modelId: "test-model",
+                    displayName: "test-client (test-model)",
+                },
+            ];
+
+            const result = await runTests(prompt, testCases, modelRunners, 1);
+
+            expect(result.results[0].correctCount).toBe(1);
+            expect(result.results[0].testCaseResults[0].runs[0].isCorrect).toBe(true);
+        });
+
         test("should calculate duration stats", async () => {
             const mockClient = createMockLLMClient("test-client");
             mockClient.complete = mock(async () => {
@@ -506,16 +459,10 @@ describe("test-runner", () => {
                 },
             ];
 
-            const jobId = "test-job-id";
-
-            // Verify runTests completes successfully with jobId
-            // Note: Full progress tracking requires startTestRun which sets up activeJobs
-            const result = await runTests(prompt, testCases, modelRunners, 1, jobId);
+            const result = await runTests(prompt, testCases, modelRunners, 1);
 
             expect(result.score).toBe(1);
             expect(result.results).toHaveLength(1);
-            expect(mockCreateTestResult).toHaveBeenCalled();
-            expect(mockUpdateTestJob).toHaveBeenCalled();
         });
 
         test("should score LLM evaluation with deterministic linear equation from issues", async () => {
@@ -555,19 +502,11 @@ describe("test-runner", () => {
                 },
             ];
 
-            const result = await runTests(
-                prompt,
-                testCases,
-                modelRunners,
-                1,
-                undefined,
-                undefined,
-                {
-                    client: judgeClient,
-                    modelId: "judge-model",
-                    displayName: "judge (judge-model)",
-                }
-            );
+            const result = await runTests(prompt, testCases, modelRunners, 1, undefined, {
+                client: judgeClient,
+                modelId: "judge-model",
+                displayName: "judge (judge-model)",
+            });
 
             // 3 unique issues (no duplicates):
             // All have character lengths >= 12, so each deduction floors at 0.2:
@@ -610,25 +549,58 @@ describe("test-runner", () => {
                 },
             ];
 
-            const result = await runTests(
-                prompt,
-                testCases,
-                modelRunners,
-                1,
-                undefined,
-                undefined,
-                {
-                    client: judgeClient,
-                    modelId: "judge-model",
-                    displayName: "judge (judge-model)",
-                }
-            );
+            const result = await runTests(prompt, testCases, modelRunners, 1, undefined, {
+                client: judgeClient,
+                modelId: "judge-model",
+                displayName: "judge (judge-model)",
+            });
 
             // 1 issue with 12 characters: max(0.2, -0.2667*12+1.2667) = max(0.2, -1.9337) = 0.2
             // Score = 1 - 0.2 = 0.8
             expect(result.results[0].testCaseResults[0].runs[0].score).toBeCloseTo(0.8, 6);
             expect(result.results[0].testCaseResults[0].runs[0].issues).toHaveLength(1);
             expect(result.results[0].testCaseResults[0].runs[0].unexpectedFound).toBe(1);
+        });
+
+        test("should deduplicate issues before scoring (same substring/explanation)", async () => {
+            const generationClient = createMockLLMClient("generator");
+            const judgeClient = createMockLLMClient("judge");
+
+            generationClient.complete = mock(() => Promise.resolve("candidate output"));
+            judgeClient.complete = mock(() =>
+                Promise.resolve(
+                    JSON.stringify({
+                        issues: [
+                            { substring: "duplicate issue text", explanation: "same reason" },
+                            { substring: "duplicate issue text", explanation: "same reason" },
+                            { substring: " Duplicate Issue Text ", explanation: " Same Reason " },
+                        ],
+                    })
+                )
+            );
+
+            const prompt = createPrompt(1, "Test prompt", "llm", "Must be safe and complete.");
+            const testCases = [createTestCase(1, "input1", "[]", ParseType.ARRAY)];
+            const modelRunners: ModelRunner[] = [
+                {
+                    client: generationClient,
+                    modelId: "gen-model",
+                    displayName: "generator (gen-model)",
+                },
+            ];
+
+            const result = await runTests(prompt, testCases, modelRunners, 1, undefined, {
+                client: judgeClient,
+                modelId: "judge-model",
+                displayName: "judge (judge-model)",
+            });
+
+            const run = result.results[0].testCaseResults[0].runs[0];
+
+            // Single unique issue with long substring -> deduction floor 0.2 => score 0.8
+            expect(run.score).toBeCloseTo(0.8, 6);
+            expect(run.issues).toHaveLength(1);
+            expect(run.unexpectedFound).toBe(1);
         });
     });
 
@@ -802,71 +774,6 @@ describe("test-runner", () => {
             expect(summary).toHaveLength(2);
             expect(summary[0].input).toBe("input1");
             expect(summary[1].input).toBe("input2");
-        });
-    });
-
-    describe("startTestRun", () => {
-        test("should start a test run with provided models", async () => {
-            const mockClient = createMockLLMClient("test-client");
-            mockClient.complete = mock(() => Promise.resolve("hello"));
-            mockGetConfiguredClients.mockReturnValue([mockClient]);
-
-            const prompt = createPrompt(1, "Test prompt");
-            mockGetPromptByIdOrFail.mockReturnValue(prompt);
-
-            const testCases = [createTestCase(1, "input1", "hello", ParseType.STRING)];
-            mockGetTestCasesForPrompt.mockReturnValue(testCases);
-
-            const selectedModels = [{ provider: "test-client", modelId: "test-model" }];
-
-            const jobId = await startTestRun(1, 1, selectedModels);
-
-            expect(jobId).toBeDefined();
-            expect(typeof jobId).toBe("string");
-            expect(mockGetPromptByIdOrFail).toHaveBeenCalledWith(1);
-            expect(mockGetTestCasesForPrompt).toHaveBeenCalledWith(1);
-            expect(mockCreateTestJob).toHaveBeenCalled();
-
-            // Wait a bit for async test run to complete
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            // Verify the LLM was called
-            expect(mockClient.complete).toHaveBeenCalled();
-        });
-
-        test("should throw error when prompt not found", async () => {
-            mockGetPromptByIdOrFail.mockImplementation(() => {
-                throw new NotFoundError("Prompt", 999);
-            });
-
-            await expect(startTestRun(999, 1)).rejects.toThrow(NotFoundError);
-        });
-
-        test("should throw error when no test cases exist", async () => {
-            const prompt = createPrompt(1, "Test prompt");
-            mockGetPromptByIdOrFail.mockReturnValue(prompt);
-            mockGetTestCasesForPrompt.mockReturnValue([]);
-
-            await expect(startTestRun(1, 1)).rejects.toThrow();
-        });
-
-        test("should throw error when no models are configured", async () => {
-            const prompt = createPrompt(1, "Test prompt");
-            mockGetPromptByIdOrFail.mockReturnValue(prompt);
-            mockGetTestCasesForPrompt.mockReturnValue([
-                createTestCase(1, "input1", "hello", ParseType.STRING),
-            ]);
-            mockGetConfiguredClients.mockReturnValue([]);
-            mockGetConfig.mockReturnValue(null);
-
-            await expect(startTestRun(1, 1)).rejects.toThrow(ConfigurationError);
-        });
-    });
-
-    describe("getTestProgress", () => {
-        test("should return null for non-existent job", () => {
-            const progress = getTestProgress("non-existent-job");
-            expect(progress).toBeNull();
         });
     });
 });

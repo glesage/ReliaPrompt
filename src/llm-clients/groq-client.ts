@@ -1,5 +1,6 @@
 import { LLMClient, ModelInfo } from "./llm-client";
-import { getConfig } from "../database";
+import { formatModelName } from "./utils";
+import { getConfig } from "../runtime/config";
 import { ConfigurationError, LLMError } from "../errors";
 
 interface GroqModel {
@@ -14,8 +15,10 @@ interface GroqModelsResponse {
 }
 
 export class GroqClient implements LLMClient {
-    name = "Groq";
+    providerId = "groq";
     private baseUrl = "https://api.groq.com/openai/v1";
+
+    refresh(): void {}
 
     private getApiKey(): string | null {
         return getConfig("groq_api_key");
@@ -44,19 +47,12 @@ export class GroqClient implements LLMClient {
             const data = (await response.json()) as GroqModelsResponse;
             return data.data.map((model) => ({
                 id: model.id,
-                name: this.formatModelName(model.id),
-                provider: "Groq",
+                name: formatModelName(model.id),
+                provider: this.providerId,
             }));
         } catch {
             return [];
         }
-    }
-
-    private formatModelName(modelId: string): string {
-        return modelId
-            .split("-")
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" ");
     }
 
     private async makeRequest(
@@ -70,7 +66,6 @@ export class GroqClient implements LLMClient {
             throw new ConfigurationError("Groq API key not configured");
         }
 
-        // Build request body
         const requestBody: Record<string, unknown> = {
             model: modelId,
             messages,

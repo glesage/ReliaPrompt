@@ -1,5 +1,6 @@
 import { LLMClient, ModelInfo } from "./llm-client";
-import { getConfig } from "../database";
+import { formatModelName } from "./utils";
+import { getConfig } from "../runtime/config";
 import { ConfigurationError, LLMError } from "../errors";
 
 interface DeepseekModel {
@@ -14,8 +15,10 @@ interface DeepseekModelsResponse {
 }
 
 export class DeepseekClient implements LLMClient {
-    name = "Deepseek";
+    providerId = "deepseek";
     private baseUrl = "https://api.deepseek.com";
+
+    refresh(): void {}
 
     private isTestMode(): boolean {
         return process.env.NODE_ENV === "test";
@@ -38,8 +41,8 @@ export class DeepseekClient implements LLMClient {
             return [
                 {
                     id: "deepseek-chat",
-                    name: "Deepseek Chat",
-                    provider: "Deepseek",
+                    name: "deepseek-chat",
+                    provider: this.providerId,
                 },
             ];
         }
@@ -61,20 +64,13 @@ export class DeepseekClient implements LLMClient {
             const data = (await response.json()) as DeepseekModelsResponse;
             return data.data.map((model) => ({
                 id: model.id,
-                name: this.formatModelName(model.id),
-                provider: "Deepseek",
+                name: formatModelName(model.id),
+                provider: this.providerId,
             }));
         } catch (error) {
             console.error("Failed to fetch Deepseek models:", error);
             return [];
         }
-    }
-
-    private formatModelName(modelId: string): string {
-        return modelId
-            .split("-")
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" ");
     }
 
     private async makeRequest(
@@ -88,7 +84,6 @@ export class DeepseekClient implements LLMClient {
             throw new ConfigurationError("Deepseek API key not configured");
         }
 
-        // Build request body
         const requestBody: Record<string, unknown> = {
             model: modelId,
             messages,

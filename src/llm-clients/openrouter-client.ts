@@ -1,10 +1,10 @@
 import { OpenRouter } from "@openrouter/sdk";
 import { LLMClient, ModelInfo } from "./llm-client";
-import { getConfig } from "../database";
+import { getConfig } from "../runtime/config";
 import { ConfigurationError } from "../errors";
 
 export class OpenRouterClient implements LLMClient {
-    name = "OpenRouter";
+    providerId = "openrouter";
     private client: OpenRouter | null = null;
     private cachedApiKey: string | null = null;
 
@@ -34,7 +34,7 @@ export class OpenRouterClient implements LLMClient {
         return !!this.cachedApiKey;
     }
 
-    reset(): void {
+    refresh(): void {
         this.cachedApiKey = null;
         this.client = null;
     }
@@ -66,7 +66,7 @@ export class OpenRouterClient implements LLMClient {
                 models.push({
                     id: model.id,
                     name: model.id,
-                    provider: this.name,
+                    provider: this.providerId,
                 });
             }
 
