@@ -1,8 +1,8 @@
 dist
 node_modules
 .env
-/playwright-report
-/test-results
+playwright-report
+test-results
 
 # SvelteKit build artifacts
 .svelte-kit
