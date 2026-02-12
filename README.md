@@ -19,10 +19,10 @@ This tool is aimed at agentic use-cases for large production applications that r
 # Install dependencies
 bun install
 
-# Start development server
+# Start backend + frontend in watch mode
 bun dev
 
-# Open http://localhost:3000
+# Open http://localhost:5173
 ```
 
 Configure API keys in the app's Configuration page. At least one provider is required.
@@ -36,7 +36,8 @@ Configure API keys in the app's Configuration page. At least one provider is req
 ## Development
 
 ```bash
-bun dev              # Backend with hot reload
+bun dev              # Backend + frontend with hot reload
+bun run dev:backend  # Backend only with hot reload
 bun dev:frontend     # Frontend dev server
 bun run build        # Build frontend + backend
 bun run lint         # Lint backend
