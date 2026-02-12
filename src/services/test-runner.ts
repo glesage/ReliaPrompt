@@ -104,13 +104,30 @@ export function getTestProgress(jobId: string): TestProgress | null {
 }
 
 /**
- * Computes the deduction for a single issue using the deterministic formula:
- * deduction = max(0.2, (-0.2667 * substringLength) + 1.2667)
- * Uses trimmed substring character length, not word count.
+ * Computes the deduction for a single issue based on the substring length.
+ * For better readability, deduction rules are written using if/else.
+ *
+ * - If the trimmed substring is short (<= 4), deduction is maximal (1.2.. down to ~0.2).
+ * - For longer substrings, the deduction bottoms at 0.2.
  */
 function computeIssueDeduction(issue: EvaluationIssue): number {
     const substringLength = issue.substring.trim().length;
-    const deduction = Math.max(0.2, -0.2667 * substringLength + 1.2667);
+
+    let deduction: number;
+
+    if (substringLength === 0) {
+        deduction = 0;
+    } else if (substringLength < 4) {
+        // For very short substrings, deduction is highest.
+        deduction = -0.2667 * substringLength + 1.2667;
+    } else {
+        // For typical or long substrings, use the minimum deduction.
+        deduction = -0.2667 * substringLength + 1.2667;
+        if (deduction < 0.2) {
+            deduction = 0.2;
+        }
+    }
+
     return deduction;
 }
 
