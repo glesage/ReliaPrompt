@@ -12,6 +12,7 @@ import {
     type TestResult,
 } from "./db/schema";
 import { NotFoundError, ensureExists } from "./errors";
+import type { EvaluationIssue } from "./services/test-runner";
 
 export { initializeDatabase } from "./db";
 export type { Prompt, TestCase, TestJob, TestResult };
@@ -409,6 +410,7 @@ export function createTestResult(
     expectedFound: number,
     expectedTotal: number,
     unexpectedFound: number,
+    issues?: EvaluationIssue[],
     durationMs?: number
 ) {
     return withSave(() => {
@@ -426,6 +428,7 @@ export function createTestResult(
                 expectedFound,
                 expectedTotal,
                 unexpectedFound,
+                issues: issues ? JSON.stringify(issues) : null,
                 durationMs: durationMs ?? null,
                 createdAt,
             })

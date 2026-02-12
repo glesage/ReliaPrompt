@@ -187,9 +187,6 @@
                     placeholder="Enter your system prompt here..."
                     required
                 ></textarea>
-                {#if mode === "edit"}
-                    <small>Saving will create a new version of this prompt</small>
-                {/if}
             </div>
             <div class="form-group">
                 <label for="prompt-schema">Expected Output Schema (JSON)</label>
@@ -199,7 +196,7 @@
                     bind:value={expectedSchema}
                     placeholder={'{"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}}}}'}
                 ></textarea>
-                <small>Optional. JSON Schema for structured LLM output (used with response_format).</small>
+                <small>Optional JSON Schema for structured LLM output (passed directly in prompt to avoid issues with models not supporting structured output).</small>
             </div>
             <div class="form-group">
                 <label for="evaluation-mode">Evaluation Mode</label>
@@ -207,7 +204,6 @@
                     <option value="schema">Schema evaluation</option>
                     <option value="llm">LLM evaluation</option>
                 </select>
-                <small>How to evaluate the quality of AI outputs.</small>
             </div>
             {#if evaluationMode === "llm"}
                 <div class="form-group">
@@ -219,7 +215,7 @@
                         placeholder="Describe how to evaluate the quality of AI outputs. The judge will return a score (0-1) and a reason."
                         required
                     ></textarea>
-                    <small>Required for LLM evaluation. Used by the judge model to score outputs.</small>
+                    <small>Issues found will be used for scoring.</small>
                 </div>
             {/if}
         </form>

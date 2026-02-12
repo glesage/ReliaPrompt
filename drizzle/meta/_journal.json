@@ -1,20 +1,27 @@
 {
-  "version": "7",
-  "dialect": "sqlite",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "6",
-      "when": 1769685752051,
-      "tag": "0000_living_shiva",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1770349536060,
-      "tag": "0001_flaky_maddog",
-      "breakpoints": true
-    }
-  ]
+    "version": "7",
+    "dialect": "sqlite",
+    "entries": [
+        {
+            "idx": 0,
+            "version": "6",
+            "when": 1769685752051,
+            "tag": "0000_living_shiva",
+            "breakpoints": true
+        },
+        {
+            "idx": 1,
+            "version": "6",
+            "when": 1770349536060,
+            "tag": "0001_flaky_maddog",
+            "breakpoints": true
+        },
+        {
+            "idx": 2,
+            "version": "6",
+            "when": 1770900000000,
+            "tag": "0002_daily_stature",
+            "breakpoints": true
+        }
+    ]
 }

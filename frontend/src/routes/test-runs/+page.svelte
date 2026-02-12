@@ -490,12 +490,16 @@
                                 {@const bgColor = runScore >= 90 ? "rgba(34, 197, 94, 0.15)" : runScore >= 80 ? "rgba(234, 179, 8, 0.15)" : "rgba(239, 68, 68, 0.15)"}
                                 {@const textColor = runScore >= 90 ? "var(--color-success)" : runScore >= 80 ? "var(--color-warning)" : "var(--color-danger)"}
                                 {@const icon = run.isCorrect ? "✓" : runScore >= 80 ? "◐" : "✗"}
+                                {@const issueCount = run.issues?.length ?? 0}
                                 <div
                                     style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; background: {bgColor}; font-size: 12px;"
-                                    title="Run #{runIdx + 1}: {runScore}%{run.durationMs !== undefined ? ', ' + formatDuration(run.durationMs) : ''}"
+                                    title="Run #{runIdx + 1}: {runScore}%{run.durationMs !== undefined ? ', ' + formatDuration(run.durationMs) : ''}{issueCount > 0 ? ', ' + issueCount + ' issue' + (issueCount === 1 ? '' : 's') : ''}"
                                 >
                                     <span style="color: {textColor}; font-weight: bold;">{icon}</span>
                                     <span style="color: {textColor};">{runScore}%{run.durationMs !== undefined ? ` · ${formatDuration(run.durationMs)}` : ""}</span>
+                                    {#if issueCount > 0}
+                                        <span style="color: var(--color-text-muted);">· {issueCount} issue{issueCount === 1 ? "" : "s"}</span>
+                                    {/if}
                                 </div>
                             {/each}
                         </div>
@@ -527,6 +531,19 @@
                                             <div style="font-size: 13px; color: var(--color-text); line-height: 1.5;">
                                                 {run.reason}
                                             </div>
+                                        </div>
+                                    {/if}
+                                    {#if run.issues && run.issues.length > 0}
+                                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--color-border);">
+                                            <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 6px; font-weight: 500;">Issues:</div>
+                                            {#each run.issues as issue}
+                                                <div style="background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px;">
+                                                    <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px;">Substring</div>
+                                                    <div class="json-preview" style="font-size: 12px; padding: 6px 8px; margin-bottom: 6px;">{issue.substring}</div>
+                                                    <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 2px;">Reason</div>
+                                                    <div style="font-size: 13px; color: var(--color-text); line-height: 1.5;">{issue.explanation}</div>
+                                                </div>
+                                            {/each}
                                         </div>
                                     {/if}
                                 </div>
