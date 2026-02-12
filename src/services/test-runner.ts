@@ -158,35 +158,37 @@ async function evaluateWithLLMJudge(
     evaluationCriteria: string,
     evaluationModelRunner: ModelRunner
 ): Promise<{ issues: EvaluationIssue[] }> {
-    const judgePrompt = `You will be given the context (task for model to be evaluated, task input) and evaluation criteria.
+    const judgePrompt = `Your task is to evaluate the quality of the AI-generated output based on the criteria.
 
-    Your task is to evaluate the quality of the AI-generated output based on the criteria.
-
-## Task for model to be evaluated:
+## Task that was done
 \`\`\`
 ${promptContent}
 \`\`\`
 
-## Task input:
+## Task input
 \`\`\`
 ${testCaseInput}
 \`\`\`
 
-## Evaluation criteria:
+## Your evaluation criteria
 \`\`\`
 ${evaluationCriteria}
 \`\`\`
 
-## Evaluation output:
-Evaluate the AI output based on the criteria above. Return your evaluation as a JSON object with exactly one field:
-- "issues": An array of objects, where each object has:
-  - "substring": The specific text fragment from the output that has the issue (exact text to match)
-  - "explanation": Clear explanation of what the issue is and how to fix it
-
-If no issues are found, return "issues": [].
-
-Return ONLY valid JSON, no other text. Example format:
-{"issues": [{"substring": "missing disclaimer text", "explanation": "The output is missing the required safety disclaimer"}, {"substring": "incorrect value", "explanation": "The calculated value is incorrect"}]}`;
+## Evaluation JSON format
+{
+  "issues": [
+    {
+      "substring": "missing disclaimer text",
+      "explanation": "The output is missing the required safety disclaimer"
+    },
+    {
+      "substring": "incorrect value",
+      "explanation": "The calculated value is incorrect"
+    }
+  ]
+}
+If no issues are found, return {"issues": []}`;
 
     try {
         const judgeResponse = await evaluationModelRunner.client.complete(
