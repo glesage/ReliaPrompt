@@ -10,11 +10,7 @@ export interface ServerInstance {
 }
 
 /** Repo root: this file is dashboard/e2e/e2eServer.ts, so go up two levels. */
-const REPO_ROOT = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "..",
-    ".."
-);
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const E2E_PORT = 3099;
 
@@ -52,7 +48,7 @@ export async function e2eServer(): Promise<ServerInstance> {
 
 async function waitForServer(baseUrl: string): Promise<void> {
     const startTime = Date.now();
-    const maxWait = 15000;
+    const maxWait = 3000;
 
     while (Date.now() - startTime < maxWait) {
         try {
@@ -61,7 +57,7 @@ async function waitForServer(baseUrl: string): Promise<void> {
         } catch {
             // Ignore, continue waiting
         }
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     throw new Error(
