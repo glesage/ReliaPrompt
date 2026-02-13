@@ -1,25 +1,30 @@
 {
     "name": "relia-prompt",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Tool for testing llm prompts against multiple LLMs and improving them.",
-    "main": "dist/server.js",
+    "type": "module",
+    "main": "dist/server.cjs",
     "exports": {
         ".": {
-            "types": "./dist/index.d.ts",
+            "types": "./dist/src/index.d.ts",
             "import": "./dist/index.js",
             "require": "./dist/index.cjs"
         },
         "./server": {
-            "types": "./dist/server.d.ts",
-            "default": "./dist/server.js"
+            "types": "./dist/src/server.d.ts",
+            "default": "./dist/server.cjs"
         }
     },
+    "files": [
+        "dist",
+        "shared"
+    ],
     "scripts": {
         "build": "bun run build:dashboard && bun run build:backend && bun run build:lib",
-        "build:lib": "bun build ./src/index.ts --outdir ./dist --target node --format cjs --outfile index.cjs && bun build ./src/index.ts --outdir ./dist --target node --format esm --outfile index.js",
-        "build:backend": "bun build ./src/server.ts --outdir ./dist --target node --format cjs",
+        "build:lib": "bun build ./src/index.ts --outfile ./dist/index.cjs --target node --format cjs && bun build ./src/index.ts --outfile ./dist/index.js --target node --format esm && tsc -p tsconfig.lib.json",
+        "build:backend": "bun build ./src/server.ts --outfile ./dist/server.cjs --target node --format cjs",
         "build:dashboard": "cd dashboard && bun install && bun run build",
-        "start": "bun dist/server.js",
+        "start": "bun dist/server.cjs",
         "dev": "bunx concurrently -k -n backend,dashboard -c blue,green \"bun run dev:backend\" \"bun run dev:dashboard\"",
         "dev:backend": "bun --watch src/server.ts",
         "dev:dashboard": "cd dashboard && bun run dev",
