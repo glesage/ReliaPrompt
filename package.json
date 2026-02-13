@@ -1,9 +1,11 @@
 {
     "name": "relia-prompt",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Tool for testing llm prompts against multiple LLMs and improving them.",
     "type": "module",
-    "main": "dist/server.cjs",
+    "main": "dist/index.cjs",
+    "module": "dist/index.js",
+    "types": "./dist/src/index.d.ts",
     "exports": {
         ".": {
             "types": "./dist/src/index.d.ts",
@@ -17,9 +19,10 @@
     },
     "files": [
         "dist",
-        "shared"
+        "dashboard/dist"
     ],
     "scripts": {
+        "prepublishOnly": "rm -rf dist && bun run build",
         "build": "bun run build:dashboard && bun run build:backend && bun run build:lib",
         "build:lib": "bun build ./src/index.ts --outfile ./dist/index.cjs --target node --format cjs && bun build ./src/index.ts --outfile ./dist/index.js --target node --format esm && tsc -p tsconfig.lib.json",
         "build:backend": "bun build ./src/server.ts --outfile ./dist/server.cjs --target node --format cjs",
