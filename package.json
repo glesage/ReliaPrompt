@@ -3,6 +3,7 @@
     "version": "1.1.0",
     "description": "Tool for testing llm prompts against multiple LLMs and improving them.",
     "type": "module",
+    "types": "./dist/src/index.d.ts",
     "main": "dist/server.cjs",
     "exports": {
         ".": {
