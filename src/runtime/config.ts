@@ -74,7 +74,8 @@ export function getCredentialsFromJsonEnv(): ProviderCredentials {
     }
 
     const out: ProviderCredentials = {};
-    const providerIds = Object.keys(parsed);
+    const parsedObj = parsed as Record<string, unknown>;
+    const providerIds = Object.keys(parsedObj);
 
     for (const providerId of providerIds) {
         const provider = getProviderById(providerId);
@@ -85,7 +86,7 @@ export function getCredentialsFromJsonEnv(): ProviderCredentials {
             );
         }
 
-        const block = parsed[providerId];
+        const block = parsedObj[providerId];
         if (block === null || typeof block !== "object" || Array.isArray(block)) {
             throw new Error(
                 `Invalid ${RELIA_PROMPT_LLM_CONFIG_JSON}: "${providerId}" must be an object.`
