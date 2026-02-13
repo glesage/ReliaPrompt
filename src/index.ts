@@ -31,7 +31,6 @@ export type {
     TestCaseResult,
     RunResult,
     TestResults,
-    TestProgress,
     EvaluationIssue,
     BaseTestResult,
 } from "./services/test-runner";
