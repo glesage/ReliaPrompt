@@ -159,7 +159,7 @@ function calculateMetrics(
 
 export function compare(
     expected: ParsedJSON,
-    output: ParsedJSON,
+    output: ParsedJSON | undefined,
     expectedType: ParseType
 ): {
     score: number;

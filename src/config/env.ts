@@ -1,16 +1,10 @@
-import Joi from "joi";
 import { ConfigurationError } from "../errors";
 
-const envSchema = Joi.object({
-    NODE_ENV: Joi.string().valid("dev", "prod", "test").required().messages({
-        "any.required": "NODE_ENV environment variable is required",
-    }),
-}).unknown(true); // Allow other environment variables
+const NODE_ENV_VALID = ["dev", "development", "prod", "test"] as const;
+type NodeEnvValid = (typeof NODE_ENV_VALID)[number];
+
 export interface ValidatedEnv {
     PORT: number;
-    SCHEMA_PATH: string;
-    DATABASE_PATH: string;
-    MIGRATIONS_PATH: string;
 }
 
 let validatedEnv: ValidatedEnv | null = null;
@@ -24,24 +18,25 @@ export function validateEnv(): ValidatedEnv {
         return validatedEnv;
     }
 
-    const { error, value } = envSchema.validate(process.env, {
-        abortEarly: false,
-        stripUnknown: false,
-        convert: true,
-    });
+    const raw = process.env.NODE_ENV;
+    if (raw === undefined || raw === "") {
+        throw new ConfigurationError("NODE_ENV environment variable is required");
+    }
+    const trimmed = String(raw).trim();
+    if (!NODE_ENV_VALID.includes(trimmed as NodeEnvValid)) {
+        throw new ConfigurationError(
+            `NODE_ENV must be one of: ${NODE_ENV_VALID.join(", ")}. Got: ${trimmed}`
+        );
+    }
+    // Vite expects NODE_ENV=development for dev builds; backend treats dev and development the same
 
-    if (error) {
-        const errorMessages = error.details.map((detail) => detail.message).join(", ");
-        throw new ConfigurationError(`Environment variable validation failed: ${errorMessages}`);
+    const portRaw = process.env.PORT;
+    const port = portRaw !== undefined && portRaw !== "" ? Number(portRaw) : 3000;
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new ConfigurationError("PORT must be an integer between 1 and 65535");
     }
 
-    validatedEnv = {
-        PORT: value.PORT ?? 3000,
-        SCHEMA_PATH: `./src/db/schema.ts`,
-        DATABASE_PATH: `./data/${value.NODE_ENV}.db`,
-        MIGRATIONS_PATH: `./drizzle`,
-    };
-
+    validatedEnv = { PORT: port };
     return validatedEnv;
 }
 

@@ -6,6 +6,14 @@ export enum ParseType {
 
 export type ParsedJSON = string | ParsedJSON[] | { [key: string]: ParsedJSON };
 
+function unwrapMarkdownCodeFence(input: string): string {
+    const codeFenceMatch = input.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (!codeFenceMatch) {
+        return input;
+    }
+    return codeFenceMatch[1].trim();
+}
+
 function isValidParsedJSON(value: unknown): value is ParsedJSON {
     if (typeof value === "string") {
         return true;
@@ -41,11 +49,23 @@ function matchesParseType(value: unknown, type: ParseType): value is ParsedJSON 
 export function parse(input: string, type: ParseType): ParsedJSON {
     const trimmed = input.trim();
 
+    if (type === ParseType.STRING) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            return typeof parsed === "string" ? parsed : trimmed;
+        } catch {
+            return trimmed;
+        }
+    }
+
+    const jsonLikeInput = unwrapMarkdownCodeFence(trimmed);
+
     try {
-        const parsed = JSON.parse(trimmed);
+        const parsed = JSON.parse(jsonLikeInput);
         if (matchesParseType(parsed, type)) return parsed;
     } catch {
-        if (type === ParseType.STRING) return trimmed;
+        /* invalid JSON or type mismatch */
     }
+
     throw new Error("Invalid input");
 }

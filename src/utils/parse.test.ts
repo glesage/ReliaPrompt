@@ -33,24 +33,29 @@ describe("parse", () => {
             expect(result).toBe("hello\nworld\t!");
         });
 
-        test("should throw error for non-string JSON (array)", () => {
-            expect(() => parse("[1, 2, 3]", ParseType.STRING)).toThrow("Invalid input");
+        test("should keep JSON array as raw string", () => {
+            const result = parse("[1, 2, 3]", ParseType.STRING);
+            expect(result).toBe("[1, 2, 3]");
         });
 
-        test("should throw error for non-string JSON (object)", () => {
-            expect(() => parse('{"key": "value"}', ParseType.STRING)).toThrow("Invalid input");
+        test("should keep JSON object as raw string", () => {
+            const result = parse('{"key": "value"}', ParseType.STRING);
+            expect(result).toBe('{"key": "value"}');
         });
 
-        test("should throw error for non-string JSON (number)", () => {
-            expect(() => parse("123", ParseType.STRING)).toThrow("Invalid input");
+        test("should keep JSON number as raw string", () => {
+            const result = parse("123", ParseType.STRING);
+            expect(result).toBe("123");
         });
 
-        test("should throw error for non-string JSON (boolean)", () => {
-            expect(() => parse("true", ParseType.STRING)).toThrow("Invalid input");
+        test("should keep JSON boolean as raw string", () => {
+            const result = parse("true", ParseType.STRING);
+            expect(result).toBe("true");
         });
 
-        test("should throw error for non-string JSON (null)", () => {
-            expect(() => parse("null", ParseType.STRING)).toThrow("Invalid input");
+        test("should keep JSON null as raw string", () => {
+            const result = parse("null", ParseType.STRING);
+            expect(result).toBe("null");
         });
     });
 
@@ -111,6 +116,11 @@ describe("parse", () => {
         test("should parse array with nested objects", () => {
             const result = parse('[{"a": "1"}, {"b": "2"}]', ParseType.ARRAY);
             expect(result).toEqual([{ a: "1" }, { b: "2" }]);
+        });
+
+        test("should parse JSON array wrapped in markdown code fences", () => {
+            const result = parse('```json\n["a", "b"]\n```', ParseType.ARRAY);
+            expect(result).toEqual(["a", "b"]);
         });
     });
 
@@ -176,6 +186,11 @@ describe("parse", () => {
                 arr: ["1", "2"],
                 obj: { nested: "true" },
             });
+        });
+
+        test("should parse JSON object wrapped in markdown code fences", () => {
+            const result = parse('```\n{"key":"value"}\n```', ParseType.OBJECT);
+            expect(result).toEqual({ key: "value" });
         });
     });
 

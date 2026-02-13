@@ -1,10 +1,10 @@
 import OpenAI from "openai";
 import { LLMClient, ModelInfo } from "./llm-client";
-import { getConfig } from "../database";
+import { getConfig } from "../runtime/config";
 import { ConfigurationError } from "../errors";
 
 export class OpenAIClient implements LLMClient {
-    name = "OpenAI";
+    providerId = "openai";
     private client: OpenAI | null = null;
     private cachedApiKey: string | null = null;
 
@@ -32,7 +32,7 @@ export class OpenAIClient implements LLMClient {
         return !!this.cachedApiKey;
     }
 
-    reset(): void {
+    refresh(): void {
         this.cachedApiKey = null;
         this.client = null;
     }
@@ -52,7 +52,7 @@ export class OpenAIClient implements LLMClient {
                 models.push({
                     id: model.id,
                     name: model.id,
-                    provider: this.name,
+                    provider: this.providerId,
                 });
             }
 
@@ -73,16 +73,57 @@ export class OpenAIClient implements LLMClient {
             throw new ConfigurationError("OpenAI API key not configured");
         }
 
-        const response = await client.responses.create({
-            model: modelId,
-            input: messages,
-            max_output_tokens: 4096,
-            text: {
-                format: { type: "json_object" },
-            },
-        });
+        try {
+            const response = await client.responses.create({
+                model: modelId,
+                input: messages,
+                max_output_tokens: 4096,
+                text: {
+                    format: { type: "json_object" },
+                },
+            });
 
-        return response.output_text ?? defaultValue;
+            return response.output_text ?? defaultValue;
+        } catch (error) {
+            const errorMessage = String(error);
+            const requiresJsonKeyword =
+                errorMessage.includes("Response input messages must contain the word 'json'") ||
+                errorMessage.includes("must contain the word 'json'");
+
+            if (!requiresJsonKeyword) {
+                throw error;
+            }
+
+            const retriedMessages = [...messages];
+            const systemMessageIndex = retriedMessages.findIndex(
+                (message) => message.role === "system"
+            );
+            const jsonInstruction =
+                "\n\nReturn output as valid JSON only. Do not include markdown fences.";
+
+            if (systemMessageIndex >= 0) {
+                retriedMessages[systemMessageIndex] = {
+                    ...retriedMessages[systemMessageIndex],
+                    content: `${retriedMessages[systemMessageIndex].content}${jsonInstruction}`,
+                };
+            } else {
+                retriedMessages.unshift({
+                    role: "system",
+                    content: `Return output as valid JSON only. Do not include markdown fences.`,
+                });
+            }
+
+            const response = await client.responses.create({
+                model: modelId,
+                input: retriedMessages,
+                max_output_tokens: 4096,
+                text: {
+                    format: { type: "json_object" },
+                },
+            });
+
+            return response.output_text ?? defaultValue;
+        }
     }
 
     async complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string> {

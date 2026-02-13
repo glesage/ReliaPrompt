@@ -4,11 +4,11 @@ import {
     ListFoundationModelsCommand,
 } from "@aws-sdk/client-bedrock";
 import { LLMClient, ModelInfo } from "./llm-client";
-import { getConfig } from "../database";
+import { getConfig } from "../runtime/config";
 import { ConfigurationError } from "../errors";
 
 export class BedrockClient implements LLMClient {
-    name = "Bedrock";
+    providerId = "bedrock";
     private runtimeClient: BedrockRuntimeClient | null = null;
     private bedrockClient: AWSBedrockClient | null = null;
 
@@ -72,7 +72,7 @@ export class BedrockClient implements LLMClient {
         return !!(getConfig("bedrock_access_key_id") && getConfig("bedrock_secret_access_key"));
     }
 
-    reset(): void {
+    refresh(): void {
         this.runtimeClient = null;
         this.bedrockClient = null;
     }
@@ -97,7 +97,7 @@ export class BedrockClient implements LLMClient {
                     models.push({
                         id: model.modelId,
                         name: model.modelName,
-                        provider: this.name,
+                        provider: this.providerId,
                     });
                 }
             }
