@@ -4,7 +4,8 @@ Test and benchmark prompts accross LLM providers and models
 
 This tool is aimed at agentic use-cases for large production applications that require fast and reliable llm calls. For example, extracting sentiment from social media posts, converting a sentence into structured JSON, etc.
 
-<img width="1612" height="931" alt="Screenshot" src="https://github.com/user-attachments/assets/acf9619a-1ebf-4c66-a597-10864a1c472f" />
+<img width="1776" height="1068" alt="Screenshot 2026-02-24 at 1 20 54 pm" src="https://github.com/user-attachments/assets/c11a1a35-7741-43b2-95d6-12584ceedb70" />
+
 
 ## Features
 
