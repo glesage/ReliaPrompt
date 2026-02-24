@@ -1,0 +1,38 @@
+name: Publish to npm
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check if version has been updated
+        id: version_check
+        uses: EndBug/version-check@v2
+        with:
+          diff-search: true
+
+      - name: Setup Bun
+        if: steps.version_check.outputs.changed == 'true'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies and publish
+        if: steps.version_check.outputs.changed == 'true'
+        run: |
+          bun install --frozen-lockfile
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          npm publish --access public
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
