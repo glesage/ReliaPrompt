@@ -1,43 +1,44 @@
 name: Publish to npm
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - package.json
+    push:
+        branches:
+            - main
+        paths:
+            - package.json
 
 permissions:
-  contents: read
-  id-token: write
+    contents: read
+    id-token: write
 
 jobs:
-  publish:
-    runs-on: ubuntu-latest
+    publish:
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
 
-      - name: Check if version has been updated
-        id: version_check
-        uses: EndBug/version-check@v2
-        with:
-          diff-search: true
+            - name: Check if version has been updated
+              id: version_check
+              uses: EndBug/version-check@v2
+              with:
+                  diff-search: true
 
-      - name: Setup Bun
-        if: steps.version_check.outputs.changed == 'true'
-        uses: oven-sh/setup-bun@v2
+            - name: Setup Bun
+              if: steps.version_check.outputs.changed == 'true'
+              uses: oven-sh/setup-bun@v2
 
-      - name: Setup Node.js
-        if: steps.version_check.outputs.changed == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: "https://registry.npmjs.org"
+            - name: Setup Node.js
+              if: steps.version_check.outputs.changed == 'true'
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "24"
+                  registry-url: "https://registry.npmjs.org"
 
-      - name: Install dependencies and publish
-        if: steps.version_check.outputs.changed == 'true'
-        run: |
-          bun install --frozen-lockfile
-          npm publish --provenance --access public
+            - name: Install dependencies and publish
+              if: steps.version_check.outputs.changed == 'true'
+              run: |
+                  npm install -g npm@latest
+                  bun install --frozen-lockfile
+                  npm publish --provenance --access public

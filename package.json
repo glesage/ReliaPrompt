@@ -1,6 +1,6 @@
 {
     "name": "relia-prompt",
-    "version": "1.2.2",
+    "version": "1.2.1",
     "description": "Tool for testing llm prompts against multiple LLMs and improving them.",
     "type": "module",
     "main": "dist/index.cjs",
