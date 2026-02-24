@@ -1,7 +1,7 @@
 {
     "name": "relia-prompt",
     "version": "1.2.3",
-    "description": "Tool for testing llm prompts against multiple LLMs.",
+    "description": "Test and benchmark prompts accross LLM providers and models.",
     "repository": {
         "type": "git",
         "url": "https://github.com/glesage/ReliaPrompt"
