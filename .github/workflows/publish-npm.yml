@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   publish:
@@ -28,11 +29,15 @@ jobs:
         if: steps.version_check.outputs.changed == 'true'
         uses: oven-sh/setup-bun@v2
 
+      - name: Setup Node.js
+        if: steps.version_check.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+
       - name: Install dependencies and publish
         if: steps.version_check.outputs.changed == 'true'
         run: |
           bun install --frozen-lockfile
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-          npm publish --access public
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm publish --provenance --access public
