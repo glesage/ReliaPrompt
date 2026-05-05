@@ -22,57 +22,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-export interface StaticAssetPaths {
-    packageRoot: string;
-    dashboardBuildPath: string;
-    legacyPublicPath: string;
-    staticPath: string;
-    indexHtmlPath: string;
-}
-
 const PACKAGE_ROOT_GLOBAL_KEY = "__RELIA_PROMPT_PACKAGE_ROOT__";
 
-function getConfiguredPackageRoot(): string | null {
+function getPackageRoot() {
     const reliaPromptGlobal = globalThis as typeof globalThis & {
         [PACKAGE_ROOT_GLOBAL_KEY]?: string;
     };
-    return reliaPromptGlobal[PACKAGE_ROOT_GLOBAL_KEY] ?? null;
+
+    return reliaPromptGlobal[PACKAGE_ROOT_GLOBAL_KEY] ?? path.resolve(__dirname, "..");
 }
 
-function getRuntimeModulePath(): string {
-    return process.argv[1] ? path.resolve(process.argv[1]) : process.cwd();
-}
-
-export function getPackageRoot(runtimeModulePath: string = getRuntimeModulePath()): string {
-    const configuredPackageRoot = getConfiguredPackageRoot();
-    if (configuredPackageRoot) {
-        return configuredPackageRoot;
-    }
-
-    const runtimeDirectory = path.dirname(runtimeModulePath);
-    const directoryName = path.basename(runtimeDirectory);
-
-    if (directoryName === "dist" || directoryName === "src") {
-        return path.dirname(runtimeDirectory);
-    }
-
-    return runtimeDirectory;
-}
-
-export function resolveStaticAssetPaths(
-    runtimeModulePath: string = getRuntimeModulePath()
-): StaticAssetPaths {
-    const packageRoot = getPackageRoot(runtimeModulePath);
+export function resolveStaticAssetPaths(packageRoot = getPackageRoot()) {
     const dashboardBuildPath = path.join(packageRoot, "dashboard", "dist");
-    const legacyPublicPath = path.join(packageRoot, "public");
     const staticPath = fs.existsSync(path.join(dashboardBuildPath, "index.html"))
         ? dashboardBuildPath
-        : legacyPublicPath;
+        : path.join(packageRoot, "public");
 
     return {
         packageRoot,
-        dashboardBuildPath,
-        legacyPublicPath,
         staticPath,
         indexHtmlPath: path.join(staticPath, "index.html"),
     };

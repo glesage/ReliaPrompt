@@ -6,9 +6,7 @@ globalThis.__RELIA_PROMPT_PACKAGE_ROOT__ = path.resolve(__dirname, "..");
 
 const serverModule = require("./server.bundle.cjs");
 
-exports.getPackageRoot = serverModule.getPackageRoot;
-exports.resolveStaticAssetPaths = serverModule.resolveStaticAssetPaths;
-exports.startServer = serverModule.startServer;
+module.exports = serverModule;
 
 if (require.main === module) {
     serverModule.startServer({ projectRoot: process.cwd() }).catch((error) => {
