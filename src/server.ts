@@ -22,9 +22,31 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const svelteBuildPath = path.join(__dirname, "..", "dashboard", "dist");
-const legacyPublicPath = path.join(__dirname, "..", "public");
-const staticPath = fs.existsSync(svelteBuildPath) ? svelteBuildPath : legacyPublicPath;
+const PACKAGE_ROOT_GLOBAL_KEY = "__RELIA_PROMPT_PACKAGE_ROOT__";
+
+function getPackageRoot() {
+    const reliaPromptGlobal = globalThis as typeof globalThis & {
+        [PACKAGE_ROOT_GLOBAL_KEY]?: string;
+    };
+
+    return reliaPromptGlobal[PACKAGE_ROOT_GLOBAL_KEY] ?? path.resolve(__dirname, "..");
+}
+
+export function resolveStaticAssetPaths(packageRoot = getPackageRoot()) {
+    const dashboardBuildPath = path.join(packageRoot, "dashboard", "dist");
+    const staticPath = fs.existsSync(path.join(dashboardBuildPath, "index.html"))
+        ? dashboardBuildPath
+        : path.join(packageRoot, "public");
+
+    return {
+        packageRoot,
+        staticPath,
+        indexHtmlPath: path.join(staticPath, "index.html"),
+    };
+}
+
+const assetPaths = resolveStaticAssetPaths();
+const staticPath = assetPaths.staticPath;
 
 app.use(express.static(staticPath));
 
@@ -127,7 +149,7 @@ app.post("/api/library/test/run", validateBody(validateLibraryRunBody), async (r
 });
 
 app.get("/{*path}", (req, res) => {
-    res.sendFile(path.join(staticPath, "index.html"));
+    res.sendFile(assetPaths.indexHtmlPath);
 });
 
 export interface ServerOptions {
@@ -144,7 +166,7 @@ export interface ServerInstance {
 }
 
 /** Path to the example service (used when no suites found in project). */
-const EXAMPLE_SERVICE_PATH = path.join(__dirname, "..", "example");
+const EXAMPLE_SERVICE_PATH = path.join(assetPaths.packageRoot, "example");
 
 export async function startServer(options: ServerOptions = {}): Promise<ServerInstance> {
     const port = options.port ?? DEFAULT_PORT;
