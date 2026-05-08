@@ -50,6 +50,7 @@ export interface TestCaseLike {
     input: string;
     expectedOutput: string;
     expectedOutputType: string;
+    ignoredOutputKeys?: string[];
     id?: number;
 }
 
@@ -161,6 +162,7 @@ export async function runPromptTests(
         input: tc.input,
         expectedOutput: tc.expectedOutput,
         expectedOutputType: tc.expectedOutputType,
+        ignoredOutputKeys: tc.ignoredOutputKeys,
         id: tc.id ?? i,
     }));
 
@@ -188,6 +190,7 @@ export async function runPromptTestsFromSuite(
         input: tc.input,
         expectedOutput: tc.expectedOutput,
         expectedOutputType: normalizeExpectedOutputType(tc.expectedOutputType, tc.expectedOutput),
+        ignoredOutputKeys: tc.ignoredOutputKeys,
     }));
     return runPromptTests(promptLike, testCasesLike, options);
 }

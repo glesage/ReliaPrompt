@@ -85,14 +85,15 @@ function compareArraysAsSet(
 
 function compareObjects(
     expected: Record<string, ParsedJSON>,
-    output: Record<string, ParsedJSON>
+    output: Record<string, ParsedJSON>,
+    ignoredOutputKeys: string[] = []
 ): {
     expectedFound: number;
     expectedTotal: number;
     unexpectedFound: number;
 } {
     const expectedKeys = Object.keys(expected);
-    const outputKeys = Object.keys(output);
+    const outputKeys = Object.keys(output).filter((key) => !ignoredOutputKeys.includes(key));
 
     let expectedFound = 0;
     for (const key of expectedKeys) {
@@ -118,7 +119,8 @@ function compareObjects(
 function calculateMetrics(
     expectedType: ParseType,
     expected: ParsedJSON,
-    output: ParsedJSON | undefined
+    output: ParsedJSON | undefined,
+    ignoredOutputKeys: string[] = []
 ): {
     expectedFound: number;
     expectedTotal: number;
@@ -136,7 +138,8 @@ function calculateMetrics(
         if (typeof output === "object") {
             return compareObjects(
                 expected as Record<string, ParsedJSON>,
-                output as Record<string, ParsedJSON>
+                output as Record<string, ParsedJSON>,
+                ignoredOutputKeys
             );
         } else {
             return {
@@ -160,7 +163,8 @@ function calculateMetrics(
 export function compare(
     expected: ParsedJSON,
     output: ParsedJSON | undefined,
-    expectedType: ParseType
+    expectedType: ParseType,
+    ignoredOutputKeys: string[] = []
 ): {
     score: number;
     expectedTotal: number;
@@ -171,7 +175,7 @@ export function compare(
         throw new Error("Expected value is undefined");
     }
 
-    const metrics = calculateMetrics(expectedType, expected, output);
+    const metrics = calculateMetrics(expectedType, expected, output, ignoredOutputKeys);
 
     let score: number;
     if (metrics.expectedTotal === 0) {

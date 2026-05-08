@@ -39,6 +39,7 @@ export function defineTestCase(options: {
     input: string;
     expectedOutput: string;
     expectedOutputType?: string;
+    ignoredOutputKeys?: string[];
     id?: string;
 }): TestCaseDefinition {
     const id = options.id ?? `tc-${options.input.slice(0, 32).replace(/\s+/g, "-")}`;
@@ -47,6 +48,7 @@ export function defineTestCase(options: {
         input: options.input,
         expectedOutput: options.expectedOutput,
         expectedOutputType: options.expectedOutputType ?? "string",
+        ignoredOutputKeys: options.ignoredOutputKeys ?? [],
     };
 }
 

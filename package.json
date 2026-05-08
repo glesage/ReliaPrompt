@@ -1,6 +1,6 @@
 {
     "name": "relia-prompt",
-    "version": "1.2.4",
+    "version": "1.2.5",
     "description": "Test and benchmark prompts accross LLM providers and models.",
     "repository": {
         "type": "git",

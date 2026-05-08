@@ -317,6 +317,39 @@ describe("test-runner", () => {
             expect(result.results[0].testCaseResults[0].runs[0].isCorrect).toBe(true);
         });
 
+        test("should ignore configured output keys during schema evaluation", async () => {
+            const mockClient = createMockLLMClient("test-client");
+            mockClient.complete = mock(() =>
+                Promise.resolve('{"pass": true, "reason": "Shown for review"}')
+            );
+
+            const prompt = createPrompt(1, "Test prompt");
+            const testCases: MinimalTestCase[] = [
+                {
+                    ...createTestCase(1, "input1", '{"pass": true}', ParseType.OBJECT),
+                    ignoredOutputKeys: ["reason"],
+                },
+            ];
+            const modelRunners: ModelRunner[] = [
+                {
+                    client: mockClient,
+                    modelId: "test-model",
+                    displayName: "test-client (test-model)",
+                },
+            ];
+
+            const result = await runTests(prompt, testCases, modelRunners, 1);
+
+            expect(result.results[0].correctCount).toBe(1);
+            expect(result.results[0].testCaseResults[0].runs[0]).toMatchObject({
+                isCorrect: true,
+                score: 1,
+                expectedFound: 1,
+                expectedTotal: 1,
+                unexpectedFound: 0,
+            });
+        });
+
         test("should infer JSON object comparison when expectedOutputType is string", async () => {
             const mockClient = createMockLLMClient("test-client");
             mockClient.complete = mock(() =>
@@ -601,6 +634,43 @@ describe("test-runner", () => {
             expect(run.score).toBeCloseTo(0.8, 6);
             expect(run.issues).toHaveLength(1);
             expect(run.unexpectedFound).toBe(1);
+        });
+
+        test("should instruct LLM evaluation judge to explain issues in English", async () => {
+            const generationClient = createMockLLMClient("generator");
+            const judgeClient = createMockLLMClient("judge");
+
+            generationClient.complete = mock(() => Promise.resolve("candidate output"));
+            judgeClient.complete = mock(() => Promise.resolve(JSON.stringify({ issues: [] })));
+
+            const prompt = createPrompt(
+                1,
+                "請回答使用者問題。",
+                "llm",
+                "評估回答是否準確且完整。"
+            );
+            const testCases = [createTestCase(1, "輸入", "[]", ParseType.ARRAY)];
+            const modelRunners: ModelRunner[] = [
+                {
+                    client: generationClient,
+                    modelId: "gen-model",
+                    displayName: "generator (gen-model)",
+                },
+            ];
+
+            await runTests(prompt, testCases, modelRunners, 1, undefined, {
+                client: judgeClient,
+                modelId: "judge-model",
+                displayName: "judge (judge-model)",
+            });
+
+            expect(judgeClient.complete).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    "Every issue.explanation value must be written in English"
+                ),
+                "candidate output",
+                "judge-model"
+            );
         });
     });
 
