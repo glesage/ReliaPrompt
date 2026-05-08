@@ -19,6 +19,7 @@ export interface MinimalTestCase {
     input: string;
     expectedOutput: string;
     expectedOutputType: string;
+    ignoredOutputKeys?: string[];
 }
 
 // Represents a model to run tests against
@@ -253,6 +254,7 @@ ${testCaseInput}
 ${JSON.stringify(evaluationIssuesJsonSchema)}
 
 ## Evaluation json format
+Every issue.explanation value must be written in English, even when the evaluation criteria, initial task, input, or output use another language.
 {
   "issues": [
     {
@@ -424,7 +426,8 @@ export async function runTests(
                         const comparison = compare(
                             expectedParsed,
                             actualParsed,
-                            expectedOutputType
+                            expectedOutputType,
+                            testCase.ignoredOutputKeys ?? []
                         );
 
                         score = comparison.score;

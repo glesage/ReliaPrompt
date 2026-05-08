@@ -298,6 +298,21 @@ describe("compare", () => {
             });
         });
 
+        test("should ignore configured output keys when scoring objects", () => {
+            const result = compare(
+                { pass: true },
+                { pass: true, reason: "Shown for review" },
+                ParseType.OBJECT,
+                ["reason"]
+            );
+            expect(result).toEqual({
+                score: 1,
+                expectedTotal: 1,
+                expectedFound: 1,
+                unexpectedFound: 0,
+            });
+        });
+
         test("should return zero score for no matching keys", () => {
             const result = compare({ a: 1, b: 2 }, { c: 3, d: 4 }, ParseType.OBJECT);
             expect(result).toEqual({

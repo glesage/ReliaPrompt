@@ -21,6 +21,7 @@ export interface TestCaseDefinition {
     input: string;
     expectedOutput: string;
     expectedOutputType: string;
+    ignoredOutputKeys?: string[];
 }
 
 export interface PromptSuiteDefinition {
