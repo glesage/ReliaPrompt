@@ -643,12 +643,7 @@ describe("test-runner", () => {
             generationClient.complete = mock(() => Promise.resolve("candidate output"));
             judgeClient.complete = mock(() => Promise.resolve(JSON.stringify({ issues: [] })));
 
-            const prompt = createPrompt(
-                1,
-                "請回答使用者問題。",
-                "llm",
-                "評估回答是否準確且完整。"
-            );
+            const prompt = createPrompt(1, "請回答使用者問題。", "llm", "評估回答是否準確且完整。");
             const testCases = [createTestCase(1, "輸入", "[]", ParseType.ARRAY)];
             const modelRunners: ModelRunner[] = [
                 {
@@ -665,9 +660,7 @@ describe("test-runner", () => {
             });
 
             expect(judgeClient.complete).toHaveBeenCalledWith(
-                expect.stringContaining(
-                    "Every issue.explanation value must be written in English"
-                ),
+                expect.stringContaining("Every issue.explanation value must be written in English"),
                 "candidate output",
                 "judge-model"
             );

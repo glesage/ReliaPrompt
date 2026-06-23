@@ -45,18 +45,16 @@ export class OpenAIClient implements LLMClient {
 
         try {
             const response = await client.models.list();
-            const models: ModelInfo[] = [];
-
-            for await (const model of response) {
-                if (!model.id.startsWith("gpt-5") || model.id.includes("2025")) continue;
-                models.push({
-                    id: model.id,
-                    name: model.id,
+            const models = response.data
+                .filter((m) => !m.id.includes("2025") && !m.id.includes("2026"))
+                .filter((m) => m.id.includes("gpt-5.4") || m.id.includes("gpt-5.5"))
+                .map((m) => ({
+                    id: m.id,
+                    name: m.id,
                     provider: this.providerId,
-                });
-            }
-
+                }));
             models.sort((a, b) => a.name.localeCompare(b.name));
+
             return models;
         } catch {
             return [];

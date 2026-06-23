@@ -1,7 +1,8 @@
 <script lang="ts">
     import Modal from "./Modal.svelte";
     import ModelSelector from "./ModelSelector.svelte";
-    import { closeConfigModal, configModalOpen, isProviderConfigured } from "$lib/stores/config";
+    import { config, closeConfigModal, configModalOpen } from "$lib/stores/config";
+    import { isProviderConfigured as checkProviderConfigured } from "$shared/providers";
     import { availableModels, selectedModels, saveSelectedModels } from "$lib/stores/models";
     import type { SelectedModel } from "$lib/types";
     import { PROVIDERS } from "$shared/providers";
@@ -43,10 +44,12 @@
                     {provider.id}
                     <span
                         class="status-badge"
-                        class:configured={isProviderConfigured(provider.id)}
-                        class:not-configured={!isProviderConfigured(provider.id)}
+                        class:configured={checkProviderConfigured($config, provider.id)}
+                        class:not-configured={!checkProviderConfigured($config, provider.id)}
                     >
-                        {isProviderConfigured(provider.id) ? "Configured" : "Not configured"}
+                        {checkProviderConfigured($config, provider.id)
+                            ? "Configured"
+                            : "Not configured"}
                     </span>
                 </h3>
                 <p class="env-hint">
