@@ -45,11 +45,13 @@ export class GroqClient implements LLMClient {
             if (!response.ok) return [];
 
             const data = (await response.json()) as GroqModelsResponse;
-            return data.data.map((model) => ({
-                id: model.id,
-                name: formatModelName(model.id),
-                provider: this.providerId,
-            }));
+            return data.data
+                .filter((model) => model.id.includes("oss") || model.id.includes("qwen3.6"))
+                .map((model) => ({
+                    id: model.id,
+                    name: formatModelName(model.id),
+                    provider: this.providerId,
+                }));
         } catch {
             return [];
         }

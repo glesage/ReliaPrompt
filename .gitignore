@@ -6,3 +6,4 @@ test-results
 
 # SvelteKit build artifacts
 .svelte-kit
+.DS_Store
