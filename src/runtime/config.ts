@@ -64,7 +64,9 @@ export function getCredentialsFromJsonEnv(): ProviderCredentials {
         parsed = JSON.parse(normalizedRaw) as Record<string, unknown>;
     } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        throw new Error(`Invalid ${RELIA_PROMPT_LLM_CONFIG_JSON}: not valid JSON. ${message}`);
+        throw new Error(`Invalid ${RELIA_PROMPT_LLM_CONFIG_JSON}: not valid JSON. ${message}`, {
+            cause: e,
+        });
     }
 
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -103,7 +105,8 @@ export function getCredentialsFromJsonEnv(): ProviderCredentials {
             } catch (e) {
                 const message = e instanceof Error ? e.message : String(e);
                 throw new Error(
-                    `Invalid ${RELIA_PROMPT_LLM_CONFIG_JSON}: "${providerId}.${jsonKey}" - ${message}`
+                    `Invalid ${RELIA_PROMPT_LLM_CONFIG_JSON}: "${providerId}.${jsonKey}" - ${message}`,
+                    { cause: e }
                 );
             }
         }
