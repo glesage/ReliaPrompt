@@ -39,6 +39,5 @@ jobs:
             - name: Install dependencies and publish
               if: steps.version_check.outputs.changed == 'true'
               run: |
-                  npm install -g npm@latest
                   bun install --frozen-lockfile
                   npm publish --provenance --access public
