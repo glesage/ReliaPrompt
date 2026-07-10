@@ -186,8 +186,7 @@
                     class="tall"
                     bind:value={content}
                     placeholder="Enter your system prompt here..."
-                    required
-                ></textarea>
+                    required></textarea>
             </div>
             <div class="form-group">
                 <label for="prompt-schema">Expected Output Schema (JSON)</label>
@@ -217,8 +216,7 @@
                         class="medium"
                         bind:value={evaluationCriteria}
                         placeholder="Describe how to evaluate the quality of AI outputs. The judge will return a score (0-1) and a reason."
-                        required
-                    ></textarea>
+                        required></textarea>
                     <small>Issues found will be used for scoring.</small>
                 </div>
             {/if}

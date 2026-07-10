@@ -36,6 +36,7 @@
         "dev:backend": "bun --watch src/server.ts",
         "dev:dashboard": "cd dashboard && bun run dev",
         "format": "bun run prettier --write \"src/**/*.ts\" \"dashboard/src/**/*.{svelte,ts}\" \"*.json\"",
+        "format:check": "bun run prettier --check \"src/**/*.ts\" \"dashboard/src/**/*.{svelte,ts}\" \"*.json\"",
         "lint": "eslint src/**/*.ts",
         "lint:fix": "eslint src/**/*.ts --fix",
         "test": "NODE_ENV=test bun test src",

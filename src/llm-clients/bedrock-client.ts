@@ -192,19 +192,25 @@ export class BedrockClient implements LLMClient {
             const errorMessage = error instanceof Error ? error.message : String(error);
 
             if (errorMessage.includes("ValidationException")) {
-                throw new Error(
+                const wrapped = new Error(
                     `Model ${modelId} may not support the Converse API: ${errorMessage}`
                 );
+                wrapped.cause = error;
+                throw wrapped;
             }
             if (errorMessage.includes("AccessDeniedException")) {
-                throw new Error(
+                const wrapped = new Error(
                     `Access denied for model ${modelId}. Ensure model access is enabled in AWS Bedrock console.`
                 );
+                wrapped.cause = error;
+                throw wrapped;
             }
             if (errorMessage.includes("ResourceNotFoundException")) {
-                throw new Error(
+                const wrapped = new Error(
                     `Model ${modelId} not found. It may not be available in your region.`
                 );
+                wrapped.cause = error;
+                throw wrapped;
             }
 
             throw error;
