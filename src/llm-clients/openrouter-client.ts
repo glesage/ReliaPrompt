@@ -89,10 +89,12 @@ export class OpenRouterClient implements LLMClient {
         }
 
         const response = await client.chat.send({
-            model: modelId,
-            messages,
-            temperature,
-            maxCompletionTokens: 4096,
+            chatRequest: {
+                model: modelId,
+                messages,
+                temperature,
+                maxCompletionTokens: 4096,
+            },
         });
 
         const content = response.choices[0]?.message?.content;

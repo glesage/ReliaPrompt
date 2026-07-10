@@ -5,8 +5,8 @@
     "": {
       "name": "relia-prompt-example",
       "dependencies": {
-        "joi": "^18.0.2",
-        "joi-to-json": "^5.0.1",
+        "joi": "^18.2.3",
+        "joi-to-json": "^5.0.5",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -36,9 +36,9 @@
 
     "combinations": ["combinations@1.0.0", "", {}, "sha512-aVgTfI/dewHblSn4gF+NZHvS7wtwg9YAPF2EknHMdH+xLsXLLIMpmHkSj64Zxs/R2m9VAAgn3bENjssrn7V4vQ=="],
 
-    "joi": ["joi@18.0.2", "", { "dependencies": { "@hapi/address": "^5.1.1", "@hapi/formula": "^3.0.2", "@hapi/hoek": "^11.0.7", "@hapi/pinpoint": "^2.0.1", "@hapi/tlds": "^1.1.1", "@hapi/topo": "^6.0.2", "@standard-schema/spec": "^1.0.0" } }, "sha512-RuCOQMIt78LWnktPoeBL0GErkNaJPTBGcYuyaBvUOQSpcpcLfWrHPPihYdOGbV5pam9VTWbeoF7TsGiHugcjGA=="],
+    "joi": ["joi@18.2.3", "", { "dependencies": { "@hapi/address": "^5.1.1", "@hapi/formula": "^3.0.2", "@hapi/hoek": "^11.0.7", "@hapi/pinpoint": "^2.0.1", "@hapi/tlds": "^1.1.1", "@hapi/topo": "^6.0.2", "@standard-schema/spec": "^1.1.0" } }, "sha512-N5A3KTWQpPWT4ExxxPlUx7WmykGXRzhNidWhV41d6Abu9YfI2NyWCJuxdPnslJCPWtbRpSVOWSnSS6GakLM/Rg=="],
 
-    "joi-to-json": ["joi-to-json@5.0.1", "", { "dependencies": { "combinations": "^1.0.0", "lodash": "^4.17.21" } }, "sha512-0v5BGa/S0TU8WqPnxm3K78KXg4FPHOo0E41Gndof/hOdyek4B/oTf78PvTwyE8hRa6kG7R/NTRns1z9easHPKw=="],
+    "joi-to-json": ["joi-to-json@5.0.5", "", { "dependencies": { "combinations": "^1.0.0", "lodash": "^4.17.21" } }, "sha512-gZb67EVfW/2cKkr4BG7qi8rAGM+ziJHrR+ot31UayQmNqKINiTM0WiDpKU9J7fv6LzUy8WQ93zra7pjO6SZhOg=="],
 
     "lodash": ["lodash@4.17.23", "", {}, "sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w=="],
 

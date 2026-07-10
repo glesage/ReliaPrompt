@@ -8,8 +8,8 @@
         "reliaprompt:ui": "NODE_ENV=development bun ../src/cli-ui.ts"
     },
     "dependencies": {
-        "joi": "^18.0.2",
-        "joi-to-json": "^5.0.1"
+        "joi": "^18.2.3",
+        "joi-to-json": "^5.0.5"
     },
     "devDependencies": {
         "@types/bun": "latest"
