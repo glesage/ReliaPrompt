@@ -119,9 +119,7 @@ export function validateLibraryRunBody(data: unknown): LibraryRunBody {
             return parseModelSelection(item);
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            const wrapped = new Error(`testModels[${index}]: ${msg}`);
-            wrapped.cause = err;
-            throw wrapped;
+            throw new Error(`testModels[${index}]: ${msg}`, { cause: err });
         }
     });
 
