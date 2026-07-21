@@ -6,11 +6,27 @@ export interface ModelInfo {
 
 export type ProviderId = string;
 
+export interface LLMCompletionTrace {
+    content: string;
+    requestPayload?: string;
+    responsePayload?: string;
+}
+
+export interface LLMCompletionOptions {
+    responseSchema?: Record<string, unknown>;
+}
+
 export interface LLMClient {
     providerId: ProviderId;
     isConfigured(): boolean;
     listModels(): Promise<ModelInfo[]>;
     complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string>;
+    completeWithTrace?(
+        systemPrompt: string,
+        userMessage: string,
+        modelId: string,
+        options?: LLMCompletionOptions
+    ): Promise<LLMCompletionTrace>;
     refresh(): void;
 }
 

@@ -159,8 +159,65 @@ describe("test-runner", () => {
             expect(mockClient.complete).toHaveBeenCalled();
             const [systemPrompt] = (mockClient.complete as ReturnType<typeof mock>).mock
                 .calls[0] as [string, string, string];
-            expect(systemPrompt).toContain("## Response Schema:");
+            expect(systemPrompt).toContain("## Output schema:");
             expect(systemPrompt).toContain('"type":"object"');
+        });
+
+        test("passes the schema to Cerebras without adding it to the prompt", async () => {
+            const mockClient = createMockLLMClient("cerebras");
+            mockClient.completeWithTrace = mock(() => Promise.resolve({ content: "hello" }));
+
+            const schema = { type: "object", properties: { name: { type: "string" } } };
+            const prompt: MinimalPrompt = {
+                ...createPrompt(1, "Test prompt"),
+                expectedSchema: JSON.stringify(schema),
+            };
+            const testCases = [createTestCase(1, "input1", "hello", ParseType.STRING)];
+            const modelRunners: ModelRunner[] = [
+                {
+                    client: mockClient,
+                    modelId: "gpt-oss-120b",
+                    displayName: "cerebras (gpt-oss-120b)",
+                },
+            ];
+
+            await runTests(prompt, testCases, modelRunners, 1);
+
+            const calls = (mockClient.completeWithTrace as ReturnType<typeof mock>).mock.calls;
+            expect(calls[0]).toEqual([
+                "Test prompt",
+                "input1",
+                "gpt-oss-120b",
+                { responseSchema: schema },
+            ]);
+        });
+
+        test("does not append a schema already included in the prompt", async () => {
+            const mockClient = createMockLLMClient("test-client");
+            mockClient.complete = mock(() => Promise.resolve("hello"));
+
+            const schema = JSON.stringify({
+                type: "object",
+                properties: { name: { type: "string" } },
+            });
+            const prompt: MinimalPrompt = {
+                ...createPrompt(1, `Test prompt\n\n## Output schema:\n${schema}`),
+                expectedSchema: schema,
+            };
+            const testCases = [createTestCase(1, "input1", "hello", ParseType.STRING)];
+            const modelRunners: ModelRunner[] = [
+                {
+                    client: mockClient,
+                    modelId: "test-model",
+                    displayName: "test-client (test-model)",
+                },
+            ];
+
+            await runTests(prompt, testCases, modelRunners, 1);
+
+            const [systemPrompt] = (mockClient.complete as ReturnType<typeof mock>).mock
+                .calls[0] as [string, string, string];
+            expect(systemPrompt).toBe(prompt.content);
         });
 
         test("should run multiple test cases", async () => {

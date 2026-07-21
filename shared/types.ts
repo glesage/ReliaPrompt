@@ -163,6 +163,8 @@ export interface TestRun {
     score: number;
     isCorrect: boolean;
     actualOutput?: string;
+    requestPayload?: string;
+    responsePayload?: string;
     error?: string;
     durationMs?: number;
     expectedFound?: number;
