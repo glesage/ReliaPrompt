@@ -2470,6 +2470,8 @@ button.small,
     margin-bottom: 16px;
     display: flex;
     justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .detail-label {
@@ -2480,6 +2482,41 @@ button.small,
 
 .detail-label:first-of-type {
     margin-top: 0;
+}
+
+.no-failing-tests {
+    margin: 0 0 16px;
+    text-align: center;
+}
+
+.payload-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.payload-header .detail-label {
+    margin-bottom: 4px;
+}
+
+.btn-copy-payload {
+    padding: 3px 8px;
+    font-size: var(--text-sm);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.btn-copy-payload:hover:not(:disabled) {
+    background: var(--color-border);
+}
+
+.btn-copy-payload:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
 }
 
 .runs-badges {

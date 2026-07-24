@@ -28,6 +28,7 @@
     let detailsModalOpen = $state(false);
     let detailsLlm = $state<LLMResult | null>(null);
     let showAllRuns = $state(false);
+    let onlyShowFailingTests = $state(false);
     let selectedRunId = $state<string | null>(null);
     let displayedRunId = $state<string | null>(null);
     let runHistoryBySuite = $state<Record<string, TestRunEntry[]>>({});
@@ -200,6 +201,7 @@
         if (llm) {
             detailsLlm = llm;
             showAllRuns = false;
+            onlyShowFailingTests = false;
             detailsModalOpen = true;
         }
     }
@@ -242,6 +244,26 @@
             return JSON.stringify(JSON.parse(json), null, 2);
         } catch {
             return json;
+        }
+    }
+
+    function formatPayload(payload: string | undefined): string {
+        if (payload === undefined) return "Payload was not captured for this provider.";
+        return formatJSON(payload);
+    }
+
+    function hasFailingRun(testCase: LLMResult["testCaseResults"][number]): boolean {
+        return testCase.runs.some((run) => !run.isCorrect);
+    }
+
+    async function copyPayload(payload: string | undefined): Promise<void> {
+        if (payload === undefined) return;
+
+        try {
+            await navigator.clipboard.writeText(payload);
+            showSuccess("Payload copied to clipboard");
+        } catch {
+            showError("Could not copy payload to clipboard");
         }
     }
 
@@ -596,8 +618,21 @@
                 >
                     {showAllRuns ? "Hide individual runs" : "Show individual runs"}
                 </button>
+                <button
+                    type="button"
+                    class="btn-toggle-runs"
+                    class:active={onlyShowFailingTests}
+                    aria-pressed={onlyShowFailingTests}
+                    onclick={() => (onlyShowFailingTests = !onlyShowFailingTests)}
+                >
+                    Only show failing tests
+                </button>
             </div>
-            {#each detailsLlm.testCaseResults as tc, i}
+            {#if onlyShowFailingTests && !detailsLlm.testCaseResults.some(hasFailingRun)}
+                <p class="muted no-failing-tests">All test cases passed.</p>
+            {/if}
+            {#each onlyShowFailingTests ? detailsLlm.testCaseResults.filter(hasFailingRun) : detailsLlm.testCaseResults as tc, i}
+                {@const displayedRun = tc.runs[0]}
                 <div class="test-case-detail">
                     <div class="header">
                         <strong>#{i + 1}</strong>
@@ -610,6 +645,41 @@
                     {#if currentPromptForEval?.evaluationMode !== "llm"}
                         <div class="detail-label">Expected:</div>
                         <div class="json-preview">{formatJSON(tc.expectedOutput)}</div>
+                    {/if}
+                    {#if !showAllRuns && tc.runs.length === 1 && displayedRun}
+                        <div class="detail-label">Actual results:</div>
+                        <div class="json-preview run-output">
+                            {displayedRun.actualOutput ??
+                                (displayedRun.error ? `Error: ${displayedRun.error}` : "N/A")}
+                        </div>
+                        <div class="payload-header">
+                            <div class="detail-label">Request payload:</div>
+                            <button
+                                type="button"
+                                class="btn-copy-payload"
+                                aria-label="Copy request payload"
+                                disabled={displayedRun.requestPayload === undefined}
+                                onclick={() => copyPayload(displayedRun.requestPayload)}
+                                >Copy</button
+                            >
+                        </div>
+                        <pre class="json-preview run-output">{formatPayload(
+                                displayedRun.requestPayload
+                            )}</pre>
+                        <div class="payload-header">
+                            <div class="detail-label">Response payload:</div>
+                            <button
+                                type="button"
+                                class="btn-copy-payload"
+                                aria-label="Copy response payload"
+                                disabled={displayedRun.responsePayload === undefined}
+                                onclick={() => copyPayload(displayedRun.responsePayload)}
+                                >Copy</button
+                            >
+                        </div>
+                        <pre class="json-preview run-output">{formatPayload(
+                                displayedRun.responsePayload
+                            )}</pre>
                     {/if}
                     {#if !showAllRuns && tc.runs?.length > 0}
                         <div class="runs-badges">
@@ -658,9 +728,37 @@
                                     </div>
                                     <div class="detail-label">Actual output:</div>
                                     <div class="json-preview run-output">
-                                        {run.actualOutput ||
+                                        {run.actualOutput ??
                                             (run.error ? `Error: ${run.error}` : "N/A")}
                                     </div>
+                                    <div class="payload-header">
+                                        <div class="detail-label">Request payload:</div>
+                                        <button
+                                            type="button"
+                                            class="btn-copy-payload"
+                                            aria-label="Copy request payload"
+                                            disabled={run.requestPayload === undefined}
+                                            onclick={() => copyPayload(run.requestPayload)}
+                                            >Copy</button
+                                        >
+                                    </div>
+                                    <pre class="json-preview run-output">{formatPayload(
+                                            run.requestPayload
+                                        )}</pre>
+                                    <div class="payload-header">
+                                        <div class="detail-label">Response payload:</div>
+                                        <button
+                                            type="button"
+                                            class="btn-copy-payload"
+                                            aria-label="Copy response payload"
+                                            disabled={run.responsePayload === undefined}
+                                            onclick={() => copyPayload(run.responsePayload)}
+                                            >Copy</button
+                                        >
+                                    </div>
+                                    <pre class="json-preview run-output">{formatPayload(
+                                            run.responsePayload
+                                        )}</pre>
                                     {#if run.reason}
                                         <div class="detail-reason">{run.reason}</div>
                                     {/if}

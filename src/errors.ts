@@ -50,10 +50,19 @@ export class ConfigurationError extends AppError {
  */
 export class LLMError extends AppError {
     public readonly provider: string;
+    public readonly requestPayload?: string;
+    public readonly responsePayload?: string;
 
-    constructor(provider: string, message: string) {
+    constructor(
+        provider: string,
+        message: string,
+        requestPayload?: string,
+        responsePayload?: string
+    ) {
         super(`[${provider}] ${message}`, 502);
         this.provider = provider;
+        this.requestPayload = requestPayload;
+        this.responsePayload = responsePayload;
     }
 }
 

@@ -1,8 +1,8 @@
 import type { EvaluationMode } from "../../shared/types";
-import type { LLMClient, ModelSelection } from "../llm-clients";
+import type { LLMClient, LLMCompletionOptions, ModelSelection } from "../llm-clients";
 import { compare } from "../utils/compare";
 import { parse, ParseType } from "../utils/parse";
-import { ConfigurationError, getErrorMessage } from "../errors";
+import { ConfigurationError, getErrorMessage, LLMError } from "../errors";
 
 /** Minimal prompt shape for runTests (no DB-only fields). */
 export interface MinimalPrompt {
@@ -43,6 +43,10 @@ function validate(schemaCandidate: unknown): JsonSchemaObject {
         throw new Error("Schema must be a JSON object");
     }
     return schemaCandidate;
+}
+
+function promptAlreadyIncludesSchema(promptContent: string, schema: JsonSchemaObject): boolean {
+    return promptContent.includes(JSON.stringify(schema));
 }
 
 function resolveComparisonParseType(
@@ -130,6 +134,8 @@ export interface EvaluationIssue {
  */
 export interface BaseTestResult {
     actualOutput: string | null;
+    requestPayload?: string;
+    responsePayload?: string;
     isCorrect: boolean;
     score: number; // 0-1 score
     expectedFound: number;
@@ -334,8 +340,7 @@ export async function runTests(
     const schemaString =
         expectedSchema ?? (typeof prompt === "object" ? prompt.expectedSchema : undefined);
 
-    // Build the system prompt with schema hint if present
-    let systemPrompt = promptContent;
+    let normalizedSchema: JsonSchemaObject | undefined;
     if (schemaString) {
         try {
             const parsedSchema = JSON.parse(schemaString);
@@ -346,10 +351,7 @@ export async function runTests(
                 parsedSchema.schema && typeof parsedSchema.schema === "object"
                     ? parsedSchema.schema
                     : parsedSchema;
-            const normalizedSchema = validate(schema);
-
-            // Append schema hint to the system prompt
-            systemPrompt = `${promptContent}\n\n## Response Schema:\n${JSON.stringify(normalizedSchema)}`;
+            normalizedSchema = validate(schema);
         } catch {
             // If parsing fails, ignore the schema
             console.warn("Failed to parse expectedSchema, ignoring structured output");
@@ -359,6 +361,17 @@ export async function runTests(
     const llmResults: LLMTestResult[] = [];
 
     const llmPromises = modelRunners.map(async (runner) => {
+        const usesCerebrasStructuredOutput = runner.client.providerId === "cerebras";
+        const completionOptions: LLMCompletionOptions | undefined =
+            usesCerebrasStructuredOutput && normalizedSchema
+                ? { responseSchema: normalizedSchema }
+                : undefined;
+        const systemPrompt =
+            usesCerebrasStructuredOutput ||
+            !normalizedSchema ||
+            promptAlreadyIncludesSchema(promptContent, normalizedSchema)
+                ? promptContent
+                : `${promptContent}\n\n## Output schema:\n${JSON.stringify(normalizedSchema)}`;
         const testCaseResults: TestCaseResult[] = [];
         let llmCorrectCount = 0;
         let llmTotalRuns = 0;
@@ -372,11 +385,21 @@ export async function runTests(
                 try {
                     const startTime = Date.now();
                     // System prompt includes schema hint if present
-                    const actualOutput = await runner.client.complete(
-                        systemPrompt,
-                        testCase.input,
-                        runner.modelId
-                    );
+                    const completion = runner.client.completeWithTrace
+                        ? await runner.client.completeWithTrace(
+                              systemPrompt,
+                              testCase.input,
+                              runner.modelId,
+                              completionOptions
+                          )
+                        : {
+                              content: await runner.client.complete(
+                                  systemPrompt,
+                                  testCase.input,
+                                  runner.modelId
+                              ),
+                          };
+                    const actualOutput = completion.content;
                     const durationMs = Date.now() - startTime;
 
                     let score = 0;
@@ -448,6 +471,8 @@ export async function runTests(
                     runs.push({
                         runNumber,
                         actualOutput,
+                        requestPayload: completion.requestPayload,
+                        responsePayload: completion.responsePayload,
                         isCorrect,
                         score,
                         expectedFound,
@@ -465,6 +490,10 @@ export async function runTests(
                     runs.push({
                         runNumber,
                         actualOutput: null,
+                        requestPayload:
+                            error instanceof LLMError ? error.requestPayload : undefined,
+                        responsePayload:
+                            error instanceof LLMError ? error.responsePayload : undefined,
                         isCorrect: false,
                         score: 0,
                         expectedFound: 0,
