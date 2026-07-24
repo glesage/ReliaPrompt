@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { toCerebrasStrictSchema } from "./cerebras-structured-output";
+import { toCerebrasStrictSchema } from "./cerebras-client";
 
 describe("toCerebrasStrictSchema", () => {
     test("removes keywords unsupported by Cerebras strict structured output", () => {
