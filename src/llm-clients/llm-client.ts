@@ -6,11 +6,22 @@ export interface ModelInfo {
 
 export type ProviderId = string;
 
+export type JsonSchemaObject = Record<string, unknown>;
+
+export interface CompletionOptions {
+    outputSchema?: JsonSchemaObject;
+}
+
 export interface LLMClient {
     providerId: ProviderId;
     isConfigured(): boolean;
     listModels(): Promise<ModelInfo[]>;
-    complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string>;
+    complete(
+        systemPrompt: string,
+        userMessage: string,
+        modelId: string,
+        options?: CompletionOptions
+    ): Promise<string>;
     refresh(): void;
 }
 

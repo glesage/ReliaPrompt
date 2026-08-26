@@ -1,11 +1,13 @@
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import {
     BedrockClient as AWSBedrockClient,
-    ListFoundationModelsCommand,
+    ListInferenceProfilesCommand,
 } from "@aws-sdk/client-bedrock";
-import { LLMClient, ModelInfo } from "./llm-client";
+import { CompletionOptions, LLMClient, ModelInfo } from "./llm-client";
 import { getConfig } from "../runtime/config";
 import { ConfigurationError } from "../errors";
+
+const STRUCTURED_OUTPUT_SCHEMA_NAME = "relia_prompt_response";
 
 export class BedrockClient implements LLMClient {
     providerId = "bedrock";
@@ -39,6 +41,7 @@ export class BedrockClient implements LLMClient {
         if (!this.runtimeClient) {
             this.runtimeClient = new BedrockRuntimeClient({
                 region: creds.region,
+                maxAttempts: 1,
                 credentials: {
                     accessKeyId: creds.accessKeyId,
                     secretAccessKey: creds.secretAccessKey,
@@ -84,35 +87,83 @@ export class BedrockClient implements LLMClient {
         }
 
         try {
-            const command = new ListFoundationModelsCommand({
-                byOutputModality: "TEXT",
-                byInferenceType: "ON_DEMAND",
-            });
+            const summaries = [];
+            let nextToken: string | undefined;
 
-            const response = await client.send(command);
-            const models: ModelInfo[] = [];
+            do {
+                const response = await client.send(
+                    new ListInferenceProfilesCommand({
+                        typeEquals: "SYSTEM_DEFINED",
+                        maxResults: 1000,
+                        nextToken,
+                    })
+                );
 
-            for (const model of response.modelSummaries ?? []) {
-                if (model.modelId && model.modelName) {
-                    models.push({
-                        id: model.modelId,
-                        name: model.modelName,
-                        provider: this.providerId,
-                    });
+                if (response.inferenceProfileSummaries) {
+                    summaries.push(...response.inferenceProfileSummaries);
                 }
-            }
 
-            models.sort((a, b) => a.name.localeCompare(b.name));
-            return models;
+                nextToken = response.nextToken;
+            } while (nextToken);
+
+            return summaries
+                .filter(
+                    (summary) =>
+                        summary.status === "ACTIVE" &&
+                        summary.inferenceProfileId?.startsWith("global.")
+                )
+                .map((summary) => ({
+                    id: summary.inferenceProfileId!,
+                    name: summary.inferenceProfileName || summary.inferenceProfileId!,
+                    provider: this.providerId,
+                }))
+                .sort((left, right) => {
+                    const nameComparison = left.name.localeCompare(right.name);
+                    if (nameComparison !== 0) {
+                        return nameComparison;
+                    }
+                    return left.id.localeCompare(right.id);
+                });
         } catch {
             return [];
         }
+    }
+
+    private buildOutputConfig(outputSchema: Record<string, unknown>) {
+        return {
+            textFormat: {
+                type: "json_schema" as const,
+                structure: {
+                    jsonSchema: {
+                        schema: JSON.stringify(outputSchema),
+                        name: STRUCTURED_OUTPUT_SCHEMA_NAME,
+                    },
+                },
+            },
+        };
+    }
+
+    private extractTextFromResponse(
+        content: Array<{ text?: string | null }> | undefined
+    ): string | null {
+        if (!content || content.length === 0) {
+            return null;
+        }
+
+        for (const block of content) {
+            if (block.text !== undefined && block.text !== null) {
+                return block.text;
+            }
+        }
+
+        return null;
     }
 
     private async makeRequest(
         messages: Array<{ role: "user"; content: string }>,
         modelId: string,
         systemPrompt?: string,
+        options?: CompletionOptions,
         defaultValue: string = ""
     ): Promise<string> {
         const client = this.getRuntimeClient();
@@ -120,45 +171,48 @@ export class BedrockClient implements LLMClient {
             throw new ConfigurationError("Bedrock credentials not configured");
         }
 
-        // Helper to send the converse command
+        const outputSchema = options?.outputSchema;
+        const outputConfig =
+            outputSchema && typeof outputSchema === "object"
+                ? this.buildOutputConfig(outputSchema)
+                : undefined;
+
         const sendConverse = async (useSystemParam: boolean) => {
-            // If not using system param, prepend system prompt to first user message
             let finalMessages = messages;
             if (!useSystemParam && systemPrompt) {
-                finalMessages = messages.map((m, i) => {
-                    if (i === 0) {
+                finalMessages = messages.map((message, index) => {
+                    if (index === 0) {
                         return {
-                            ...m,
-                            content: `${systemPrompt}\n\n${m.content}`,
+                            ...message,
+                            content: `${systemPrompt}\n\n${message.content}`,
                         };
                     }
-                    return m;
+                    return message;
                 });
             }
 
             const command = new ConverseCommand({
                 modelId,
-                messages: finalMessages.map((m) => ({
-                    role: m.role,
-                    content: [{ text: m.content }],
+                messages: finalMessages.map((message) => ({
+                    role: message.role,
+                    content: [{ text: message.content }],
                 })),
                 system: useSystemParam && systemPrompt ? [{ text: systemPrompt }] : undefined,
                 inferenceConfig: {
                     maxTokens: 4096,
                 },
+                ...(outputConfig ? { outputConfig } : {}),
             });
 
             return client.send(command);
         };
 
         try {
-            // First try with system message parameter
             let response;
             try {
                 response = await sendConverse(true);
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                // If model doesn't support system messages, retry with system prompt in user message
                 if (errorMessage.includes("system messages") && systemPrompt) {
                     response = await sendConverse(false);
                 } else {
@@ -166,15 +220,13 @@ export class BedrockClient implements LLMClient {
                 }
             }
 
-            const text = response.output?.message?.content?.[0]?.text;
+            const text = this.extractTextFromResponse(response.output?.message?.content);
 
-            if (text === undefined || text === null) {
-                // Check stop reason for more context
+            if (text === null) {
                 const stopReason = response.stopReason;
                 if (stopReason && stopReason !== "end_turn") {
                     throw new Error(`Model stopped unexpectedly: ${stopReason}`);
                 }
-                // Return defaultValue if provided, otherwise throw
                 if (defaultValue) {
                     return defaultValue;
                 }
@@ -183,12 +235,10 @@ export class BedrockClient implements LLMClient {
 
             return text;
         } catch (error) {
-            // Re-throw ConfigurationError as-is
             if (error instanceof ConfigurationError) {
                 throw error;
             }
 
-            // Check for common Bedrock errors and provide clearer messages
             const errorMessage = error instanceof Error ? error.message : String(error);
 
             if (errorMessage.includes("ValidationException")) {
@@ -214,8 +264,18 @@ export class BedrockClient implements LLMClient {
         }
     }
 
-    async complete(systemPrompt: string, userMessage: string, modelId: string): Promise<string> {
-        return this.makeRequest([{ role: "user", content: userMessage }], modelId, systemPrompt);
+    async complete(
+        systemPrompt: string,
+        userMessage: string,
+        modelId: string,
+        options?: CompletionOptions
+    ): Promise<string> {
+        return this.makeRequest(
+            [{ role: "user", content: userMessage }],
+            modelId,
+            systemPrompt,
+            options
+        );
     }
 }
 

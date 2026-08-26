@@ -6,7 +6,6 @@ This tool is aimed at agentic use-cases for large production applications that r
 
 <img width="1776" height="1068" alt="Screenshot 2026-02-24 at 1 20 54 pm" src="https://github.com/user-attachments/assets/c11a1a35-7741-43b2-95d6-12584ceedb70" />
 
-
 ## Features
 
 - **Multi-Provider Testing** – OpenAI, Bedrock, DeepSeek, Gemini, Groq, OpenRouter
@@ -86,6 +85,34 @@ Use ReliaPrompt inside your service for LLM benchmarking and testing from unit t
 
 Configuration is JSON-only via `RELIA_PROMPT_LLM_CONFIG_JSON`.
 Use `.env.example` as the canonical template for the full JSON object.
+
+#### Bedrock
+
+Relia Prompt discovers active global inference profiles from AWS using `ListInferenceProfiles` in the configured source Region. Only active system-defined profiles whose IDs start with `global.` are shown.
+
+Configure AWS credentials in the `bedrock` provider block:
+
+```json
+{
+    "bedrock": {
+        "accessKeyId": "YOUR_AWS_ACCESS_KEY_ID",
+        "secretAccessKey": "YOUR_AWS_SECRET_ACCESS_KEY",
+        "sessionToken": "OPTIONAL_AWS_SESSION_TOKEN",
+        "region": "us-east-1"
+    }
+}
+```
+
+The `region` selects the Bedrock control-plane and runtime endpoints used for request signing and transport. Each `global.` profile ID routes inference through AWS global inference profiles. Listing a profile does not guarantee that your account can invoke it: IAM, SCPs, model access, quotas, and destination-Region policies still apply at request time.
+
+Required IAM actions for Bedrock in Relia Prompt:
+
+- `bedrock:ListInferenceProfiles` to populate the model selector
+- `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream` to run prompt tests
+
+If your organization restricts global routing, ensure your SCPs allow the destination Regions used by global inference profiles.
+
+When a prompt suite defines a valid expected schema, Bedrock requests include native structured output via `outputConfig.textFormat.type: "json_schema"`. Providers without native schema support continue to receive the schema in the system prompt.
 
 See [example](example) for a full example and smoke test.
 

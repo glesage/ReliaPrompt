@@ -1,5 +1,5 @@
 import type { EvaluationMode } from "../../shared/types";
-import type { LLMClient, ModelSelection } from "../llm-clients";
+import type { CompletionOptions, LLMClient, ModelSelection } from "../llm-clients";
 import { compare } from "../utils/compare";
 import { parse, ParseType } from "../utils/parse";
 import { ConfigurationError, getErrorMessage } from "../errors";
@@ -334,24 +334,20 @@ export async function runTests(
     const schemaString =
         expectedSchema ?? (typeof prompt === "object" ? prompt.expectedSchema : undefined);
 
-    // Build the system prompt with schema hint if present
     let systemPrompt = promptContent;
+    let generationCompletionOptions: CompletionOptions | undefined;
     if (schemaString) {
         try {
             const parsedSchema = JSON.parse(schemaString);
-            // The schema can either be:
-            // 1. A full ResponseSchema object with {name, strict, schema} - extract the inner schema
-            // 2. A raw JSON Schema - use as-is
             const schema =
                 parsedSchema.schema && typeof parsedSchema.schema === "object"
                     ? parsedSchema.schema
                     : parsedSchema;
             const normalizedSchema = validate(schema);
 
-            // Append schema hint to the system prompt
+            generationCompletionOptions = { outputSchema: normalizedSchema };
             systemPrompt = `${promptContent}\n\n## Response Schema:\n${JSON.stringify(normalizedSchema)}`;
         } catch {
-            // If parsing fails, ignore the schema
             console.warn("Failed to parse expectedSchema, ignoring structured output");
         }
     }
@@ -372,11 +368,18 @@ export async function runTests(
                 try {
                     const startTime = Date.now();
                     // System prompt includes schema hint if present
-                    const actualOutput = await runner.client.complete(
-                        systemPrompt,
-                        testCase.input,
-                        runner.modelId
-                    );
+                    const actualOutput = generationCompletionOptions
+                        ? await runner.client.complete(
+                              systemPrompt,
+                              testCase.input,
+                              runner.modelId,
+                              generationCompletionOptions
+                          )
+                        : await runner.client.complete(
+                              systemPrompt,
+                              testCase.input,
+                              runner.modelId
+                          );
                     const durationMs = Date.now() - startTime;
 
                     let score = 0;
