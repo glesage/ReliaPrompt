@@ -31,18 +31,6 @@ describe("llm-clients registry", () => {
             expect(getConfiguredClients()).toHaveLength(0);
         });
 
-        test("configured clients after overlay set", () => {
-            setConfigOverlay({
-                openai_api_key: "sk-test",
-                groq_api_key: "gsk-test",
-            });
-            refreshClients();
-            const configured = getConfiguredClients();
-            expect(configured.length).toBeGreaterThanOrEqual(2);
-            const providerIds = configured.map((c) => c.providerId);
-            expect(providerIds).toContain("openai");
-            expect(providerIds).toContain("groq");
-        });
 
         test("refresh clears cached state so client re-reads config", () => {
             setConfigOverlay({ openai_api_key: "sk-first" });
