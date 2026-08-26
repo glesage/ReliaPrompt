@@ -156,11 +156,17 @@ describe("test-runner", () => {
             const result = await runTests(prompt, testCases, modelRunners, 1);
 
             expect(result.score).toBe(1);
-            expect(mockClient.complete).toHaveBeenCalled();
-            const [systemPrompt] = (mockClient.complete as ReturnType<typeof mock>).mock
-                .calls[0] as [string, string, string];
-            expect(systemPrompt).toContain("## Response Schema:");
-            expect(systemPrompt).toContain('"type":"object"');
+            expect(mockClient.complete).toHaveBeenCalledWith(
+                expect.stringContaining("## Response Schema:"),
+                "input1",
+                "test-model",
+                {
+                    outputSchema: {
+                        type: "object",
+                        properties: { name: { type: "string" } },
+                    },
+                }
+            );
         });
 
         test("should run multiple test cases", async () => {
