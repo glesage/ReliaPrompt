@@ -31,7 +31,6 @@ describe("llm-clients registry", () => {
             expect(getConfiguredClients()).toHaveLength(0);
         });
 
-
         test("refresh clears cached state so client re-reads config", () => {
             setConfigOverlay({ openai_api_key: "sk-first" });
             refreshClients();
