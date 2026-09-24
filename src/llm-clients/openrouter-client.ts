@@ -46,10 +46,15 @@ export class OpenRouterClient implements LLMClient {
         }
 
         try {
-            const response = await client.models.list();
+            const pages = await client.models.list();
+            const availableModels = [];
+            for await (const page of pages) {
+                availableModels.push(...page.result.data);
+            }
+
             const models: ModelInfo[] = [];
 
-            for (const model of response.data) {
+            for (const model of availableModels) {
                 if (
                     ![
                         "google/gemini-2.5-flash",
@@ -96,6 +101,10 @@ export class OpenRouterClient implements LLMClient {
                 maxCompletionTokens: 4096,
             },
         });
+
+        if (!("choices" in response)) {
+            return defaultValue;
+        }
 
         const content = response.choices[0]?.message?.content;
         if (typeof content === "string") {
