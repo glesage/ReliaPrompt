@@ -49,8 +49,7 @@ export class OpenAIClient implements LLMClient {
                 .filter((m) => !m.id.includes("2025") && !m.id.includes("2026"))
                 .filter(
                     (m) =>
-                        m.id.includes("gpt-5.4-mini") ||
-                        m.id.includes("gpt-5.4-nano") ||
+                        m.id.includes("gpt-5.4") ||
                         m.id.includes("gpt-5.5") ||
                         m.id.includes("gpt-5.6") ||
                         m.id.includes("gpt-6")
