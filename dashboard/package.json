@@ -13,14 +13,14 @@
         "test:e2e:debug": "playwright test --debug"
     },
     "devDependencies": {
-        "@playwright/test": "^1.61.1",
+        "@playwright/test": "^1.63.0",
         "@sveltejs/adapter-static": "^3.0.10",
-        "@sveltejs/kit": "^2.69.2",
-        "@sveltejs/vite-plugin-svelte": "^7.2.0",
-        "svelte": "^5.56.4",
-        "svelte-check": "^4.7.2",
+        "@sveltejs/kit": "^2.70.3",
+        "@sveltejs/vite-plugin-svelte": "^7.3.1",
+        "svelte": "^5.57.1",
+        "svelte-check": "^4.7.6",
         "typescript": "^6.0.3",
-        "vite": "^8.1.4"
+        "vite": "^8.3.0"
     },
     "type": "module"
 }
