@@ -1,5 +1,3 @@
-// Test result types, kept free of runtime imports so the dashboard can use them.
-
 export interface LLMTestResult {
     llmName: string;
     correctCount: number;
@@ -30,6 +28,12 @@ export interface EvaluationIssue {
     explanation: string;
 }
 
+/** One LLM judge evaluation of an output. */
+export interface EvaluationSample {
+    issues: EvaluationIssue[];
+    score: number;
+}
+
 /**
  * Base type containing common fields shared across test result types.
  */
@@ -41,6 +45,8 @@ export interface BaseTestResult {
     expectedTotal: number;
     unexpectedFound: number;
     issues?: EvaluationIssue[];
+    /** Every judge sample when the prompt uses LLM evaluation; score is their average. */
+    evaluations?: EvaluationSample[];
     error?: string;
     durationMs?: number;
     reason?: string; // LLM evaluation reason (when using LLM evaluation mode)

@@ -18,6 +18,8 @@ export interface PromptDefinition {
      * Set it to judge different prompt versions against the same standard.
      */
     evaluationTask?: string | null;
+    /** Number of times the LLM judge evaluates each output; scores are averaged. Defaults to 1. */
+    evaluationSamples?: number;
 }
 
 export interface TestCaseDefinition {

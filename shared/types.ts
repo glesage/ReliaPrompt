@@ -169,6 +169,10 @@ export interface TestRun {
     expectedTotal?: number;
     unexpectedFound?: number;
     issues?: Array<{ substring: string; explanation: string }>;
+    evaluations?: Array<{
+        issues: Array<{ substring: string; explanation: string }>;
+        score: number;
+    }>;
     reason?: string;
 }
 

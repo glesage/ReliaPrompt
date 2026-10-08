@@ -655,6 +655,19 @@
                                                 >⏱ {formatDuration(run.durationMs)}</span
                                             >
                                         {/if}
+                                        {#if (run.evaluations?.length ?? 0) > 1}
+                                            <span
+                                                class="muted"
+                                                title="Score is the average of these judge samples"
+                                            >
+                                                Judged {run.evaluations?.length}×: {run.evaluations
+                                                    ?.map(
+                                                        (sample) =>
+                                                            `${scoreToPercent(sample.score)}%`
+                                                    )
+                                                    .join(", ")}
+                                            </span>
+                                        {/if}
                                     </div>
                                     <div class="detail-label">Actual output:</div>
                                     <div class="json-preview run-output">

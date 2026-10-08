@@ -83,7 +83,7 @@ Use ReliaPrompt inside your service for LLM benchmarking and testing from unit t
 
 ### Comparing prompt versions with LLM evaluation
 
-By default the LLM judge sees the prompt under test and each test case input. That works for checking one prompt, but when you compare two prompt versions, each one is judged against its own instructions. Set an evaluation task and input to judge every prompt version against the same standard:
+By default the LLM judge sees the prompt under test and each test case input. That works for checking one prompt, but when you compare two prompt versions, each one is judged against its own instructions. Set an evaluation task and input to judge every prompt version against the same standard, and judge each output several times to smooth out judge noise:
 
 ```ts
 const prompt = definePrompt({
@@ -93,6 +93,8 @@ const prompt = definePrompt({
     evaluationCriteria: "...",
     // Shown to the judge instead of `content`.
     evaluationTask: "Review a translation of the source text for an end user.",
+    // The judge evaluates each output this many times and the scores are averaged.
+    evaluationSamples: 3,
 });
 
 const testCase = defineTestCase({
@@ -102,6 +104,17 @@ const testCase = defineTestCase({
     expectedOutput: "{}",
 });
 ```
+
+The judge is not deterministic, so the same output can score differently between runs. An evaluation cache stores judge results by judge model, judge prompt, and output, so identical outputs reuse the same judgements across runs and prompt versions:
+
+```ts
+const evaluationCache = createEvaluationCache("reports/evaluation-cache.json");
+await runPromptTestsFromSuite(suite, { testModels, evaluationModel, evaluationCache });
+```
+
+The cache is saved at the end of each run. The UI shares an in-memory cache across the runs in a session; pass `evaluationCachePath` to `startServer` to keep it in a file between sessions. Changing the judge model, criteria, task, or input starts new cache entries.
+
+Results include every judge sample on each run (`evaluations`), and the UI shows them in the run details.
 
 ### Configuration
 

@@ -19,6 +19,7 @@ export function definePrompt(options: {
     evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
     evaluationTask?: string | null;
+    evaluationSamples?: number;
     id?: string;
 }): PromptDefinition {
     const slug = slugify(options.name);
@@ -31,6 +32,7 @@ export function definePrompt(options: {
         evaluationMode: options.evaluationMode ?? "schema",
         evaluationCriteria: options.evaluationCriteria ?? null,
         evaluationTask: options.evaluationTask ?? null,
+        evaluationSamples: options.evaluationSamples ?? 1,
     };
 }
 

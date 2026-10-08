@@ -17,6 +17,7 @@ import {
     type EvaluationIssue,
     type BaseTestResult,
 } from "./services/test-runner";
+import type { EvaluationCache } from "./services/evaluation-cache";
 import { compare } from "./utils/compare";
 import { parse, ParseType } from "./utils/parse";
 import { ConfigurationError } from "./errors";
@@ -32,8 +33,11 @@ export type {
     RunResult,
     TestResults,
     EvaluationIssue,
+    EvaluationSample,
     BaseTestResult,
 } from "./services/test-runner";
+export type { EvaluationCache } from "./services/evaluation-cache";
+export { createEvaluationCache } from "./services/evaluation-cache";
 export { ParseType } from "./utils/parse";
 export { compare } from "./utils/compare";
 export { parse } from "./utils/parse";
@@ -45,6 +49,8 @@ export interface PromptLike {
     evaluationCriteria?: string | null;
     /** Task shown to the LLM judge instead of the prompt content. */
     evaluationTask?: string | null;
+    /** Number of times the LLM judge evaluates each output; scores are averaged. */
+    evaluationSamples?: number;
     id?: number;
 }
 
@@ -62,6 +68,8 @@ export interface RunPromptTestsOptions {
     testModels: ModelSelection[];
     evaluationModel?: ModelSelection;
     runsPerTest?: number;
+    /** Reuses LLM judge results for identical outputs across runs and prompt versions. */
+    evaluationCache?: EvaluationCache;
 }
 
 export function initializeReliaPrompt(options: ReliaPromptInitOptions): void {
@@ -128,7 +136,7 @@ export async function runPromptTests(
     testCases: TestCaseLike[],
     options: RunPromptTestsOptions
 ): Promise<{ score: number; results: LLMTestResult[] }> {
-    const { testModels, evaluationModel, runsPerTest = 1 } = options;
+    const { testModels, evaluationModel, runsPerTest = 1, evaluationCache } = options;
 
     if (!testModels || testModels.length === 0) {
         throw new ConfigurationError(
@@ -177,7 +185,8 @@ export async function runPromptTests(
         modelRunners,
         runsPerTest,
         undefined,
-        evaluationModelRunner
+        evaluationModelRunner,
+        evaluationCache
     );
 }
 
@@ -191,6 +200,7 @@ export async function runPromptTestsFromSuite(
         evaluationMode: suite.prompt.evaluationMode,
         evaluationCriteria: suite.prompt.evaluationCriteria,
         evaluationTask: suite.prompt.evaluationTask,
+        evaluationSamples: suite.prompt.evaluationSamples,
     };
     const testCasesLike: TestCaseLike[] = suite.testCases.map((tc) => ({
         input: tc.input,
