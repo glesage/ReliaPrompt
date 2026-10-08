@@ -18,6 +18,7 @@ export function definePrompt(options: {
     expectedSchema?: string | null;
     evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
+    evaluationTask?: string | null;
     id?: string;
 }): PromptDefinition {
     const slug = slugify(options.name);
@@ -29,6 +30,7 @@ export function definePrompt(options: {
         expectedSchema: options.expectedSchema ?? null,
         evaluationMode: options.evaluationMode ?? "schema",
         evaluationCriteria: options.evaluationCriteria ?? null,
+        evaluationTask: options.evaluationTask ?? null,
     };
 }
 
@@ -40,6 +42,7 @@ export function defineTestCase(options: {
     expectedOutput: string;
     expectedOutputType?: string;
     ignoredOutputKeys?: string[];
+    evaluationInput?: string;
     id?: string;
 }): TestCaseDefinition {
     const id = options.id ?? `tc-${options.input.slice(0, 32).replace(/\s+/g, "-")}`;
@@ -49,6 +52,7 @@ export function defineTestCase(options: {
         expectedOutput: options.expectedOutput,
         expectedOutputType: options.expectedOutputType ?? "string",
         ignoredOutputKeys: options.ignoredOutputKeys ?? [],
+        evaluationInput: options.evaluationInput,
     };
 }
 

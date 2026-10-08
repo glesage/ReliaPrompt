@@ -13,6 +13,11 @@ export interface PromptDefinition {
     expectedSchema?: string | null;
     evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
+    /**
+     * Task description shown to the LLM judge instead of the prompt content.
+     * Set it to judge different prompt versions against the same standard.
+     */
+    evaluationTask?: string | null;
 }
 
 export interface TestCaseDefinition {
@@ -22,6 +27,8 @@ export interface TestCaseDefinition {
     expectedOutput: string;
     expectedOutputType: string;
     ignoredOutputKeys?: string[];
+    /** Input shown to the LLM judge instead of the generation input. */
+    evaluationInput?: string;
 }
 
 export interface PromptSuiteDefinition {

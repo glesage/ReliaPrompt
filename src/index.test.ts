@@ -71,6 +71,12 @@ describe("relia-prompt library API", () => {
         expect(suite.testCases[0].input).toBe("x");
     });
 
+    test("definePrompt defaults evaluationTask to null", () => {
+        const prompt = definePrompt({ name: "test-prompt", content: "Hello" });
+
+        expect(prompt.evaluationTask).toBeNull();
+    });
+
     test("defineTestCase defaults expectedOutputType to string", () => {
         const tc = defineTestCase({ input: "name", expectedOutput: "Alice" });
         expect(tc.expectedOutputType).toBe("string");

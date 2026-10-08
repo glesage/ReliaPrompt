@@ -81,6 +81,28 @@ Use ReliaPrompt inside your service for LLM benchmarking and testing from unit t
 
     The UI shows prompts and tests from your code (read-only tests; prompt edits in the browser are drafts only). Configure `RELIA_PROMPT_LLM_CONFIG_JSON` in `.env` and choose test/evaluation models on each run.
 
+### Comparing prompt versions with LLM evaluation
+
+By default the LLM judge sees the prompt under test and each test case input. That works for checking one prompt, but when you compare two prompt versions, each one is judged against its own instructions. Set an evaluation task and input to judge every prompt version against the same standard:
+
+```ts
+const prompt = definePrompt({
+    name: "translate",
+    content: translationPrompt, // the prompt under test
+    evaluationMode: "llm",
+    evaluationCriteria: "...",
+    // Shown to the judge instead of `content`.
+    evaluationTask: "Review a translation of the source text for an end user.",
+});
+
+const testCase = defineTestCase({
+    input: generationInput, // what the prompt under test receives
+    // Shown to the judge instead of `input`.
+    evaluationInput: "Source text: ...\nContext: ...",
+    expectedOutput: "{}",
+});
+```
+
 ### Configuration
 
 Configuration is JSON-only via `RELIA_PROMPT_LLM_CONFIG_JSON`.

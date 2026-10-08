@@ -673,6 +673,45 @@ describe("test-runner", () => {
         });
     });
 
+    describe("LLM evaluation options", () => {
+        test("should show the judge the evaluation task and input instead of the prompt and input", async () => {
+            const generationClient = createMockLLMClient("generator");
+            const judgeClient = createMockLLMClient("judge");
+            generationClient.complete = mock(() => Promise.resolve("candidate output"));
+            judgeClient.complete = mock(() => Promise.resolve(JSON.stringify({ issues: [] })));
+
+            const prompt: MinimalPrompt = {
+                ...createPrompt(1, "Prompt under test", "llm", "Must be accurate."),
+                evaluationTask: "Fixed evaluation task",
+            };
+            const testCases: MinimalTestCase[] = [
+                { ...createTestCase(1, "generation input", "[]"), evaluationInput: "judge input" },
+            ];
+
+            await runTests(
+                prompt,
+                testCases,
+                [
+                    {
+                        client: generationClient,
+                        modelId: "gen-model",
+                        displayName: "generator (gen-model)",
+                    },
+                ],
+                1,
+                undefined,
+                { client: judgeClient, modelId: "judge-model", displayName: "judge (judge-model)" }
+            );
+
+            const judgePrompt = (judgeClient.complete as ReturnType<typeof mock>).mock
+                .calls[0][0] as string;
+            expect(judgePrompt).toContain("## Initial task\nFixed evaluation task");
+            expect(judgePrompt).toContain("## Initial input\njudge input");
+            expect(judgePrompt).not.toContain("Prompt under test");
+            expect(judgePrompt).not.toContain("generation input");
+        });
+    });
+
     describe("getTestResultSummary", () => {
         test("should generate summary for correct results", () => {
             const results: LLMTestResult[] = [

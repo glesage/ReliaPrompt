@@ -19,6 +19,7 @@ export interface MinimalPrompt {
     expectedSchema?: string | null;
     evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
+    evaluationTask?: string | null;
     id?: number;
 }
 
@@ -29,6 +30,7 @@ export interface MinimalTestCase {
     expectedOutput: string;
     expectedOutputType: string;
     ignoredOutputKeys?: string[];
+    evaluationInput?: string;
 }
 
 // Represents a model to run tests against
@@ -165,52 +167,51 @@ function calculateScoreFromIssues(issues: EvaluationIssue[]): number {
     return Math.max(0, Math.min(1, Number(score.toFixed(6))));
 }
 
-/**
- * Calls the selected judge model to evaluate an AI output based on evaluation criteria.
- * Returns structured issues; score is computed deterministically from issues.
- */
-async function evaluateWithLLMJudge(
-    promptContent: string,
-    testCaseInput: string,
-    actualOutput: string,
-    evaluationCriteria: string,
-    evaluationModelRunner: ModelRunner
-): Promise<{ issues: EvaluationIssue[] }> {
-    const evaluationIssuesJsonSchema = {
-        $schema: "https://json-schema.org/draft/2020-12/schema",
-        type: "object",
-        additionalProperties: false,
-        required: ["issues"],
-        properties: {
-            issues: {
-                type: "array",
-                items: {
-                    type: "object",
-                    additionalProperties: false,
-                    required: ["substring", "explanation"],
-                    properties: {
-                        substring: { type: "string" },
-                        explanation: { type: "string" },
-                    },
+const EVALUATION_ISSUES_JSON_SCHEMA = {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    type: "object",
+    additionalProperties: false,
+    required: ["issues"],
+    properties: {
+        issues: {
+            type: "array",
+            items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["substring", "explanation"],
+                properties: {
+                    substring: { type: "string" },
+                    explanation: { type: "string" },
                 },
             },
         },
-    };
+    },
+};
 
-    const judgePrompt = `You are evaluating an extraction result and must identify issues only.
+/**
+ * Builds the LLM judge system prompt. The initial task and input default to the prompt
+ * content and generation input, but can be replaced with an evaluation task and input so
+ * different prompt versions are judged against the same standard.
+ */
+function buildJudgePrompt(
+    evaluationCriteria: string,
+    initialTask: string,
+    initialInput: string
+): string {
+    return `You are evaluating an extraction result and must identify issues only.
 Return only a valid json object.
 
 ## Your task
 ${evaluationCriteria}
 
 ## Initial task
-${promptContent}
+${initialTask}
 
 ## Initial input
-${testCaseInput}
+${initialInput}
 
 ## Required json schema
-${JSON.stringify(evaluationIssuesJsonSchema)}
+${JSON.stringify(EVALUATION_ISSUES_JSON_SCHEMA)}
 
 ## Evaluation json format
 Every issue.explanation value must be written in English, even when the evaluation criteria, initial task, input, or output use another language.
@@ -228,7 +229,17 @@ Every issue.explanation value must be written in English, even when the evaluati
 }
 If no issues are found, return {"issues": []}.
 Do not include markdown fences. Output only json.`;
+}
 
+/**
+ * Calls the selected judge model to evaluate an AI output.
+ * Returns structured issues; score is computed deterministically from issues.
+ */
+async function evaluateWithLLMJudge(
+    judgePrompt: string,
+    actualOutput: string,
+    evaluationModelRunner: ModelRunner
+): Promise<{ issues: EvaluationIssue[] }> {
     try {
         const judgeResponse = await evaluationModelRunner.client.complete(
             judgePrompt,
@@ -288,6 +299,7 @@ export async function runTests(
     // Get evaluation mode and criteria if prompt is an object
     const evaluationMode = promptObj?.evaluationMode || "schema";
     const evaluationCriteria = promptObj?.evaluationCriteria || null;
+    const evaluationTask = promptObj?.evaluationTask || promptContent;
 
     // If expectedSchema not passed explicitly, try to get from prompt object
     const schemaString =
@@ -356,11 +368,14 @@ export async function runTests(
                             );
                         }
 
-                        const evaluation = await evaluateWithLLMJudge(
-                            promptContent,
-                            testCase.input,
-                            actualOutput,
+                        const judgePrompt = buildJudgePrompt(
                             evaluationCriteria,
+                            evaluationTask,
+                            testCase.evaluationInput ?? testCase.input
+                        );
+                        const evaluation = await evaluateWithLLMJudge(
+                            judgePrompt,
+                            actualOutput,
                             evaluationModelRunner
                         );
                         issues = deduplicateIssues(evaluation.issues);

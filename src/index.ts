@@ -43,6 +43,8 @@ export interface PromptLike {
     expectedSchema?: string | null;
     evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
+    /** Task shown to the LLM judge instead of the prompt content. */
+    evaluationTask?: string | null;
     id?: number;
 }
 
@@ -51,6 +53,8 @@ export interface TestCaseLike {
     expectedOutput: string;
     expectedOutputType: string;
     ignoredOutputKeys?: string[];
+    /** Input shown to the LLM judge instead of the generation input. */
+    evaluationInput?: string;
     id?: number;
 }
 
@@ -163,6 +167,7 @@ export async function runPromptTests(
         expectedOutput: tc.expectedOutput,
         expectedOutputType: tc.expectedOutputType,
         ignoredOutputKeys: tc.ignoredOutputKeys,
+        evaluationInput: tc.evaluationInput,
         id: tc.id ?? i,
     }));
 
@@ -185,12 +190,14 @@ export async function runPromptTestsFromSuite(
         expectedSchema: suite.prompt.expectedSchema,
         evaluationMode: suite.prompt.evaluationMode,
         evaluationCriteria: suite.prompt.evaluationCriteria,
+        evaluationTask: suite.prompt.evaluationTask,
     };
     const testCasesLike: TestCaseLike[] = suite.testCases.map((tc) => ({
         input: tc.input,
         expectedOutput: tc.expectedOutput,
         expectedOutputType: normalizeExpectedOutputType(tc.expectedOutputType, tc.expectedOutput),
         ignoredOutputKeys: tc.ignoredOutputKeys,
+        evaluationInput: tc.evaluationInput,
     }));
     return runPromptTests(promptLike, testCasesLike, options);
 }
