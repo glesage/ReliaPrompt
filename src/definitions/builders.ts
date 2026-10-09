@@ -1,5 +1,10 @@
 import type { EvaluationMode } from "../../shared/types";
-import type { PromptDefinition, TestCaseDefinition, PromptSuiteDefinition } from "./types";
+import type {
+    PromptDefinition,
+    TestCaseDefinition,
+    PromptSuiteDefinition,
+    SuiteMetricDefinition,
+} from "./types";
 
 function slugify(name: string): string {
     return name
@@ -64,6 +69,7 @@ export function defineTestCase(options: {
 export function defineSuite(options: {
     prompt: PromptDefinition;
     testCases: TestCaseDefinition[];
+    metrics?: SuiteMetricDefinition[];
     id?: string;
 }): PromptSuiteDefinition {
     const suiteId = options.id ?? options.prompt.id;
@@ -74,5 +80,6 @@ export function defineSuite(options: {
         id: suiteId,
         prompt: options.prompt,
         testCases,
+        metrics: options.metrics ?? [],
     };
 }

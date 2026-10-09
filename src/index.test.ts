@@ -78,6 +78,14 @@ describe("relia-prompt library API", () => {
         expect(prompt.evaluationSamples).toBe(1);
     });
 
+    test("defineSuite keeps metrics and defaults them to empty", () => {
+        const prompt = definePrompt({ name: "test-prompt", content: "Hello" });
+        const metric = { name: "Outputs", compute: () => 0 };
+
+        expect(defineSuite({ prompt, testCases: [] }).metrics).toEqual([]);
+        expect(defineSuite({ prompt, testCases: [], metrics: [metric] }).metrics).toEqual([metric]);
+    });
+
     test("defineTestCase defaults expectedOutputType to string", () => {
         const tc = defineTestCase({ input: "name", expectedOutput: "Alice" });
         expect(tc.expectedOutputType).toBe("string");

@@ -1,4 +1,5 @@
 import type { EvaluationMode } from "../../shared/types";
+import type { TestCaseResult } from "../services/result-types";
 
 /**
  * Code-first definition types for prompts and test cases.
@@ -33,9 +34,19 @@ export interface TestCaseDefinition {
     evaluationInput?: string;
 }
 
+/**
+ * A metric computed over all of a model's results in a suite, for checks that
+ * span test cases, such as whether outputs stay consistent with each other.
+ */
+export interface SuiteMetricDefinition {
+    name: string;
+    compute: (testCaseResults: TestCaseResult[]) => string | number;
+}
+
 export interface PromptSuiteDefinition {
     /** Stable id, usually same as prompt.id. */
     id: string;
     prompt: PromptDefinition;
     testCases: TestCaseDefinition[];
+    metrics?: SuiteMetricDefinition[];
 }

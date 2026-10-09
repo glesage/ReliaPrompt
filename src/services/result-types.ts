@@ -1,3 +1,8 @@
+export interface SuiteMetricResult {
+    name: string;
+    value: string | number;
+}
+
 export interface LLMTestResult {
     llmName: string;
     correctCount: number;
@@ -9,6 +14,8 @@ export interface LLMTestResult {
         maxMs: number;
         avgMs: number;
     };
+    /** Suite metrics computed over this model's results (suite runs only). */
+    metrics?: SuiteMetricResult[];
 }
 
 export interface TestCaseResult {

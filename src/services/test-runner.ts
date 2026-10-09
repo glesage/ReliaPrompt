@@ -10,6 +10,7 @@ import type {
     EvaluationSample,
     LLMTestResult,
     RunResult,
+    SuiteMetricResult,
     TestCaseResult,
 } from "./result-types";
 
@@ -19,6 +20,7 @@ export type {
     EvaluationSample,
     LLMTestResult,
     RunResult,
+    SuiteMetricResult,
     TestCaseResult,
 };
 
@@ -167,7 +169,7 @@ function deduplicateIssues(issues: EvaluationIssue[]): EvaluationIssue[] {
  * Deterministic linear equation for quality scoring using issue substring character length.
  * score = clamp(1 - Σ(deduction per normalized issue), 0, 1)
  */
-function calculateScoreFromIssues(issues: EvaluationIssue[]): number {
+export function calculateScoreFromIssues(issues: EvaluationIssue[]): number {
     const normalizedIssues = deduplicateIssues(issues);
     const totalDeduction = normalizedIssues.reduce((total, issue) => {
         return total + computeIssueDeduction(issue);

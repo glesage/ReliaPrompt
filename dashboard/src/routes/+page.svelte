@@ -537,6 +537,17 @@
                                                     <circle cx="12" cy="12" r="3" />
                                                 </svg>
                                             </button>
+                                            {#if (llm.metrics?.length ?? 0) > 0}
+                                                <ul class="llm-metrics">
+                                                    {#each llm.metrics ?? [] as metric}
+                                                        <li>
+                                                            <span class="muted">{metric.name}:</span
+                                                            >
+                                                            {metric.value}
+                                                        </li>
+                                                    {/each}
+                                                </ul>
+                                            {/if}
                                         </div>
                                     {/each}
                                 </div>

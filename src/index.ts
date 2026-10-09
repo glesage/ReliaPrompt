@@ -16,15 +16,21 @@ import {
     type TestResults,
     type EvaluationIssue,
     type BaseTestResult,
+    type SuiteMetricResult,
 } from "./services/test-runner";
 import type { EvaluationCache } from "./services/evaluation-cache";
 import { compare } from "./utils/compare";
 import { parse, ParseType } from "./utils/parse";
-import { ConfigurationError } from "./errors";
+import { ConfigurationError, getErrorMessage } from "./errors";
 import type { PromptDefinition, TestCaseDefinition, PromptSuiteDefinition } from "./definitions";
 
 export type { ReliaPromptInitOptions, ProviderCredentials } from "./runtime/types";
-export type { PromptDefinition, TestCaseDefinition, PromptSuiteDefinition } from "./definitions";
+export type {
+    PromptDefinition,
+    TestCaseDefinition,
+    PromptSuiteDefinition,
+    SuiteMetricDefinition,
+} from "./definitions";
 export { definePrompt, defineTestCase, defineSuite } from "./definitions";
 export type { ModelSelection, LLMClient, ModelInfo } from "./llm-clients";
 export type {
@@ -35,7 +41,9 @@ export type {
     EvaluationIssue,
     EvaluationSample,
     BaseTestResult,
+    SuiteMetricResult,
 } from "./services/test-runner";
+export { calculateScoreFromIssues } from "./services/test-runner";
 export type { EvaluationCache } from "./services/evaluation-cache";
 export { createEvaluationCache } from "./services/evaluation-cache";
 export { ParseType } from "./utils/parse";
@@ -190,6 +198,19 @@ export async function runPromptTests(
     );
 }
 
+function computeSuiteMetrics(
+    suite: PromptSuiteDefinition,
+    llmResult: LLMTestResult
+): SuiteMetricResult[] {
+    return (suite.metrics ?? []).map((metric) => {
+        try {
+            return { name: metric.name, value: metric.compute(llmResult.testCaseResults) };
+        } catch (error) {
+            return { name: metric.name, value: `Error: ${getErrorMessage(error)}` };
+        }
+    });
+}
+
 export async function runPromptTestsFromSuite(
     suite: PromptSuiteDefinition,
     options: RunPromptTestsOptions
@@ -209,5 +230,12 @@ export async function runPromptTestsFromSuite(
         ignoredOutputKeys: tc.ignoredOutputKeys,
         evaluationInput: tc.evaluationInput,
     }));
-    return runPromptTests(promptLike, testCasesLike, options);
+    const { score, results } = await runPromptTests(promptLike, testCasesLike, options);
+    return {
+        score,
+        results: results.map((llmResult) => ({
+            ...llmResult,
+            metrics: computeSuiteMetrics(suite, llmResult),
+        })),
+    };
 }

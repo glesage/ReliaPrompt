@@ -12,6 +12,8 @@ This tool is aimed at agentic use-cases for large production applications that r
 - **Parallel Execution** – Run tests concurrently across all configured LLMs
 - **Repeatability** – Each test runs N times per model to measure consistency
 - **Code-first** – Define prompts and tests in code
+- **Fair prompt comparisons** – Judge prompt versions against the same standard, average several judge samples, and cache judgements for identical outputs
+- **Suite metrics** – Compute checks across all of a model's outputs, such as consistency between test cases
 
 ## Quick Start
 
@@ -103,6 +105,21 @@ const testCase = defineTestCase({
     evaluationInput: "Source text: ...\nContext: ...",
     expectedOutput: "{}",
 });
+
+export const suites = [
+    defineSuite({
+        prompt,
+        testCases: [testCase],
+        // Computed over all of a model's results, for checks that span test cases.
+        metrics: [
+            {
+                name: "Outputs",
+                compute: (testCaseResults) =>
+                    testCaseResults.flatMap((testCase) => testCase.runs).length,
+            },
+        ],
+    }),
+];
 ```
 
 The judge is not deterministic, so the same output can score differently between runs. An evaluation cache stores judge results by judge model, judge prompt, and output, so identical outputs reuse the same judgements across runs and prompt versions:
@@ -114,7 +131,7 @@ await runPromptTestsFromSuite(suite, { testModels, evaluationModel, evaluationCa
 
 The cache is saved at the end of each run. The UI shares an in-memory cache across the runs in a session; pass `evaluationCachePath` to `startServer` to keep it in a file between sessions. Changing the judge model, criteria, task, or input starts new cache entries.
 
-Results include every judge sample on each run (`evaluations`), and the UI shows them in the run details.
+Results include every judge sample on each run (`evaluations`) and each suite metric on each model's result (`metrics`). The UI shows both.
 
 ### Configuration
 
