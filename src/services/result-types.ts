@@ -14,7 +14,6 @@ export interface LLMTestResult {
         maxMs: number;
         avgMs: number;
     };
-    /** Suite metrics computed over this model's results (suite runs only). */
     metrics?: SuiteMetricResult[];
 }
 
@@ -35,7 +34,6 @@ export interface EvaluationIssue {
     explanation: string;
 }
 
-/** One LLM judge evaluation of an output. */
 export interface EvaluationSample {
     issues: EvaluationIssue[];
     score: number;
@@ -52,8 +50,7 @@ export interface BaseTestResult {
     expectedTotal: number;
     unexpectedFound: number;
     issues?: EvaluationIssue[];
-    /** Every judge sample when the prompt uses LLM evaluation; score is their average. */
-    evaluations?: EvaluationSample[];
+    evaluations?: EvaluationSample[]; // LLM judge samples; score is their average
     error?: string;
     durationMs?: number;
     reason?: string; // LLM evaluation reason (when using LLM evaluation mode)

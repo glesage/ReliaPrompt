@@ -52,8 +52,7 @@ const staticPath = assetPaths.staticPath;
 app.use(express.static(staticPath));
 
 let projectRoot: string | null = null;
-// Shared by every run in this server session, so prompt drafts compared in the UI reuse the
-// same LLM judge results for identical outputs.
+// Shared across the session so prompt drafts compared in the UI reuse judgements.
 let evaluationCache: EvaluationCache = createEvaluationCache();
 
 /** Build read-only config for UI: same keys as LLMConfig, values masked when set. */
@@ -161,7 +160,7 @@ export interface ServerOptions {
     port?: number;
     /** Project root for file-scan (definitions live in code under this path). */
     projectRoot?: string;
-    /** JSON file that keeps LLM judge results between server sessions. In memory when omitted. */
+    /** Keeps LLM judge results in this JSON file between sessions. */
     evaluationCachePath?: string;
 }
 

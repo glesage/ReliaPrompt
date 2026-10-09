@@ -14,12 +14,9 @@ export interface PromptDefinition {
     expectedSchema?: string | null;
     evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
-    /**
-     * Task description shown to the LLM judge instead of the prompt content.
-     * Set it to judge different prompt versions against the same standard.
-     */
+    /** Shown to the LLM judge instead of `content`, so prompt versions share one standard. */
     evaluationTask?: string | null;
-    /** Number of times the LLM judge evaluates each output; scores are averaged. Defaults to 1. */
+    /** Times the LLM judge evaluates each output; the scores are averaged. */
     evaluationSamples?: number;
 }
 
@@ -30,14 +27,11 @@ export interface TestCaseDefinition {
     expectedOutput: string;
     expectedOutputType: string;
     ignoredOutputKeys?: string[];
-    /** Input shown to the LLM judge instead of the generation input. */
+    /** Shown to the LLM judge instead of `input`. */
     evaluationInput?: string;
 }
 
-/**
- * A metric computed over all of a model's results in a suite, for checks that
- * span test cases, such as whether outputs stay consistent with each other.
- */
+/** Computed over all of a model's results, for checks that span test cases. */
 export interface SuiteMetricDefinition {
     name: string;
     compute: (testCaseResults: TestCaseResult[]) => string | number;

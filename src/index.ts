@@ -7,17 +7,8 @@ import {
     type LLMClient,
     type ModelSelection,
 } from "./llm-clients";
-import {
-    runTests,
-    type ModelRunner,
-    type LLMTestResult,
-    type TestCaseResult,
-    type RunResult,
-    type TestResults,
-    type EvaluationIssue,
-    type BaseTestResult,
-    type SuiteMetricResult,
-} from "./services/test-runner";
+import { runTests, type ModelRunner } from "./services/test-runner";
+import type { LLMTestResult } from "./services/result-types";
 import type { EvaluationCache } from "./services/evaluation-cache";
 import { compare } from "./utils/compare";
 import { parse, ParseType } from "./utils/parse";
@@ -33,16 +24,16 @@ export type {
 } from "./definitions";
 export { definePrompt, defineTestCase, defineSuite } from "./definitions";
 export type { ModelSelection, LLMClient, ModelInfo } from "./llm-clients";
+export type { TestResults } from "./services/test-runner";
 export type {
     LLMTestResult,
     TestCaseResult,
     RunResult,
-    TestResults,
     EvaluationIssue,
     EvaluationSample,
     BaseTestResult,
     SuiteMetricResult,
-} from "./services/test-runner";
+} from "./services/result-types";
 export { calculateScoreFromIssues } from "./services/test-runner";
 export type { EvaluationCache } from "./services/evaluation-cache";
 export { createEvaluationCache } from "./services/evaluation-cache";
@@ -55,9 +46,7 @@ export interface PromptLike {
     expectedSchema?: string | null;
     evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
-    /** Task shown to the LLM judge instead of the prompt content. */
     evaluationTask?: string | null;
-    /** Number of times the LLM judge evaluates each output; scores are averaged. */
     evaluationSamples?: number;
     id?: number;
 }
@@ -67,7 +56,6 @@ export interface TestCaseLike {
     expectedOutput: string;
     expectedOutputType: string;
     ignoredOutputKeys?: string[];
-    /** Input shown to the LLM judge instead of the generation input. */
     evaluationInput?: string;
     id?: number;
 }
@@ -76,7 +64,6 @@ export interface RunPromptTestsOptions {
     testModels: ModelSelection[];
     evaluationModel?: ModelSelection;
     runsPerTest?: number;
-    /** Reuses LLM judge results for identical outputs across runs and prompt versions. */
     evaluationCache?: EvaluationCache;
 }
 
@@ -198,19 +185,6 @@ export async function runPromptTests(
     );
 }
 
-function computeSuiteMetrics(
-    suite: PromptSuiteDefinition,
-    llmResult: LLMTestResult
-): SuiteMetricResult[] {
-    return (suite.metrics ?? []).map((metric) => {
-        try {
-            return { name: metric.name, value: metric.compute(llmResult.testCaseResults) };
-        } catch (error) {
-            return { name: metric.name, value: `Error: ${getErrorMessage(error)}` };
-        }
-    });
-}
-
 export async function runPromptTestsFromSuite(
     suite: PromptSuiteDefinition,
     options: RunPromptTestsOptions
@@ -233,9 +207,16 @@ export async function runPromptTestsFromSuite(
     const { score, results } = await runPromptTests(promptLike, testCasesLike, options);
     return {
         score,
+        // A failing metric is reported in its value so it cannot discard the test runs.
         results: results.map((llmResult) => ({
             ...llmResult,
-            metrics: computeSuiteMetrics(suite, llmResult),
+            metrics: (suite.metrics ?? []).map((metric) => {
+                try {
+                    return { name: metric.name, value: metric.compute(llmResult.testCaseResults) };
+                } catch (error) {
+                    return { name: metric.name, value: `Error: ${getErrorMessage(error)}` };
+                }
+            }),
         })),
     };
 }

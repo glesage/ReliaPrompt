@@ -1,28 +1,17 @@
+import { createHash } from "crypto";
 import type { EvaluationMode } from "../../shared/types";
 import type { CompletionOptions, LLMClient, ModelSelection } from "../llm-clients";
 import { compare } from "../utils/compare";
 import { parse, ParseType } from "../utils/parse";
 import { ConfigurationError, getErrorMessage } from "../errors";
-import { createEvaluationCacheKey, type EvaluationCache } from "./evaluation-cache";
+import type { EvaluationCache } from "./evaluation-cache";
 import type {
-    BaseTestResult,
     EvaluationIssue,
     EvaluationSample,
     LLMTestResult,
     RunResult,
-    SuiteMetricResult,
     TestCaseResult,
 } from "./result-types";
-
-export type {
-    BaseTestResult,
-    EvaluationIssue,
-    EvaluationSample,
-    LLMTestResult,
-    RunResult,
-    SuiteMetricResult,
-    TestCaseResult,
-};
 
 /** Minimal prompt shape for runTests (no DB-only fields). */
 export interface MinimalPrompt {
@@ -200,11 +189,6 @@ const EVALUATION_ISSUES_JSON_SCHEMA = {
     },
 };
 
-/**
- * Builds the LLM judge system prompt. The initial task and input default to the prompt
- * content and generation input, but can be replaced with an evaluation task and input so
- * different prompt versions are judged against the same standard.
- */
 function buildJudgePrompt(
     evaluationCriteria: string,
     initialTask: string,
@@ -246,7 +230,6 @@ Do not include markdown fences. Output only json.`;
 /**
  * Calls the selected judge model to evaluate an AI output.
  * Returns structured issues; score is computed deterministically from issues.
- * isValid is false when the judge response could not be parsed.
  */
 async function evaluateWithLLMJudge(
     judgePrompt: string,
@@ -299,11 +282,7 @@ async function evaluateWithLLMJudge(
     }
 }
 
-/**
- * Evaluates an output with the LLM judge evaluationSamples times. With a cache, identical
- * outputs reuse earlier judgements and only missing samples are judged; failed judge
- * responses are not cached.
- */
+// Identical outputs reuse cached judgements; failed judge responses are not cached.
 async function evaluateWithLLMJudgeSamples(
     judgePrompt: string,
     actualOutput: string,
@@ -311,15 +290,18 @@ async function evaluateWithLLMJudgeSamples(
     evaluationSamples: number,
     evaluationCache?: EvaluationCache
 ): Promise<EvaluationSample[]> {
-    const cacheKey = createEvaluationCacheKey(
-        evaluationModelRunner.client.providerId,
-        evaluationModelRunner.modelId,
-        judgePrompt,
-        actualOutput
-    );
-    const cachedJudgements = evaluationCache?.get(cacheKey) ?? [];
+    const cacheKey = createHash("sha256")
+        .update(
+            JSON.stringify([
+                evaluationModelRunner.client.providerId,
+                evaluationModelRunner.modelId,
+                judgePrompt,
+                actualOutput,
+            ])
+        )
+        .digest("hex");
+    const cachedJudgements = evaluationCache?.judgements.get(cacheKey) ?? [];
     const judgements = cachedJudgements.slice(0, evaluationSamples);
-    const newJudgements: EvaluationIssue[][] = [];
 
     while (judgements.length < evaluationSamples) {
         const evaluation = await evaluateWithLLMJudge(
@@ -330,14 +312,11 @@ async function evaluateWithLLMJudgeSamples(
         const issues = deduplicateIssues(evaluation.issues);
         judgements.push(issues);
         if (evaluation.isValid) {
-            newJudgements.push(issues);
+            cachedJudgements.push(issues);
         }
     }
 
-    if (evaluationCache && newJudgements.length > 0) {
-        evaluationCache.set(cacheKey, [...cachedJudgements, ...newJudgements]);
-    }
-
+    evaluationCache?.judgements.set(cacheKey, cachedJudgements);
     return judgements.map((issues) => ({ issues, score: calculateScoreFromIssues(issues) }));
 }
 

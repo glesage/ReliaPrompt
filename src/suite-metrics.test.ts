@@ -1,6 +1,3 @@
-/**
- * Suite metrics: computed by runPromptTestsFromSuite over each model's results.
- */
 import { describe, test, expect, spyOn, afterEach } from "bun:test";
 import {
     definePrompt,

@@ -537,9 +537,9 @@
                                                     <circle cx="12" cy="12" r="3" />
                                                 </svg>
                                             </button>
-                                            {#if (llm.metrics?.length ?? 0) > 0}
+                                            {#if llm.metrics?.length}
                                                 <ul class="llm-metrics">
-                                                    {#each llm.metrics ?? [] as metric}
+                                                    {#each llm.metrics as metric}
                                                         <li>
                                                             <span class="muted">{metric.name}:</span
                                                             >
@@ -666,13 +666,13 @@
                                                 >⏱ {formatDuration(run.durationMs)}</span
                                             >
                                         {/if}
-                                        {#if (run.evaluations?.length ?? 0) > 1}
+                                        {#if run.evaluations && run.evaluations.length > 1}
                                             <span
                                                 class="muted"
                                                 title="Score is the average of these judge samples"
                                             >
-                                                Judged {run.evaluations?.length}×: {run.evaluations
-                                                    ?.map(
+                                                Judged {run.evaluations.length}×: {run.evaluations
+                                                    .map(
                                                         (sample) =>
                                                             `${scoreToPercent(sample.score)}%`
                                                     )

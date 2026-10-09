@@ -10,10 +10,10 @@ import {
     runTests,
     getTestResultSummary,
     type ModelRunner,
-    type LLMTestResult,
     type MinimalPrompt,
     type MinimalTestCase,
 } from "./test-runner";
+import type { LLMTestResult } from "./result-types";
 import type { LLMClient } from "../llm-clients/llm-client";
 import { ParseType } from "../utils/parse";
 import { createEvaluationCache } from "./evaluation-cache";
@@ -675,29 +675,27 @@ describe("test-runner", () => {
     });
 
     describe("LLM evaluation options", () => {
-        const judgeRunner = (judgeClient: LLMClient): ModelRunner => ({
-            client: judgeClient,
-            modelId: "judge-model",
-            displayName: "judge (judge-model)",
-        });
-        const generationRunners = (generationClient: LLMClient): ModelRunner[] => [
-            {
-                client: generationClient,
-                modelId: "gen-model",
-                displayName: "generator (gen-model)",
-            },
-        ];
+        const noIssues = JSON.stringify({ issues: [] });
         const oneIssue = JSON.stringify({
             issues: [{ substring: "twelve chars!!", explanation: "Minor issue" }],
         });
-        const noIssues = JSON.stringify({ issues: [] });
+        let generationClient: LLMClient;
+        let judgeClient: LLMClient;
+        let generationRunners: ModelRunner[];
+        let judgeRunner: ModelRunner;
+
+        beforeEach(() => {
+            generationClient = createMockLLMClient("generator");
+            judgeClient = createMockLLMClient("judge");
+            generationRunners = [
+                { client: generationClient, modelId: "gen-model", displayName: "generator" },
+            ];
+            judgeRunner = { client: judgeClient, modelId: "judge-model", displayName: "judge" };
+        });
 
         test("should show the judge the evaluation task and input instead of the prompt and input", async () => {
-            const generationClient = createMockLLMClient("generator");
-            const judgeClient = createMockLLMClient("judge");
             generationClient.complete = mock(() => Promise.resolve("candidate output"));
             judgeClient.complete = mock(() => Promise.resolve(noIssues));
-
             const prompt: MinimalPrompt = {
                 ...createPrompt(1, "Prompt under test", "llm", "Must be accurate."),
                 evaluationTask: "Fixed evaluation task",
@@ -706,14 +704,7 @@ describe("test-runner", () => {
                 { ...createTestCase(1, "generation input", "[]"), evaluationInput: "judge input" },
             ];
 
-            await runTests(
-                prompt,
-                testCases,
-                generationRunners(generationClient),
-                1,
-                undefined,
-                judgeRunner(judgeClient)
-            );
+            await runTests(prompt, testCases, generationRunners, 1, undefined, judgeRunner);
 
             const judgePrompt = (judgeClient.complete as ReturnType<typeof mock>).mock
                 .calls[0][0] as string;
@@ -724,12 +715,9 @@ describe("test-runner", () => {
         });
 
         test("should average the score over evaluation samples", async () => {
-            const generationClient = createMockLLMClient("generator");
-            const judgeClient = createMockLLMClient("judge");
             generationClient.complete = mock(() => Promise.resolve("candidate output"));
             const judgeResponses = [noIssues, oneIssue];
             judgeClient.complete = mock(() => Promise.resolve(judgeResponses.shift()!));
-
             const prompt: MinimalPrompt = {
                 ...createPrompt(1, "Test prompt", "llm", "Must be accurate."),
                 evaluationSamples: 2,
@@ -738,10 +726,10 @@ describe("test-runner", () => {
             const result = await runTests(
                 prompt,
                 [createTestCase(1, "input1", "[]")],
-                generationRunners(generationClient),
+                generationRunners,
                 1,
                 undefined,
-                judgeRunner(judgeClient)
+                judgeRunner
             );
 
             const run = result.results[0].testCaseResults[0].runs[0];
@@ -752,37 +740,35 @@ describe("test-runner", () => {
         });
 
         test("should reuse cached judgements for identical outputs across prompt versions", async () => {
-            const generationClient = createMockLLMClient("generator");
-            const judgeClient = createMockLLMClient("judge");
             generationClient.complete = mock(() => Promise.resolve("same output"));
             judgeClient.complete = mock(() => Promise.resolve(oneIssue));
             const evaluationCache = createEvaluationCache();
-            const promptVersion = (content: string): MinimalPrompt => ({
-                ...createPrompt(1, content, "llm", "Must be accurate."),
+            const firstPrompt: MinimalPrompt = {
+                ...createPrompt(1, "Prompt v1", "llm", "Must be accurate."),
                 evaluationTask: "Fixed evaluation task",
                 evaluationSamples: 2,
-            });
+            };
+            const testCases = [createTestCase(1, "input1", "[]")];
 
             const first = await runTests(
-                promptVersion("Prompt v1"),
-                [createTestCase(1, "input1", "[]")],
-                generationRunners(generationClient),
+                firstPrompt,
+                testCases,
+                generationRunners,
                 2,
                 undefined,
-                judgeRunner(judgeClient),
+                judgeRunner,
                 evaluationCache
             );
             const second = await runTests(
-                promptVersion("Prompt v2"),
-                [createTestCase(1, "input1", "[]")],
-                generationRunners(generationClient),
+                { ...firstPrompt, content: "Prompt v2" },
+                testCases,
+                generationRunners,
                 1,
                 undefined,
-                judgeRunner(judgeClient),
+                judgeRunner,
                 evaluationCache
             );
 
-            // Two samples for the first run; every later identical output reuses them.
             expect(judgeClient.complete).toHaveBeenCalledTimes(2);
             expect(first.results[0].testCaseResults[0].runs.map((run) => run.score)).toEqual([
                 0.8, 0.8,
@@ -791,21 +777,18 @@ describe("test-runner", () => {
         });
 
         test("should not cache judge responses that fail to parse", async () => {
-            const generationClient = createMockLLMClient("generator");
-            const judgeClient = createMockLLMClient("judge");
             generationClient.complete = mock(() => Promise.resolve("same output"));
             const judgeResponses = ["not json", noIssues];
             judgeClient.complete = mock(() => Promise.resolve(judgeResponses.shift()!));
-            const evaluationCache = createEvaluationCache();
 
             const result = await runTests(
                 createPrompt(1, "Test prompt", "llm", "Must be accurate."),
                 [createTestCase(1, "input1", "[]")],
-                generationRunners(generationClient),
+                generationRunners,
                 2,
                 undefined,
-                judgeRunner(judgeClient),
-                evaluationCache
+                judgeRunner,
+                createEvaluationCache()
             );
 
             expect(judgeClient.complete).toHaveBeenCalledTimes(2);
