@@ -144,6 +144,12 @@ export interface LLMResult {
     score: number;
     durationStats?: DurationStats;
     testCaseResults: TestCaseResult[];
+    metrics?: SuiteMetric[];
+}
+
+export interface SuiteMetric {
+    name: string;
+    value: string | number;
 }
 
 export interface DurationStats {
@@ -169,6 +175,10 @@ export interface TestRun {
     expectedTotal?: number;
     unexpectedFound?: number;
     issues?: Array<{ substring: string; explanation: string }>;
+    evaluations?: Array<{
+        issues: Array<{ substring: string; explanation: string }>;
+        score: number;
+    }>;
     reason?: string;
 }
 

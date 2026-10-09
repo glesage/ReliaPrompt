@@ -12,6 +12,8 @@ This tool is aimed at agentic use-cases for large production applications that r
 - **Parallel Execution** – Run tests concurrently across all configured LLMs
 - **Repeatability** – Each test runs N times per model to measure consistency
 - **Code-first** – Define prompts and tests in code
+- **Fair prompt comparisons** – Judge prompt versions against the same standard, average several judge samples, and cache judgements for identical outputs
+- **Suite metrics** – Compute checks across all of a model's outputs, such as consistency between test cases
 
 ## Quick Start
 
@@ -80,6 +82,56 @@ Use ReliaPrompt inside your service for LLM benchmarking and testing from unit t
     ```
 
     The UI shows prompts and tests from your code (read-only tests; prompt edits in the browser are drafts only). Configure `RELIA_PROMPT_LLM_CONFIG_JSON` in `.env` and choose test/evaluation models on each run.
+
+### Comparing prompt versions with LLM evaluation
+
+By default the LLM judge sees the prompt under test and each test case input. That works for checking one prompt, but when you compare two prompt versions, each one is judged against its own instructions. Set an evaluation task and input to judge every prompt version against the same standard, and judge each output several times to smooth out judge noise:
+
+```ts
+const prompt = definePrompt({
+    name: "translate",
+    content: translationPrompt, // the prompt under test
+    evaluationMode: "llm",
+    evaluationCriteria: "...",
+    // Shown to the judge instead of `content`.
+    evaluationTask: "Review a translation of the source text for an end user.",
+    // The judge evaluates each output this many times and the scores are averaged.
+    evaluationSamples: 3,
+});
+
+const testCase = defineTestCase({
+    input: generationInput, // what the prompt under test receives
+    // Shown to the judge instead of `input`.
+    evaluationInput: "Source text: ...\nContext: ...",
+    expectedOutput: "{}",
+});
+
+export const suites = [
+    defineSuite({
+        prompt,
+        testCases: [testCase],
+        // Computed over all of a model's results, for checks that span test cases.
+        metrics: [
+            {
+                name: "Outputs",
+                compute: (testCaseResults) =>
+                    testCaseResults.flatMap((testCase) => testCase.runs).length,
+            },
+        ],
+    }),
+];
+```
+
+The judge is not deterministic, so the same output can score differently between runs. An evaluation cache stores judge results by judge model, judge prompt, and output, so identical outputs reuse the same judgements across runs and prompt versions:
+
+```ts
+const evaluationCache = createEvaluationCache("reports/evaluation-cache.json");
+await runPromptTestsFromSuite(suite, { testModels, evaluationModel, evaluationCache });
+```
+
+The cache is saved at the end of each run. The UI shares an in-memory cache across the runs in a session; pass `evaluationCachePath` to `startServer` to keep it in a file between sessions. Changing the judge model, criteria, task, or input starts new cache entries.
+
+Results include every judge sample on each run (`evaluations`) and each suite metric on each model's result (`metrics`). The UI shows both.
 
 ### Configuration
 

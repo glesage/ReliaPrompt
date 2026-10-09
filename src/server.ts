@@ -12,6 +12,7 @@ import { validateEnv } from "./config/env";
 import { setConfigOverlay, getCredentialsFromJsonEnv, loadEnvFile } from "./runtime/config";
 import { loadDefinitionsFromProject } from "./definitions/loader";
 import { runPromptTestsFromSuite } from "./index";
+import { createEvaluationCache, type EvaluationCache } from "./services/evaluation-cache";
 
 loadEnvFile(process.cwd());
 const env = validateEnv();
@@ -51,6 +52,8 @@ const staticPath = assetPaths.staticPath;
 app.use(express.static(staticPath));
 
 let projectRoot: string | null = null;
+// Shared across the session so prompt drafts compared in the UI reuse judgements.
+let evaluationCache: EvaluationCache = createEvaluationCache();
 
 /** Build read-only config for UI: same keys as LLMConfig, values masked when set. */
 function getConfigForApi(): Record<string, string> {
@@ -141,6 +144,7 @@ app.post("/api/library/test/run", validateBody(validateLibraryRunBody), async (r
             testModels,
             evaluationModel,
             runsPerTest: runsPerTest ?? 1,
+            evaluationCache,
         });
         res.json(result);
     } catch (error) {
@@ -156,6 +160,8 @@ export interface ServerOptions {
     port?: number;
     /** Project root for file-scan (definitions live in code under this path). */
     projectRoot?: string;
+    /** Keeps LLM judge results in this JSON file between sessions. */
+    evaluationCachePath?: string;
 }
 
 export interface ServerInstance {
@@ -192,6 +198,7 @@ export async function startServer(options: ServerOptions = {}): Promise<ServerIn
         console.log(`No suites in project; using example service: ${root}`);
     }
     projectRoot = root;
+    evaluationCache = createEvaluationCache(options.evaluationCachePath);
 
     return new Promise((resolve, reject) => {
         const server = app.listen(port, () => {

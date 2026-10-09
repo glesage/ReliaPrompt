@@ -1,4 +1,5 @@
 import type { EvaluationMode } from "../../shared/types";
+import type { TestCaseResult } from "../services/result-types";
 
 /**
  * Code-first definition types for prompts and test cases.
@@ -13,6 +14,10 @@ export interface PromptDefinition {
     expectedSchema?: string | null;
     evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
+    /** Shown to the LLM judge instead of `content`, so prompt versions share one standard. */
+    evaluationTask?: string | null;
+    /** Times the LLM judge evaluates each output; the scores are averaged. */
+    evaluationSamples?: number;
 }
 
 export interface TestCaseDefinition {
@@ -22,6 +27,14 @@ export interface TestCaseDefinition {
     expectedOutput: string;
     expectedOutputType: string;
     ignoredOutputKeys?: string[];
+    /** Shown to the LLM judge instead of `input`. */
+    evaluationInput?: string;
+}
+
+/** Computed over all of a model's results, for checks that span test cases. */
+export interface SuiteMetricDefinition {
+    name: string;
+    compute: (testCaseResults: TestCaseResult[]) => string | number;
 }
 
 export interface PromptSuiteDefinition {
@@ -29,4 +42,5 @@ export interface PromptSuiteDefinition {
     id: string;
     prompt: PromptDefinition;
     testCases: TestCaseDefinition[];
+    metrics?: SuiteMetricDefinition[];
 }

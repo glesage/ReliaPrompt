@@ -1157,6 +1157,7 @@ button.small,
 
 .llm-result-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 12px;
     padding: 8px 0;
@@ -1165,6 +1166,14 @@ button.small,
 
 .llm-result-row:last-child {
     border-bottom: none;
+}
+
+.llm-metrics {
+    flex-basis: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-md);
 }
 
 .llm-result-name {

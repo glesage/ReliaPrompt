@@ -1,8 +1,17 @@
+import { createHash } from "crypto";
 import type { EvaluationMode } from "../../shared/types";
 import type { CompletionOptions, LLMClient, ModelSelection } from "../llm-clients";
 import { compare } from "../utils/compare";
 import { parse, ParseType } from "../utils/parse";
 import { ConfigurationError, getErrorMessage } from "../errors";
+import type { EvaluationCache } from "./evaluation-cache";
+import type {
+    EvaluationIssue,
+    EvaluationSample,
+    LLMTestResult,
+    RunResult,
+    TestCaseResult,
+} from "./result-types";
 
 /** Minimal prompt shape for runTests (no DB-only fields). */
 export interface MinimalPrompt {
@@ -10,6 +19,8 @@ export interface MinimalPrompt {
     expectedSchema?: string | null;
     evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
+    evaluationTask?: string | null;
+    evaluationSamples?: number;
     id?: number;
 }
 
@@ -20,6 +31,7 @@ export interface MinimalTestCase {
     expectedOutput: string;
     expectedOutputType: string;
     ignoredOutputKeys?: string[];
+    evaluationInput?: string;
 }
 
 // Represents a model to run tests against
@@ -95,56 +107,6 @@ export interface TestResults {
     overallScore: number;
 }
 
-export interface LLMTestResult {
-    llmName: string;
-    correctCount: number;
-    totalRuns: number;
-    score: number; // 0-1 average score across all runs
-    testCaseResults: TestCaseResult[];
-    durationStats?: {
-        minMs: number;
-        maxMs: number;
-        avgMs: number;
-    };
-}
-
-export interface TestCaseResult {
-    testCaseId: number;
-    input: string;
-    expectedOutput: string;
-    runs: RunResult[];
-    correctRuns: number;
-    averageScore: number; // Average score across all runs for this test case
-}
-
-/**
- * Represents a single evaluation issue with structured information.
- */
-export interface EvaluationIssue {
-    substring: string;
-    explanation: string;
-}
-
-/**
- * Base type containing common fields shared across test result types.
- */
-export interface BaseTestResult {
-    actualOutput: string | null;
-    isCorrect: boolean;
-    score: number; // 0-1 score
-    expectedFound: number;
-    expectedTotal: number;
-    unexpectedFound: number;
-    issues?: EvaluationIssue[];
-    error?: string;
-    durationMs?: number;
-    reason?: string; // LLM evaluation reason (when using LLM evaluation mode)
-}
-
-export interface RunResult extends BaseTestResult {
-    runNumber: number;
-}
-
 /**
  * Computes the deduction for a single issue based on the substring length.
  * For better readability, deduction rules are written using if/else.
@@ -196,7 +158,7 @@ function deduplicateIssues(issues: EvaluationIssue[]): EvaluationIssue[] {
  * Deterministic linear equation for quality scoring using issue substring character length.
  * score = clamp(1 - Σ(deduction per normalized issue), 0, 1)
  */
-function calculateScoreFromIssues(issues: EvaluationIssue[]): number {
+export function calculateScoreFromIssues(issues: EvaluationIssue[]): number {
     const normalizedIssues = deduplicateIssues(issues);
     const totalDeduction = normalizedIssues.reduce((total, issue) => {
         return total + computeIssueDeduction(issue);
@@ -206,52 +168,46 @@ function calculateScoreFromIssues(issues: EvaluationIssue[]): number {
     return Math.max(0, Math.min(1, Number(score.toFixed(6))));
 }
 
-/**
- * Calls the selected judge model to evaluate an AI output based on evaluation criteria.
- * Returns structured issues; score is computed deterministically from issues.
- */
-async function evaluateWithLLMJudge(
-    promptContent: string,
-    testCaseInput: string,
-    actualOutput: string,
-    evaluationCriteria: string,
-    evaluationModelRunner: ModelRunner
-): Promise<{ issues: EvaluationIssue[] }> {
-    const evaluationIssuesJsonSchema = {
-        $schema: "https://json-schema.org/draft/2020-12/schema",
-        type: "object",
-        additionalProperties: false,
-        required: ["issues"],
-        properties: {
-            issues: {
-                type: "array",
-                items: {
-                    type: "object",
-                    additionalProperties: false,
-                    required: ["substring", "explanation"],
-                    properties: {
-                        substring: { type: "string" },
-                        explanation: { type: "string" },
-                    },
+const EVALUATION_ISSUES_JSON_SCHEMA = {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    type: "object",
+    additionalProperties: false,
+    required: ["issues"],
+    properties: {
+        issues: {
+            type: "array",
+            items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["substring", "explanation"],
+                properties: {
+                    substring: { type: "string" },
+                    explanation: { type: "string" },
                 },
             },
         },
-    };
+    },
+};
 
-    const judgePrompt = `You are evaluating an extraction result and must identify issues only.
+function buildJudgePrompt(
+    evaluationCriteria: string,
+    initialTask: string,
+    initialInput: string
+): string {
+    return `You are evaluating an extraction result and must identify issues only.
 Return only a valid json object.
 
 ## Your task
 ${evaluationCriteria}
 
 ## Initial task
-${promptContent}
+${initialTask}
 
 ## Initial input
-${testCaseInput}
+${initialInput}
 
 ## Required json schema
-${JSON.stringify(evaluationIssuesJsonSchema)}
+${JSON.stringify(EVALUATION_ISSUES_JSON_SCHEMA)}
 
 ## Evaluation json format
 Every issue.explanation value must be written in English, even when the evaluation criteria, initial task, input, or output use another language.
@@ -269,7 +225,17 @@ Every issue.explanation value must be written in English, even when the evaluati
 }
 If no issues are found, return {"issues": []}.
 Do not include markdown fences. Output only json.`;
+}
 
+/**
+ * Calls the selected judge model to evaluate an AI output.
+ * Returns structured issues; score is computed deterministically from issues.
+ */
+async function evaluateWithLLMJudge(
+    judgePrompt: string,
+    actualOutput: string,
+    evaluationModelRunner: ModelRunner
+): Promise<{ issues: EvaluationIssue[]; isValid: boolean }> {
     try {
         const judgeResponse = await evaluationModelRunner.client.complete(
             judgePrompt,
@@ -301,7 +267,7 @@ Do not include markdown fences. Output only json.`;
             }
         }
 
-        return { issues };
+        return { issues, isValid: true };
     } catch (error) {
         // If parsing fails, return parse failure as critical issue
         return {
@@ -311,8 +277,47 @@ Do not include markdown fences. Output only json.`;
                     explanation: `Failed to parse judge response JSON: ${getErrorMessage(error)}`,
                 },
             ],
+            isValid: false,
         };
     }
+}
+
+// Identical outputs reuse cached judgements; failed judge responses are not cached.
+async function evaluateWithLLMJudgeSamples(
+    judgePrompt: string,
+    actualOutput: string,
+    evaluationModelRunner: ModelRunner,
+    evaluationSamples: number,
+    evaluationCache?: EvaluationCache
+): Promise<EvaluationSample[]> {
+    const cacheKey = createHash("sha256")
+        .update(
+            JSON.stringify([
+                evaluationModelRunner.client.providerId,
+                evaluationModelRunner.modelId,
+                judgePrompt,
+                actualOutput,
+            ])
+        )
+        .digest("hex");
+    const cachedJudgements = evaluationCache?.judgements.get(cacheKey) ?? [];
+    const judgements = cachedJudgements.slice(0, evaluationSamples);
+
+    while (judgements.length < evaluationSamples) {
+        const evaluation = await evaluateWithLLMJudge(
+            judgePrompt,
+            actualOutput,
+            evaluationModelRunner
+        );
+        const issues = deduplicateIssues(evaluation.issues);
+        judgements.push(issues);
+        if (evaluation.isValid) {
+            cachedJudgements.push(issues);
+        }
+    }
+
+    evaluationCache?.judgements.set(cacheKey, cachedJudgements);
+    return judgements.map((issues) => ({ issues, score: calculateScoreFromIssues(issues) }));
 }
 
 export async function runTests(
@@ -321,7 +326,8 @@ export async function runTests(
     modelRunners: ModelRunner[],
     runsPerTest: number = DEFAULT_RUNS_PER_TEST,
     expectedSchema?: string,
-    evaluationModelRunner?: ModelRunner
+    evaluationModelRunner?: ModelRunner,
+    evaluationCache?: EvaluationCache
 ): Promise<{ score: number; results: LLMTestResult[] }> {
     const promptContent = typeof prompt === "string" ? prompt : prompt.content;
     const promptObj = typeof prompt === "object" && prompt !== null ? prompt : null;
@@ -329,6 +335,11 @@ export async function runTests(
     // Get evaluation mode and criteria if prompt is an object
     const evaluationMode = promptObj?.evaluationMode || "schema";
     const evaluationCriteria = promptObj?.evaluationCriteria || null;
+    const evaluationTask = promptObj?.evaluationTask || promptContent;
+    const evaluationSamples = promptObj?.evaluationSamples ?? 1;
+    if (!Number.isInteger(evaluationSamples) || evaluationSamples < 1) {
+        throw new ConfigurationError("evaluationSamples must be a positive integer.");
+    }
 
     // If expectedSchema not passed explicitly, try to get from prompt object
     const schemaString =
@@ -388,6 +399,7 @@ export async function runTests(
                     let expectedTotal = 0;
                     let unexpectedFound = 0;
                     let issues: EvaluationIssue[] | undefined = undefined;
+                    let evaluations: EvaluationSample[] | undefined = undefined;
 
                     if (evaluationMode === "llm" && evaluationCriteria) {
                         // LLM evaluation mode: use judge model
@@ -397,15 +409,22 @@ export async function runTests(
                             );
                         }
 
-                        const evaluation = await evaluateWithLLMJudge(
-                            promptContent,
-                            testCase.input,
-                            actualOutput,
+                        const judgePrompt = buildJudgePrompt(
                             evaluationCriteria,
-                            evaluationModelRunner
+                            evaluationTask,
+                            testCase.evaluationInput ?? testCase.input
                         );
-                        issues = deduplicateIssues(evaluation.issues);
-                        score = calculateScoreFromIssues(issues);
+                        evaluations = await evaluateWithLLMJudgeSamples(
+                            judgePrompt,
+                            actualOutput,
+                            evaluationModelRunner,
+                            evaluationSamples,
+                            evaluationCache
+                        );
+                        issues = evaluations[0].issues;
+                        score =
+                            evaluations.reduce((total, sample) => total + sample.score, 0) /
+                            evaluations.length;
                         isCorrect = score === 1;
                         // For LLM evaluation mode, track issue counts as mismatch metrics.
                         expectedTotal = 1;
@@ -457,6 +476,7 @@ export async function runTests(
                         expectedTotal,
                         unexpectedFound,
                         issues,
+                        evaluations,
                         durationMs,
                     });
                 } catch (error) {
@@ -527,6 +547,7 @@ export async function runTests(
 
     const results = await Promise.all(llmPromises);
     llmResults.push(...results);
+    evaluationCache?.save();
 
     // Calculate overall score as average of all LLM scores
     const totalScore = llmResults.reduce((sum, r) => sum + r.score, 0);

@@ -19,6 +19,7 @@ export type {
     DurationStats,
     TestCaseResult,
     TestRun,
+    SuiteMetric,
     StartTestRunRequest,
     StartTestRunResponse,
     ImportPromptsResult,

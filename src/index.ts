@@ -7,33 +7,36 @@ import {
     type LLMClient,
     type ModelSelection,
 } from "./llm-clients";
-import {
-    runTests,
-    type ModelRunner,
-    type LLMTestResult,
-    type TestCaseResult,
-    type RunResult,
-    type TestResults,
-    type EvaluationIssue,
-    type BaseTestResult,
-} from "./services/test-runner";
+import { runTests, type ModelRunner } from "./services/test-runner";
+import type { LLMTestResult } from "./services/result-types";
+import type { EvaluationCache } from "./services/evaluation-cache";
 import { compare } from "./utils/compare";
 import { parse, ParseType } from "./utils/parse";
-import { ConfigurationError } from "./errors";
+import { ConfigurationError, getErrorMessage } from "./errors";
 import type { PromptDefinition, TestCaseDefinition, PromptSuiteDefinition } from "./definitions";
 
 export type { ReliaPromptInitOptions, ProviderCredentials } from "./runtime/types";
-export type { PromptDefinition, TestCaseDefinition, PromptSuiteDefinition } from "./definitions";
+export type {
+    PromptDefinition,
+    TestCaseDefinition,
+    PromptSuiteDefinition,
+    SuiteMetricDefinition,
+} from "./definitions";
 export { definePrompt, defineTestCase, defineSuite } from "./definitions";
 export type { ModelSelection, LLMClient, ModelInfo } from "./llm-clients";
+export type { TestResults } from "./services/test-runner";
 export type {
     LLMTestResult,
     TestCaseResult,
     RunResult,
-    TestResults,
     EvaluationIssue,
+    EvaluationSample,
     BaseTestResult,
-} from "./services/test-runner";
+    SuiteMetricResult,
+} from "./services/result-types";
+export { calculateScoreFromIssues } from "./services/test-runner";
+export type { EvaluationCache } from "./services/evaluation-cache";
+export { createEvaluationCache } from "./services/evaluation-cache";
 export { ParseType } from "./utils/parse";
 export { compare } from "./utils/compare";
 export { parse } from "./utils/parse";
@@ -43,6 +46,8 @@ export interface PromptLike {
     expectedSchema?: string | null;
     evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
+    evaluationTask?: string | null;
+    evaluationSamples?: number;
     id?: number;
 }
 
@@ -51,6 +56,7 @@ export interface TestCaseLike {
     expectedOutput: string;
     expectedOutputType: string;
     ignoredOutputKeys?: string[];
+    evaluationInput?: string;
     id?: number;
 }
 
@@ -58,6 +64,7 @@ export interface RunPromptTestsOptions {
     testModels: ModelSelection[];
     evaluationModel?: ModelSelection;
     runsPerTest?: number;
+    evaluationCache?: EvaluationCache;
 }
 
 export function initializeReliaPrompt(options: ReliaPromptInitOptions): void {
@@ -124,7 +131,7 @@ export async function runPromptTests(
     testCases: TestCaseLike[],
     options: RunPromptTestsOptions
 ): Promise<{ score: number; results: LLMTestResult[] }> {
-    const { testModels, evaluationModel, runsPerTest = 1 } = options;
+    const { testModels, evaluationModel, runsPerTest = 1, evaluationCache } = options;
 
     if (!testModels || testModels.length === 0) {
         throw new ConfigurationError(
@@ -163,6 +170,7 @@ export async function runPromptTests(
         expectedOutput: tc.expectedOutput,
         expectedOutputType: tc.expectedOutputType,
         ignoredOutputKeys: tc.ignoredOutputKeys,
+        evaluationInput: tc.evaluationInput,
         id: tc.id ?? i,
     }));
 
@@ -172,7 +180,8 @@ export async function runPromptTests(
         modelRunners,
         runsPerTest,
         undefined,
-        evaluationModelRunner
+        evaluationModelRunner,
+        evaluationCache
     );
 }
 
@@ -185,12 +194,29 @@ export async function runPromptTestsFromSuite(
         expectedSchema: suite.prompt.expectedSchema,
         evaluationMode: suite.prompt.evaluationMode,
         evaluationCriteria: suite.prompt.evaluationCriteria,
+        evaluationTask: suite.prompt.evaluationTask,
+        evaluationSamples: suite.prompt.evaluationSamples,
     };
     const testCasesLike: TestCaseLike[] = suite.testCases.map((tc) => ({
         input: tc.input,
         expectedOutput: tc.expectedOutput,
         expectedOutputType: normalizeExpectedOutputType(tc.expectedOutputType, tc.expectedOutput),
         ignoredOutputKeys: tc.ignoredOutputKeys,
+        evaluationInput: tc.evaluationInput,
     }));
-    return runPromptTests(promptLike, testCasesLike, options);
+    const { score, results } = await runPromptTests(promptLike, testCasesLike, options);
+    return {
+        score,
+        // A failing metric is reported in its value so it cannot discard the test runs.
+        results: results.map((llmResult) => ({
+            ...llmResult,
+            metrics: (suite.metrics ?? []).map((metric) => {
+                try {
+                    return { name: metric.name, value: metric.compute(llmResult.testCaseResults) };
+                } catch (error) {
+                    return { name: metric.name, value: `Error: ${getErrorMessage(error)}` };
+                }
+            }),
+        })),
+    };
 }

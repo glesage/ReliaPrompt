@@ -1,5 +1,10 @@
 import type { EvaluationMode } from "../../shared/types";
-import type { PromptDefinition, TestCaseDefinition, PromptSuiteDefinition } from "./types";
+import type {
+    PromptDefinition,
+    TestCaseDefinition,
+    PromptSuiteDefinition,
+    SuiteMetricDefinition,
+} from "./types";
 
 function slugify(name: string): string {
     return name
@@ -18,6 +23,8 @@ export function definePrompt(options: {
     expectedSchema?: string | null;
     evaluationMode?: EvaluationMode;
     evaluationCriteria?: string | null;
+    evaluationTask?: string | null;
+    evaluationSamples?: number;
     id?: string;
 }): PromptDefinition {
     const slug = slugify(options.name);
@@ -29,6 +36,8 @@ export function definePrompt(options: {
         expectedSchema: options.expectedSchema ?? null,
         evaluationMode: options.evaluationMode ?? "schema",
         evaluationCriteria: options.evaluationCriteria ?? null,
+        evaluationTask: options.evaluationTask ?? null,
+        evaluationSamples: options.evaluationSamples ?? 1,
     };
 }
 
@@ -40,6 +49,7 @@ export function defineTestCase(options: {
     expectedOutput: string;
     expectedOutputType?: string;
     ignoredOutputKeys?: string[];
+    evaluationInput?: string;
     id?: string;
 }): TestCaseDefinition {
     const id = options.id ?? `tc-${options.input.slice(0, 32).replace(/\s+/g, "-")}`;
@@ -49,6 +59,7 @@ export function defineTestCase(options: {
         expectedOutput: options.expectedOutput,
         expectedOutputType: options.expectedOutputType ?? "string",
         ignoredOutputKeys: options.ignoredOutputKeys ?? [],
+        evaluationInput: options.evaluationInput,
     };
 }
 
@@ -58,6 +69,7 @@ export function defineTestCase(options: {
 export function defineSuite(options: {
     prompt: PromptDefinition;
     testCases: TestCaseDefinition[];
+    metrics?: SuiteMetricDefinition[];
     id?: string;
 }): PromptSuiteDefinition {
     const suiteId = options.id ?? options.prompt.id;
@@ -68,5 +80,6 @@ export function defineSuite(options: {
         id: suiteId,
         prompt: options.prompt,
         testCases,
+        metrics: options.metrics ?? [],
     };
 }
